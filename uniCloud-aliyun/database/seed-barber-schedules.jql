@@ -1,0 +1,12 @@
+db.collection("barber_schedules")
+  .where({ barberId: "6978473f89bd275f44f7d3b0", date: "2026-01-28" })
+  .remove();
+
+db.collection("barber_schedules").add({
+  storeId: "store_001",
+  barberId: "6978473f89bd275f44f7d3b0",
+  date: "2026-01-28",
+  workStart: "10:00",
+  workEnd: "12:00",
+  updatedAt: 1766947200000
+});

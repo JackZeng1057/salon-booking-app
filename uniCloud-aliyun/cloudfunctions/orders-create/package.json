@@ -1,0 +1,7 @@
+{
+  "name": "orders-create",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}

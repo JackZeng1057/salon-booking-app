@@ -1,0 +1,7 @@
+{
+  "name": "orders-verify",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}

@@ -1,0 +1,7 @@
+{
+  "name": "stores-detail",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}

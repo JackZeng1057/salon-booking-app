@@ -1,0 +1,27 @@
+// 门店数据导入（只含一个数据库操作语句）
+// 运行顺序：先 seed-stores.jql，再 seed-services.jql，最后 seed-users.jql
+
+var now = Date.now();
+var storeA = 'store_001';
+var storeB = 'store_002';
+
+db.collection('stores').add([
+  {
+    _id: storeA,
+    name: '光影理发屋',
+    address: '深圳市南山区科技园 88 号',
+    phone: 'STORE_PHONE_PLACEHOLDER',
+    cover: 'https://dummyimage.com/600x400/efefef/333&text=Store+1',
+    description: '主打轻奢风格，专业男士剪发与造型。',
+    createdAt: now
+  },
+  {
+    _id: storeB,
+    name: '原木发艺',
+    address: '深圳市福田区深南大道 100 号',
+    phone: 'STORE_PHONE_PLACEHOLDER',
+    cover: 'https://dummyimage.com/600x400/eeeeee/333&text=Store+2',
+    description: '家庭友好型门店，提供亲子理发与护理。',
+    createdAt: now
+  }
+]);

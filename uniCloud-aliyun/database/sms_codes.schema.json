@@ -1,0 +1,41 @@
+{
+	"bsonType": "object",
+	"required": ["phone", "code", "type"],
+	"permission": {
+		"read": false,
+		"create": false,
+		"update": false,
+		"delete": false
+	},
+	"properties": {
+		"_id": {
+			"description": "ID，系统自动生成"
+		},
+		"phone": {
+			"bsonType": "string",
+			"description": "手机号"
+		},
+		"code": {
+			"bsonType": "string",
+			"description": "验证码（6位数字）"
+		},
+		"type": {
+			"bsonType": "string",
+			"description": "类型: reset_password / register / login",
+			"enum": ["reset_password", "register", "login"]
+		},
+		"expiresAt": {
+			"bsonType": "int",
+			"description": "过期时间戳（5分钟后）"
+		},
+		"used": {
+			"bsonType": "bool",
+			"description": "是否已使用",
+			"default": false
+		},
+		"createdAt": {
+			"bsonType": "int",
+			"description": "创建时间戳"
+		}
+	}
+}

@@ -1,0 +1,9 @@
+{
+  "name": "sms-verify-code",
+  "version": "1.0.0",
+  "description": "验证短信验证码",
+  "main": "index.js",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  }
+}

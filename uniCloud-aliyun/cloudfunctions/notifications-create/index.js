@@ -1,0 +1,65 @@
+// 通知创建：供内部云函数调用，写入通知表
+// 引入统一响应包装
+const { withResponse, ApiError } = require('sb-common');
+
+/**
+ * 创建通知（系统内部调用）
+ * 可被其他云函数调用
+ */
+exports.main = withResponse(async (event, context) => {
+  const userId = event && event.userId;
+  const type = event && event.type;
+  const title = event && event.title;
+  const content = event && event.content;
+  const relatedId = event && event.relatedId;
+  const relatedType = event && event.relatedType;
+
+  if (!userId || !type || !title || !content) {
+    throw new ApiError(400, 'userId, type, title, and content are required');
+  }
+
+  const db = uniCloud.database();
+  const now = Date.now();
+
+  const notificationData = {
+    userId,
+    type,
+    title,
+    content,
+    relatedId: relatedId || '',
+    relatedType: relatedType || 'order',
+    isRead: false,
+    createdAt: now
+  };
+
+  const res = await db.collection('notifications').add(notificationData);
+  return { id: res.id || (res.ids && res.ids[0]) || '' };
+});
+
+/**
+ * 创建通知的辅助函数（供其他云函数导出使用）
+ */
+async function createNotification(userId, type, title, content, relatedId = '', relatedType = 'order') {
+  const db = uniCloud.database();
+  const now = Date.now();
+
+  const notificationData = {
+    userId,
+    type,
+    title,
+    content,
+    relatedId,
+    relatedType,
+    isRead: false,
+    createdAt: now
+  };
+
+  try {
+    await db.collection('notifications').add(notificationData);
+  } catch (err) {
+    console.error('createNotification error:', err);
+  }
+}
+
+// 导出辅助函数
+exports.createNotification = createNotification;

@@ -1,0 +1,49 @@
+// 文档教程: https://uniapp.dcloud.net.cn/uniCloud/schema
+{
+  "bsonType": "object",
+  "required": ["orderId", "serviceId", "name", "price", "qty"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "indexes": [
+    {
+      "key": {
+        "orderId": 1,
+        "createdAt": -1
+      },
+      "name": "order_createdAt"
+    }
+  ],
+  "properties": {
+    "_id": {
+      "description": "ID，系统自动生成"
+    },
+    "orderId": {
+      "bsonType": "string",
+      "description": "订单ID"
+    },
+    "serviceId": {
+      "bsonType": "string",
+      "description": "服务ID"
+    },
+    "name": {
+      "bsonType": "string",
+      "description": "服务名称"
+    },
+    "price": {
+      "bsonType": "number",
+      "description": "单价"
+    },
+    "qty": {
+      "bsonType": "int",
+      "description": "数量"
+    },
+    "createdAt": {
+      "bsonType": "int",
+      "description": "创建时间戳"
+    }
+  }
+}

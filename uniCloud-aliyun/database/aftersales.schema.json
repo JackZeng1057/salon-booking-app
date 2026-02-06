@@ -1,0 +1,69 @@
+// 文档教程: https://uniapp.dcloud.net.cn/uniCloud/schema
+{
+	"bsonType": "object",
+	"required": ["orderId", "userId", "storeId", "type", "status"],
+	"permission": {
+		"read": false,
+		"create": false,
+		"update": false,
+		"delete": false
+	},
+	"indexes": [
+		{
+			"key": {
+				"storeId": 1,
+				"status": 1,
+				"createdAt": -1
+			},
+			"name": "store_status_createdAt"
+		},
+		{
+			"key": {
+				"storeId": 1,
+				"createdAt": -1
+			},
+			"name": "store_createdAt"
+		}
+	],
+	"properties": {
+		"_id": {
+			"description": "ID，系统自动生成"
+		},
+		"orderId": {
+			"bsonType": "string",
+			"description": "订单ID"
+		},
+		"userId": {
+			"bsonType": "string",
+			"description": "用户ID"
+		},
+		"storeId": {
+			"bsonType": "string",
+			"description": "门店ID"
+		},
+		"type": {
+			"bsonType": "string",
+			"description": "售后类型"
+		},
+		"content": {
+			"bsonType": "string",
+			"description": "用户描述"
+		},
+		"reply": {
+			"bsonType": "string",
+			"description": "门店回复"
+		},
+		"status": {
+			"bsonType": "string",
+			"description": "状态 OPEN/PROCESSING/RESOLVED"
+		},
+		"createdAt": {
+			"bsonType": "int",
+			"description": "创建时间戳"
+		},
+		"updatedAt": {
+			"bsonType": "int",
+			"description": "更新时间戳"
+		}
+	}
+}

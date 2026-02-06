@@ -1,0 +1,101 @@
+// 文档教程: https://uniapp.dcloud.net.cn/uniCloud/schema
+{
+	"bsonType": "object",
+	"required": ["orderId", "userId", "storeId", "barberId", "rating"],
+	"permission": {
+		"read": false,
+		"create": false,
+		"update": false,
+		"delete": false
+	},
+	"indexes": [
+		{
+			"key": {
+				"orderId": 1
+			},
+			"name": "orderId_unique",
+			"unique": true
+		}
+	],
+	"properties": {
+		"_id": {
+			"description": "ID，系统自动生成"
+		},
+		"orderId": {
+			"bsonType": "string",
+			"description": "订单ID"
+		},
+		"userId": {
+			"bsonType": "string",
+			"description": "用户ID"
+		},
+		"userName": {
+			"bsonType": "string",
+			"description": "用户昵称(冗余)"
+		},
+		"storeId": {
+			"bsonType": "string",
+			"description": "门店ID"
+		},
+		"barberId": {
+			"bsonType": "string",
+			"description": "理发师ID"
+		},
+		"rating": {
+			"bsonType": "object",
+			"description": "多维评分",
+			"properties": {
+				"overall": {
+					"bsonType": "double",
+					"description": "综合评分(1-5)"
+				},
+				"service": {
+					"bsonType": "double",
+					"description": "服务评分(1-5)"
+				},
+				"environment": {
+					"bsonType": "double",
+					"description": "环境评分(1-5)"
+				},
+				"barber": {
+					"bsonType": "double",
+					"description": "技师评分(1-5)"
+				}
+			}
+		},
+		"content": {
+			"bsonType": "string",
+			"description": "评价内容"
+		},
+		"images": {
+			"bsonType": "array",
+			"description": "评价图片",
+			"items": {
+				"bsonType": "string"
+			}
+		},
+		"helpful": {
+			"bsonType": "int",
+			"description": "有用数",
+			"default": 0
+		},
+		"reply": {
+			"bsonType": "object",
+			"description": "商家回复",
+			"properties": {
+				"content": {
+					"bsonType": "string",
+					"description": "回复内容"
+				},
+				"repliedAt": {
+					"bsonType": "int",
+					"description": "回复时间戳"
+				}
+			}
+		},
+		"createdAt": {
+			"bsonType": "int",
+			"description": "创建时间戳"
+		}
+	}
+}

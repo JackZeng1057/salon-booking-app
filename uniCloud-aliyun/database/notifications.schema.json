@@ -1,0 +1,59 @@
+{
+	"bsonType": "object",
+	"required": ["userId", "type", "title", "content"],
+	"permission": {
+		"read": false,
+		"create": false,
+		"update": false,
+		"delete": false
+	},
+	"indexes": [
+		{
+			"key": {
+				"userId": 1,
+				"createdAt": -1
+			},
+			"name": "userId_createdAt"
+		}
+	],
+	"properties": {
+		"_id": {
+			"description": "ID，系统自动生成"
+		},
+		"userId": {
+			"bsonType": "string",
+			"description": "用户ID"
+		},
+		"type": {
+			"bsonType": "string",
+			"description": "通知类型: booking_success / reschedule / no_show / arrival_reminder",
+			"enum": ["booking_success", "reschedule", "cancel", "no_show", "arrival_reminder", "service_start", "service_finish"]
+		},
+		"title": {
+			"bsonType": "string",
+			"description": "通知标题"
+		},
+		"content": {
+			"bsonType": "string",
+			"description": "通知内容"
+		},
+		"relatedId": {
+			"bsonType": "string",
+			"description": "关联ID(如订单ID)"
+		},
+		"relatedType": {
+			"bsonType": "string",
+			"description": "关联类型: order / aftersale",
+			"enum": ["order", "aftersale"]
+		},
+		"isRead": {
+			"bsonType": "bool",
+			"description": "是否已读",
+			"default": false
+		},
+		"createdAt": {
+			"bsonType": "int",
+			"description": "创建时间戳"
+		}
+	}
+}

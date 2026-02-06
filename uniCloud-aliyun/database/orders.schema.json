@@ -1,0 +1,167 @@
+// 文档教程: https://uniapp.dcloud.net.cn/uniCloud/schema
+{
+	"bsonType": "object",
+	"required": ["orderNo", "userId", "storeId", "barberId", "serviceId", "date", "startTime", "endTime", "status", "verifyCode"],
+	"permission": {
+		"read": false,
+		"create": false,
+		"update": false,
+		"delete": false
+	},
+	"indexes": [
+		{
+			"key": {
+				"storeId": 1,
+				"date": 1
+			}
+		},
+		{
+			"key": {
+				"barberId": 1,
+				"date": 1
+			}
+		},
+		{
+			"key": {
+				"userId": 1,
+				"status": 1,
+				"updatedAt": -1
+			},
+			"name": "user_status_updatedAt"
+		},
+		{
+			"key": {
+				"storeId": 1,
+				"status": 1,
+				"updatedAt": -1
+			},
+			"name": "store_status_updatedAt"
+		},
+		{
+			"key": {
+				"barberId": 1,
+				"date": 1,
+				"status": 1
+			},
+			"name": "barber_date_status"
+		},
+		{
+			"key": {
+				"verifyCode": 1
+			},
+			"name": "verifyCode_unique",
+			"unique": true
+		},
+		{
+			"key": {
+				"userId": 1,
+				"createdAt": -1
+			}
+		}
+	],
+	"properties": {
+		"_id": {
+			"description": "ID，系统自动生成"
+		},
+		"orderNo": {
+			"bsonType": "string",
+			"description": "订单号"
+		},
+		"userId": {
+			"bsonType": "string",
+			"description": "用户ID"
+		},
+		"storeId": {
+			"bsonType": "string",
+			"description": "门店ID"
+		},
+		"storeName": {
+			"bsonType": "string",
+			"description": "门店名称快照"
+		},
+		"barberId": {
+			"bsonType": "string",
+			"description": "理发师ID"
+		},
+		"barberName": {
+			"bsonType": "string",
+			"description": "理发师名称快照"
+		},
+		"serviceId": {
+			"bsonType": "string",
+			"description": "服务ID"
+		},
+		"serviceName": {
+			"bsonType": "string",
+			"description": "服务名称快照"
+		},
+		"price": {
+			"bsonType": "number",
+			"description": "订单价格"
+		},
+		"date": {
+			"bsonType": "string",
+			"description": "预约日期"
+		},
+		"startTime": {
+			"bsonType": "string",
+			"description": "开始时间"
+		},
+		"endTime": {
+			"bsonType": "string",
+			"description": "结束时间"
+		},
+		"status": {
+			"bsonType": "string",
+			"description": "订单状态（BOOKED/ARRIVED/IN_SERVICE/FINISHED/CANCELLED/NO_SHOW）"
+		},
+		"verifyCode": {
+			"bsonType": "string",
+			"description": "核验码"
+		},
+		"remark": {
+			"bsonType": "string",
+			"description": "备注"
+		},
+		"cancelReason": {
+			"bsonType": "string",
+			"description": "取消原因（预留）"
+		},
+		"rescheduleFrom": {
+			"bsonType": "string",
+			"description": "改期来源订单ID（预留）"
+		},
+		"arrivedAt": {
+			"bsonType": "int",
+			"description": "到店时间戳"
+		},
+		"verifiedBy": {
+			"bsonType": "string",
+			"description": "核验人员ID"
+		},
+		"inServiceAt": {
+			"bsonType": "int",
+			"description": "开始服务时间戳"
+		},
+		"finishedAt": {
+			"bsonType": "int",
+			"description": "完成服务时间戳"
+		},
+		"noShowAt": {
+			"bsonType": "int",
+			"description": "爽约时间戳"
+		},
+		"noShowReason": {
+			"bsonType": "string",
+			"description": "爽约原因"
+		},
+		"createdAt": {
+			"bsonType": "int",
+			"description": "创建时间戳"
+		},
+		"updatedAt": {
+			"bsonType": "int",
+			"description": "更新时间戳"
+		}
+	}
+}

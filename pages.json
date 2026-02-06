@@ -1,0 +1,178 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/roleGate",
+      "style": {
+        "navigationBarTitleText": "Role Gate",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/auth/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/auth/register",
+      "style": {
+        "navigationBarTitleText": "注册",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/auth/forgot-password",
+      "style": {
+        "navigationBarTitleText": "重置密码",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/user/home/index",
+      "style": {
+        "navigationBarTitleText": "Home",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/user/orders/index",
+      "style": {
+        "navigationBarTitleText": "Orders",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/barber/schedule/index",
+      "style": {
+        "navigationBarTitleText": "Schedule",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/barber/orders/index",
+      "style": {
+        "navigationBarTitleText": "Barber Orders",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/admin/manage/index",
+      "style": {
+        "navigationBarTitleText": "Admin",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/admin/dashboard",
+      "style": {
+        "navigationBarTitleText": "Dashboard",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/admin/verify",
+      "style": {
+        "navigationBarTitleText": "Verify",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/admin/orders/index",
+      "style": {
+        "navigationBarTitleText": "Store Orders",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/admin/aftersales",
+      "style": {
+        "navigationBarTitleText": "Aftersales",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/store/list",
+      "style": {
+        "navigationBarTitleText": "Stores",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/search/index",
+      "style": {
+        "navigationBarTitleText": "Search",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/store/detail",
+      "style": {
+        "navigationBarTitleText": "Store Detail",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/order/review",
+      "style": {
+        "navigationBarTitleText": "Review",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/order/aftersale",
+      "style": {
+        "navigationBarTitleText": "Aftersale",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/order/create",
+      "style": {
+        "navigationBarTitleText": "Create Order",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/order/list",
+      "style": {
+        "navigationBarTitleText": "Order List",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/order/detail",
+      "style": {
+        "navigationBarTitleText": "Order Detail",
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "Salon Booking",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8",
+    "navigationStyle": "custom"
+  },
+  "tabBar": {
+    "color": "#666666",
+    "selectedColor": "#111111",
+    "backgroundColor": "#FFFFFF",
+    "list": [
+      {
+        "pagePath": "pages/user/home/index",
+        "text": "Home",
+        "iconPath": "static/logo.png",
+        "selectedIconPath": "static/logo.png"
+      },
+      {
+        "pagePath": "pages/user/orders/index",
+        "text": "Orders",
+        "iconPath": "static/logo.png",
+        "selectedIconPath": "static/logo.png"
+      }
+    ]
+  },
+  "uniIdRouter": {}
+}

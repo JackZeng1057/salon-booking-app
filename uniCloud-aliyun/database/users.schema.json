@@ -1,0 +1,65 @@
+// 文档教程: https://uniapp.dcloud.net.cn/uniCloud/schema
+{
+	"bsonType": "object",
+	"required": ["username", "passwordHash", "role"],
+	"permission": {
+		"read": false,
+		"create": false,
+		"update": false,
+		"delete": false
+	},
+	"indexes": [
+		{
+			"key": {
+				"username": 1
+			},
+			"name": "username_unique",
+			"unique": true
+		},
+		{
+			"key": {
+				"storeId": 1,
+				"role": 1,
+				"createdAt": -1
+			},
+			"name": "store_role_createdAt"
+		}
+	],
+	"properties": {
+		"_id": {
+			"description": "ID，系统自动生成"
+		},
+		"username": {
+			"bsonType": "string",
+			"description": "用户名"
+		},
+		"passwordHash": {
+			"bsonType": "string",
+			"description": "密码摘要",
+			"permission": {
+				"read": false,
+				"write": false
+			}
+		},
+		"role": {
+			"bsonType": "string",
+			"description": "角色"
+		},
+		"name": {
+			"bsonType": "string",
+			"description": "显示名称"
+		},
+		"storeId": {
+			"bsonType": "string",
+			"description": "所属门店ID"
+		},
+		"avatar": {
+			"bsonType": "string",
+			"description": "头像"
+		},
+		"createdAt": {
+			"bsonType": "int",
+			"description": "创建时间戳"
+		}
+	}
+}

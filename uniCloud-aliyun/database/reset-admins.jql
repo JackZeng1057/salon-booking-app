@@ -1,0 +1,30 @@
+// 重置管理员账号（两个门店各一个管理员）
+// 注意：会删除现有 role=admin 的用户记录
+
+var now = Date.now();
+// 123456 的 sha256 摘要（与云函数一致）
+var passwordHash123456 = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92';
+
+// 删除所有管理员（避免不确定归属）
+db.collection('users').where({ role: 'admin' }).remove();
+
+// 重新插入两个管理员，分别绑定两个门店
+// store_001: 光影理发屋；store_002: 原木发艺（保持与你当前门店ID一致）
+db.collection('users').add([
+  {
+    username: 'admin_001',
+    passwordHash: passwordHash123456,
+    role: 'admin',
+    name: '管理员A',
+    storeId: 'store_001',
+    createdAt: now
+  },
+  {
+    username: 'admin_002',
+    passwordHash: passwordHash123456,
+    role: 'admin',
+    name: '管理员B',
+    storeId: 'store_002',
+    createdAt: now
+  }
+]);

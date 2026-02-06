@@ -1,0 +1,7 @@
+{
+  "name": "auth-register",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}

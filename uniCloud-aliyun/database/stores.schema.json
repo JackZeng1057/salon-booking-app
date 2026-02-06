@@ -1,0 +1,153 @@
+// 文档教程: https://uniapp.dcloud.net.cn/uniCloud/schema
+{
+	"bsonType": "object",
+	"required": ["name", "address"],
+	"permission": {
+		"read": true,
+		"create": false,
+		"update": false,
+		"delete": false
+	},
+	"indexes": [
+		{
+			"key": {
+				"createdAt": -1
+			},
+			"name": "createdAt_desc"
+		}
+	],
+	"properties": {
+		"_id": {
+			"description": "ID，系统自动生成"
+		},
+		"name": {
+			"bsonType": "string",
+			"description": "门店名称"
+		},
+		"address": {
+			"bsonType": "string",
+			"description": "门店地址"
+		},
+		"phone": {
+			"bsonType": "string",
+			"description": "联系电话"
+		},
+		"cover": {
+			"bsonType": "string",
+			"description": "门店封面图"
+		},
+		"description": {
+			"bsonType": "string",
+			"description": "门店简介"
+		},
+		"images": {
+			"bsonType": "array",
+			"description": "门店相册(环境图/服务图/门头图)",
+			"items": {
+				"bsonType": "object",
+				"properties": {
+					"url": {
+						"bsonType": "string",
+						"description": "图片URL"
+					},
+					"type": {
+						"bsonType": "string",
+						"description": "图片类型: environment(环境图) / service(服务图) / storefront(门头图)"
+					},
+					"description": {
+						"bsonType": "string",
+						"description": "图片描述"
+					}
+				}
+			}
+		},
+		"tags": {
+			"bsonType": "array",
+			"description": "门店标签",
+			"items": {
+				"bsonType": "string"
+			}
+		},
+		"businessHours": {
+			"bsonType": "object",
+			"description": "营业时间",
+			"properties": {
+				"weekday": {
+					"bsonType": "string",
+					"description": "工作日营业时间，如: 09:00-21:00"
+				},
+				"weekend": {
+					"bsonType": "string",
+					"description": "周末营业时间，如: 10:00-22:00"
+				}
+			}
+		},
+		"bookingRules": {
+			"bsonType": "object",
+			"description": "预约规则",
+			"properties": {
+				"notice": {
+					"bsonType": "string",
+					"description": "预约须知"
+				},
+				"cancelRule": {
+					"bsonType": "string",
+					"description": "取消规则"
+				},
+				"rescheduleRule": {
+					"bsonType": "string",
+					"description": "改期规则"
+				}
+			}
+		},
+		"location": {
+			"bsonType": "object",
+			"description": "地理位置",
+			"properties": {
+				"lat": {
+					"bsonType": "double",
+					"description": "纬度"
+				},
+				"lng": {
+					"bsonType": "double",
+					"description": "经度"
+				}
+			}
+		},
+		"rating": {
+			"bsonType": "object",
+			"description": "评分信息",
+			"properties": {
+				"overall": {
+					"bsonType": "double",
+					"description": "综合评分",
+					"default": 5.0
+				},
+				"service": {
+					"bsonType": "double",
+					"description": "服务评分",
+					"default": 5.0
+				},
+				"environment": {
+					"bsonType": "double",
+					"description": "环境评分",
+					"default": 5.0
+				},
+				"count": {
+					"bsonType": "int",
+					"description": "评价数量",
+					"default": 0
+				}
+			}
+		},
+		"minPrice": {
+			"bsonType": "int",
+			"description": "起步价(用于价格筛选)",
+			"default": 0
+		},
+		"createdAt": {
+			"bsonType": "int",
+			"description": "创建时间戳"
+		}
+	}
+}

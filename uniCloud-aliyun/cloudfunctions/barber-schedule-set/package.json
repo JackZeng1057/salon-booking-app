@@ -1,0 +1,7 @@
+{
+  "name": "barber-schedule-set",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}

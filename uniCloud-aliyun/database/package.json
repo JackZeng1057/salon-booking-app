@@ -1,0 +1,7 @@
+{
+  "name": "database",
+  "dependencies": {
+    "sb-common": "file:../cloudfunctions/common/sb-common"
+  },
+  "extensions": {}
+}

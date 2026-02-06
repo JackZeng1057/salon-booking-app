@@ -1,0 +1,7 @@
+{
+  "name": "orders-store-list",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}

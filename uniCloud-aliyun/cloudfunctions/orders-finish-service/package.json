@@ -1,0 +1,7 @@
+{
+  "name": "orders-finish-service",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}

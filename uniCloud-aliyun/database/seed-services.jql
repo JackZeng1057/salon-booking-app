@@ -1,0 +1,37 @@
+// 服务数据导入（只含一个数据库操作语句）
+// 运行前请先执行 seed-stores.jql
+
+var now = Date.now();
+var storeA = 'store_001';
+var storeB = 'store_002';
+
+db.collection('services').add([
+  {
+    storeId: storeA,
+    name: '男士剪发',
+    price: 68,
+    duration: 45,
+    createdAt: now
+  },
+  {
+    storeId: storeA,
+    name: '造型设计',
+    price: 128,
+    duration: 60,
+    createdAt: now
+  },
+  {
+    storeId: storeB,
+    name: '儿童剪发',
+    price: 48,
+    duration: 30,
+    createdAt: now
+  },
+  {
+    storeId: storeB,
+    name: '护理烫染',
+    price: 198,
+    duration: 90,
+    createdAt: now
+  }
+]);

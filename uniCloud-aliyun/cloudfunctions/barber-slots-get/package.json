@@ -1,0 +1,7 @@
+{
+  "name": "barber-slots-get",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}

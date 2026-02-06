@@ -1,0 +1,63 @@
+// 用户数据导入（一次性脚本，保留备用）
+// 注意：理发师的 storeId 固定为 store_001 / store_002（与你当前数据一致）
+
+var now = Date.now();
+// 123456 的 sha256 摘要（与云函数一致）
+var passwordHash123456 = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92';
+
+db.collection('users').add([
+  // 用户端账号（用于验证门店浏览链路）
+  {
+    username: 'user_001',
+    passwordHash: passwordHash123456,
+    role: 'user',
+    name: '普通用户A',
+    createdAt: now
+  },
+  {
+    username: 'user_002',
+    passwordHash: passwordHash123456,
+    role: 'user',
+    name: '普通用户B',
+    createdAt: now
+  },
+
+  // 理发师账号（固定绑定门店）
+  {
+    username: 'barber_chen',
+    passwordHash: passwordHash123456,
+    role: 'barber',
+    name: '陈师傅',
+    storeId: store_001,
+    avatar: 'https://dummyimage.com/120x120/ddd/333&text=B1',
+    createdAt: now
+  },
+  {
+    username: 'barber_li',
+    passwordHash: passwordHash123456,
+    role: 'barber',
+    name: '李师傅',
+    storeId: store_002,
+    avatar: 'https://dummyimage.com/120x120/ddd/333&text=B2',
+    createdAt: now
+  },
+
+  // 管理员账号（后续管理端会用到）
+  {
+    username: 'admin_001',
+    passwordHash: passwordHash123456,
+    role: 'admin',
+    name: '管理员A',
+    storeId: store_001,
+    createdAt: now
+  },
+  {
+    username: 'admin_002',
+    passwordHash: passwordHash123456,
+    role: 'admin',
+    name: '管理员B',
+    storeId: store_002,
+    createdAt: now
+  }
+]);
+

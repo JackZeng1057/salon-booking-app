@@ -1,0 +1,42 @@
+db.collection("time_slots")
+  .where({ barberId: "6978473f89bd275f44f7d3b0", date: "2026-01-28" })
+  .remove();
+
+db.collection("time_slots").add([
+  {
+    storeId: "store_001",
+    barberId: "6978473f89bd275f44f7d3b0",
+    date: "2026-01-28",
+    startTime: "10:00",
+    endTime: "10:30",
+    status: "AVAILABLE",
+    updatedAt: 1766947200000
+  },
+  {
+    storeId: "store_001",
+    barberId: "6978473f89bd275f44f7d3b0",
+    date: "2026-01-28",
+    startTime: "10:30",
+    endTime: "11:00",
+    status: "AVAILABLE",
+    updatedAt: 1766947200000
+  },
+  {
+    storeId: "store_001",
+    barberId: "6978473f89bd275f44f7d3b0",
+    date: "2026-01-28",
+    startTime: "11:00",
+    endTime: "11:30",
+    status: "AVAILABLE",
+    updatedAt: 1766947200000
+  },
+  {
+    storeId: "store_001",
+    barberId: "6978473f89bd275f44f7d3b0",
+    date: "2026-01-28",
+    startTime: "11:30",
+    endTime: "12:00",
+    status: "AVAILABLE",
+    updatedAt: 1766947200000
+  }
+]);

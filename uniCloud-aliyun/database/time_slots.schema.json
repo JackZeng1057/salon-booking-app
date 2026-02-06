@@ -1,0 +1,66 @@
+// 文档教程: https://uniapp.dcloud.net.cn/uniCloud/schema
+{
+	"bsonType": "object",
+	"required": ["storeId", "barberId", "date", "startTime", "endTime", "status"],
+	"permission": {
+		"read": false,
+		"create": false,
+		"update": false,
+		"delete": false
+	},
+	"indexes": [
+		{
+			"key": {
+				"barberId": 1,
+				"date": 1,
+				"startTime": 1
+			},
+			"name": "barber_date_start_unique",
+			"unique": true
+		},
+		{
+			"key": {
+				"barberId": 1,
+				"date": 1
+			},
+			"name": "barber_date_query"
+		}
+	],
+	"properties": {
+		"_id": {
+			"description": "ID，系统自动生成"
+		},
+		"storeId": {
+			"bsonType": "string",
+			"description": "门店ID（用于归属与筛选）"
+		},
+		"barberId": {
+			"bsonType": "string",
+			"description": "理发师ID（唯一键之一）"
+		},
+		"date": {
+			"bsonType": "string",
+			"description": "排班日期（YYYY-MM-DD，唯一键之一）"
+		},
+		"startTime": {
+			"bsonType": "string",
+			"description": "时段开始（HH:mm，唯一键之一）"
+		},
+		"endTime": {
+			"bsonType": "string",
+			"description": "时段结束（HH:mm）"
+		},
+		"status": {
+			"bsonType": "string",
+			"description": "状态（AVAILABLE/BOOKED）"
+		},
+		"orderId": {
+			"bsonType": "string",
+			"description": "订单ID（BOOKED 时写入）"
+		},
+		"updatedAt": {
+			"bsonType": "int",
+			"description": "更新时间戳"
+		}
+	}
+}

@@ -1,0 +1,9 @@
+{
+  "name": "notifications-mark-read",
+  "version": "1.0.0",
+  "description": "标记通知为已读",
+  "main": "index.js",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  }
+}

@@ -1,0 +1,54 @@
+// 文档教程: https://uniapp.dcloud.net.cn/uniCloud/schema
+{
+	"bsonType": "object",
+	"required": ["storeId", "barberId", "date", "workStart", "workEnd"],
+	"permission": {
+		"read": false,
+		"create": false,
+		"update": false,
+		"delete": false
+	},
+	"indexes": [
+		{
+			"key": {
+				"barberId": 1,
+				"date": 1
+			},
+			"name": "barber_date_unique",
+			"unique": true
+		}
+	],
+	"properties": {
+		"_id": {
+			"description": "ID，系统自动生成"
+		},
+		"storeId": {
+			"bsonType": "string",
+			"description": "门店ID（用于归属与权限校验）"
+		},
+		"barberId": {
+			"bsonType": "string",
+			"description": "理发师ID（唯一键之一）"
+		},
+		"date": {
+			"bsonType": "string",
+			"description": "排班日期（YYYY-MM-DD，唯一键之一）"
+		},
+		"workStart": {
+			"bsonType": "string",
+			"description": "工作开始时间（HH:mm）"
+		},
+		"workEnd": {
+			"bsonType": "string",
+			"description": "工作结束时间（HH:mm）"
+		},
+		"breaks": {
+			"bsonType": "array",
+			"description": "休息时间段（可选，形如 [{start:'12:00', end:'13:00'}]）"
+		},
+		"updatedAt": {
+			"bsonType": "int",
+			"description": "更新时间戳"
+		}
+	}
+}

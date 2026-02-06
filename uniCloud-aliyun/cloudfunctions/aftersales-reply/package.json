@@ -1,0 +1,7 @@
+{
+  "name": "aftersales-reply",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}
