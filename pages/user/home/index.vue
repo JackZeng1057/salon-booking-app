@@ -10,10 +10,16 @@
         <text class="greeting">你好, {{ currentUser.nickname || '新朋友' }} 👋</text>
         <text class="sub-greeting">换个新造型，遇见全新自己</text>
       </view>
-      <!-- 头像 -->
-      <view class="avatar-container">
-        <!-- 暂无图片，使用样式模拟头像 -->
-        <view class="avatar-placeholder">{{ (currentUser.nickname || 'U')[0] }}</view>
+      <view class="header-actions">
+        <view class="notify-btn" @click="goNotifications">
+          <text class="notify-icon">🔔</text>
+          <text v-if="unreadCount > 0" class="notify-dot"></text>
+        </view>
+        <!-- 头像 -->
+        <view class="avatar-container">
+          <!-- 暂无图片，使用样式模拟头像 -->
+          <view class="avatar-placeholder">{{ (currentUser.nickname || 'U')[0] }}</view>
+        </view>
       </view>
     </view>
 
@@ -70,7 +76,10 @@
 
     <view class="logout-card">
       <text class="logout-label">账号</text>
-      <button class="logout-btn" type="default" @click="handleLogout">退出登录</button>
+      <view class="logout-actions">
+        <button class="logout-btn" type="default" @click="goSettings">账号设置</button>
+        <button class="logout-btn" type="default" @click="handleLogout">退出登录</button>
+      </view>
     </view>
   </view>
 </template>
@@ -81,6 +90,7 @@
  * 展示欢迎信息、营销活动、分类入口
  */
 import { authStore } from '../../../store/auth';
+import { getUnreadCount } from '../../../api/notifications';
 
 export default {
   data() {
@@ -90,9 +100,13 @@ export default {
         { name: '精剪', icon: '✂️', color: '#E8F3FF' }, // 浅蓝
         { name: '染发', icon: '🎨', color: '#FFF0F6' }, // 浅粉
         { name: '按摩', icon: '💆', color: '#F6FFED' }, // 浅绿
-        { name: '美甲', icon: '💅', color: '#FFF7E6' }, // 浅黄
-      ]
+        { name: '美甲', icon: '💅', color: '#FFF7E6' } // 浅黄
+      ],
+      unreadCount: 0
     };
+  },
+  onShow() {
+    this.loadUnreadCount();
   },
   computed: {
     // 从状态仓库获取用户信息
@@ -101,6 +115,16 @@ export default {
     }
   },
   methods: {
+    async loadUnreadCount() {
+      try {
+        this.unreadCount = await getUnreadCount();
+      } catch (err) {
+        this.unreadCount = 0;
+      }
+    },
+    goNotifications() {
+      uni.navigateTo({ url: '/pages/user/notifications/index' });
+    },
     // 跳转到搜索/门店列表
     goSearch() {
       // 统一跳转到独立搜索页，避免首页承载筛选逻辑
@@ -114,6 +138,10 @@ export default {
     handleLogout() {
       authStore.clear();
       uni.reLaunch({ url: '/pages/auth/login' });
+    },
+    // 账号设置
+    goSettings() {
+      uni.navigateTo({ url: '/pages/user/settings/index' });
     }
   }
 };
@@ -164,6 +192,38 @@ export default {
     font-size: 40rpx;
     font-weight: bold;
   }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.notify-btn {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 36rpx;
+  background: #ffffff;
+  box-shadow: 0 6rpx 16rpx rgba(15, 23, 42, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.notify-icon {
+  font-size: 34rpx;
+}
+
+.notify-dot {
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 7rpx;
+  background: #ff4d4f;
 }
 
 /* 搜索栏样式 */
@@ -370,6 +430,11 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.logout-actions {
+  display: flex;
+  gap: 12rpx;
 }
 
 .logout-label {

@@ -2,11 +2,19 @@
   <view class="page">
     <!-- 自定义顶部导航占位：去掉原生白色导航栏，同时提供返回按钮 -->
     <app-nav />
-    <!-- 头部 -->
-    <view class="header">
-      <text class="title">消息通知</text>
-      <view v-if="unreadCount > 0" class="unread-badge">{{ unreadCount }}</view>
-      <text v-if="notifications.length > 0" class="mark-all-btn" @click="markAllRead">全部已读</text>
+    <view class="title-row">
+      <view class="title-wrap">
+        <text class="title">消息通知</text>
+        <view v-if="unreadCount > 0" class="unread-badge">{{ unreadCount }}</view>
+      </view>
+      <view
+        v-if="notifications.length > 0"
+        class="mark-all-btn"
+        :class="{ disabled: markAllLoading || unreadCount === 0 }"
+        @click="markAllRead"
+      >
+        {{ markAllLoading ? '处理中...' : '全部消息已读' }}
+      </view>
     </view>
 
     <!-- 筛选标签 -->
@@ -41,23 +49,40 @@
 
     <!-- 通知列表 -->
     <view v-else class="notifications-list">
-      <view 
-        v-for="notif in notifications" 
+      <view
+        v-for="notif in notifications"
         :key="notif._id"
-        class="notification-card"
-        :class="{ unread: !notif.isRead }"
-        @click="handleNotificationClick(notif)"
+        class="swipe-row"
+        :class="{ 'swipe-open': getSwipeOffset(notif._id) < 0 }"
+        @touchstart="onTouchStart($event, notif)"
+        @touchmove="onTouchMove($event, notif)"
+        @touchend="onTouchEnd($event, notif)"
       >
-        <view class="notif-icon">{{ getNotificationIcon(notif.type) }}</view>
-        <view class="notif-content">
-          <view class="notif-header">
-            <text class="notif-title">{{ notif.title }}</text>
-            <text v-if="!notif.isRead" class="unread-dot"></text>
-          </view>
-          <text class="notif-text">{{ notif.content }}</text>
-          <text class="notif-time">{{ formatTime(notif.createdAt) }}</text>
+        <view
+          v-if="getSwipeOffset(notif._id) < 0"
+          class="swipe-actions"
+          :style="{ width: actionWidth + 'rpx' }"
+        >
+          <view class="swipe-delete" @click.stop="confirmDelete(notif)">删除</view>
         </view>
-        <view class="notif-arrow">›</view>
+        <view class="swipe-content" :style="getSwipeStyle(notif)">
+          <view
+            class="notification-card"
+            :class="{ unread: !notif.isRead }"
+            @click="handleNotificationClick(notif)"
+          >
+            <view class="notif-icon">{{ getNotificationIcon(notif.type) }}</view>
+            <view class="notif-content">
+              <view class="notif-header">
+                <text class="notif-title">{{ notif.title }}</text>
+                <text v-if="!notif.isRead" class="unread-dot"></text>
+              </view>
+              <text class="notif-text">{{ notif.content }}</text>
+              <text class="notif-time">{{ formatTime(notif.createdAt) }}</text>
+            </view>
+            <view class="notif-arrow">›</view>
+          </view>
+        </view>
       </view>
 
       <!-- 加载更多 -->
@@ -70,7 +95,8 @@
 
 <script>
 // 通知列表页：筛选未读、标记已读与跳转
-import { callCloud } from '../../../api/client';
+import { fetchNotifications, markNotificationsRead, deleteNotification } from '../../../api/notifications';
+import { authStore } from '../../../store/auth';
 
 export default {
   data() {
@@ -79,6 +105,12 @@ export default {
       unreadCount: 0,
       unreadOnly: false,
       loading: false,
+      markAllLoading: false,
+      actionWidth: 160,
+      swipeOffsets: {},
+      swipeOpenId: '',
+      touchStartX: 0,
+      touchStartY: 0,
       loadingMore: false,
       page: 1,
       pageSize: 20,
@@ -99,11 +131,13 @@ export default {
         this.page = 1;
         this.notifications = [];
         this.hasMore = true;
+        this.swipeOffsets = {};
+        this.swipeOpenId = '';
       }
 
       this.loading = true;
       try {
-        const res = await callCloud('notifications-list', {
+        const res = await fetchNotifications({
           unreadOnly: this.unreadOnly,
           page: this.page,
           pageSize: this.pageSize
@@ -136,25 +170,113 @@ export default {
         this.loadingMore = false;
       });
     },
+    getSwipeOffset(notificationId) {
+      return this.swipeOffsets[notificationId] || 0;
+    },
+    setSwipeOffset(notificationId, value) {
+      this.$set(this.swipeOffsets, notificationId, value);
+    },
+    closeSwipe(notificationId) {
+      if (!notificationId) return;
+      this.setSwipeOffset(notificationId, 0);
+      if (this.swipeOpenId === notificationId) {
+        this.swipeOpenId = '';
+      }
+    },
+    resetSwipe(exceptId) {
+      if (this.swipeOpenId && this.swipeOpenId !== exceptId) {
+        this.closeSwipe(this.swipeOpenId);
+      }
+    },
+    getSwipeStyle(notif) {
+      if (!notif || !notif._id) return {};
+      const offset = this.getSwipeOffset(notif._id);
+      return {
+        transform: `translateX(${offset}rpx)`
+      };
+    },
+    onTouchStart(e, notif) {
+      if (!notif || !notif._id) return;
+      const touch = e.touches && e.touches[0];
+      if (!touch) return;
+      this.touchStartX = touch.clientX;
+      this.touchStartY = touch.clientY;
+      this.resetSwipe(notif._id);
+    },
+    onTouchMove(e, notif) {
+      if (!notif || !notif._id) return;
+      const touch = e.touches && e.touches[0];
+      if (!touch) return;
+      const deltaX = touch.clientX - this.touchStartX;
+      const deltaY = touch.clientY - this.touchStartY;
+      if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+      const offset = Math.max(Math.min(deltaX, 0), -this.actionWidth);
+      this.setSwipeOffset(notif._id, offset);
+    },
+    onTouchEnd(e, notif) {
+      if (!notif || !notif._id) return;
+      const offset = this.getSwipeOffset(notif._id);
+      if (offset < -this.actionWidth / 2) {
+        this.setSwipeOffset(notif._id, -this.actionWidth);
+        this.swipeOpenId = notif._id;
+      } else {
+        this.closeSwipe(notif._id);
+      }
+    },
+    async confirmDelete(notif) {
+      if (!notif || !notif._id) return;
+      const modalRes = await uni.showModal({
+        title: '删除消息',
+        content: '确定删除该消息吗？删除后无法恢复。',
+        confirmText: '删除',
+        confirmColor: '#fa5151'
+      });
+      if (!modalRes || !modalRes.confirm) return;
+      try {
+        await deleteNotification({ notificationId: notif._id });
+        this.notifications = this.notifications.filter((item) => item._id !== notif._id);
+        if (!notif.isRead) {
+          this.unreadCount = Math.max(0, this.unreadCount - 1);
+        }
+        this.closeSwipe(notif._id);
+        uni.showToast({ title: '已删除', icon: 'success' });
+      } catch (err) {
+        uni.showToast({ title: err.message || '删除失败', icon: 'none' });
+      }
+    },
     // 标记全部已读
     async markAllRead() {
+      if (this.markAllLoading || this.unreadCount <= 0) return;
+      this.markAllLoading = true;
+      const prevUnread = this.unreadCount;
+      const prevList = this.notifications.map((item) => ({ ...item }));
+      this.unreadCount = 0;
+      this.notifications = this.notifications.map((item) => ({ ...item, isRead: true }));
       try {
-        await callCloud('notifications-mark-read', { markAll: true });
+        await markNotificationsRead({ markAll: true });
         uni.showToast({ title: '已全部标记为已读', icon: 'success' });
-        this.loadNotifications(true);
+        await this.loadNotifications(true);
       } catch (err) {
+        this.unreadCount = prevUnread;
+        this.notifications = prevList;
         uni.showToast({
           title: err.message || '操作失败',
           icon: 'none'
         });
+      } finally {
+        this.markAllLoading = false;
       }
     },
     // 点击通知：先标记已读，再跳转相关页面
     async handleNotificationClick(notif) {
+      if (this.getSwipeOffset(notif._id) < 0) {
+        this.closeSwipe(notif._id);
+        return;
+      }
       // 标记为已读
       if (!notif.isRead) {
         try {
-          await callCloud('notifications-mark-read', { notificationId: notif._id });
+          await markNotificationsRead({ notificationId: notif._id });
           notif.isRead = true;
           this.unreadCount = Math.max(0, this.unreadCount - 1);
         } catch (err) {
@@ -162,25 +284,35 @@ export default {
         }
       }
 
-      // 跳转到相关页面（目前仅订单通知支持跳转）
+      // 跳转到相关页面
       if (notif.relatedType === 'order' && notif.relatedId) {
         uni.navigateTo({
           url: `/pages/order/detail?id=${notif.relatedId}`
         });
+        return;
+      }
+      if (notif.relatedType === 'aftersale') {
+        const role = (authStore.state && authStore.state.role) || '';
+        if (role === 'admin') {
+          uni.navigateTo({ url: '/pages/admin/aftersales' });
+        } else {
+          uni.navigateTo({ url: '/pages/order/list' });
+        }
       }
     },
     // 获取通知图标
     getNotificationIcon(type) {
+      const normalized = String(type || '').toLowerCase();
       const iconMap = {
-        'booking_success': '✅',
-        'reschedule': '🔄',
-        'cancel': '❌',
-        'no_show': '⚠️',
-        'arrival_reminder': '⏰',
-        'service_start': '💇',
-        'service_finish': '✨'
+        booking_success: '✅',
+        reschedule: '🔄',
+        cancel: '❌',
+        no_show: '⚠️',
+        arrival_reminder: '🔔',
+        service_start: '🛡️',
+        service_finish: '✨'
       };
-      return iconMap[type] || '📬';
+      return iconMap[normalized] || '📬';
     },
     // 格式化时间
     formatTime(timestamp) {
@@ -223,50 +355,69 @@ export default {
 <style scoped lang="scss">
 .page {
   min-height: 100vh;
-  padding-top: 80rpx;
+  /* 与其他页面统一：顶部额外留白，避免返回按钮与标题重叠 */
+  padding: 132rpx 30rpx 30rpx;
   background-color: $uni-bg-color-grey;
 }
 
-.header {
+.title-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding-left: 6rpx;
+  margin-bottom: 24rpx;
+}
+
+.title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.title {
+  font-size: 48rpx;
+  font-weight: 700;
+  color: $uni-color-primary;
+  line-height: 1.25;
+}
+
+.unread-badge {
+  background: linear-gradient(135deg, #ff4d4f, #ff7875);
+  color: #ffffff;
+  font-size: 20rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+  min-width: 40rpx;
+  text-align: center;
+}
+
+.mark-all-btn {
+  min-width: 210rpx;
+  height: 64rpx;
+  font-size: 26rpx;
+  color: $uni-color-primary;
+  padding: 0 20rpx;
+  border-radius: 22rpx;
   background: #ffffff;
-  padding: 32rpx;
-  margin-bottom: 16rpx;
-  position: relative;
-  
-  .title {
-    font-size: 40rpx;
-    font-weight: 700;
-    color: $uni-color-primary;
-    flex: 1;
-  }
-  
-  .unread-badge {
-    position: absolute;
-    top: 28rpx;
-    left: 180rpx;
-    background: linear-gradient(135deg, #ff4d4f, #ff7875);
-    color: #ffffff;
-    font-size: 20rpx;
-    padding: 4rpx 12rpx;
-    border-radius: 20rpx;
-    min-width: 40rpx;
-    text-align: center;
-  }
-  
-  .mark-all-btn {
-    font-size: 26rpx;
-    color: $uni-color-primary;
-  }
+  box-shadow: 0 4rpx 12rpx rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.mark-all-btn.disabled {
+  opacity: 0.5;
 }
 
 .filter-tabs {
   display: flex;
-  background: #ffffff;
-  padding: 16rpx 32rpx;
+  background: transparent;
+  padding: 0 0 8rpx;
   margin-bottom: 16rpx;
-  gap: 24rpx;
+  gap: 16rpx;
   
   .filter-tab {
     font-size: 28rpx;
@@ -316,7 +467,52 @@ export default {
 }
 
 .notifications-list {
-  padding: 0 32rpx 32rpx;
+  padding: 0 0 32rpx;
+}
+
+.swipe-row {
+  position: relative;
+  overflow: hidden;
+  border-radius: $uni-border-radius-lg;
+  margin-bottom: 16rpx;
+}
+
+.swipe-actions {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ff4d4f;
+  border-radius: $uni-border-radius-lg;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  visibility: hidden;
+  z-index: 0;
+}
+
+.swipe-delete {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: $uni-font-size-base;
+  font-weight: 600;
+}
+
+.swipe-content {
+  transition: transform 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.swipe-row.swipe-open .swipe-actions {
+  opacity: 1;
+  visibility: visible;
 }
 
 .notification-card {
@@ -325,7 +521,6 @@ export default {
   background: #ffffff;
   border-radius: $uni-border-radius-lg;
   padding: 28rpx;
-  margin-bottom: 16rpx;
   box-shadow: $uni-shadow-base;
   position: relative;
   transition: all 0.3s;

@@ -19,6 +19,8 @@ exports.main = withResponse(async (event, context) => {
     .doc(id)
     .field({
       storeId: true,
+      userId: true,
+      orderId: true,
       type: true,
       content: true,
       status: true
@@ -39,6 +41,25 @@ exports.main = withResponse(async (event, context) => {
     status,
     updatedAt: now
   });
+
+  // 通知用户：售后有新进度（失败不影响主流程）
+  try {
+    if (after.userId) {
+      await uniCloud.callFunction({
+        name: 'notifications-create',
+        data: {
+          userId: after.userId,
+          type: 'reschedule',
+          title: '售后进度更新',
+          content: reply || `您的售后申请状态已更新为：${status}`,
+          relatedId: id || after.orderId || '',
+          relatedType: 'aftersale'
+        }
+      });
+    }
+  } catch (err) {
+    console.error('send aftersales-reply notification error:', err);
+  }
 
   // 直接拼装返回，避免二次读取
   return {

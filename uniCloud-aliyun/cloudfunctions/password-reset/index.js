@@ -1,6 +1,12 @@
-// 密码重置：校验短信验证码并更新密码
+// 密码重置：校验短信验证码并更新密码摘要
+// 引入 Node.js 加密模块
+const crypto = require('crypto');
 // 引入统一响应包装
 const { withResponse, ApiError } = require('sb-common');
+
+function hashPassword(password) {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
 
 /**
  * 验证验证码并重置密码
@@ -54,11 +60,11 @@ exports.main = withResponse(async (event, context) => {
 
   const smsCode = codeRes.data[0];
 
-  // 3. 更新密码（实际项目中应该加密存储）
+  // 3. 更新密码摘要（与 auth-login/auth-register 一致）
   await db.collection('users')
     .doc(user._id)
     .update({
-      password: newPassword,
+      passwordHash: hashPassword(newPassword),
       updatedAt: now
     });
 
@@ -68,6 +74,23 @@ exports.main = withResponse(async (event, context) => {
     .update({
       used: true
     });
+
+  // 账号安全通知（失败不影响主流程）
+  try {
+    await uniCloud.callFunction({
+      name: 'notifications-create',
+      data: {
+        userId: user._id,
+        type: 'arrival_reminder',
+        title: '密码已重置',
+        content: '您的账号密码已重置成功。如非本人操作，请立即联系门店管理员。',
+        relatedId: user._id,
+        relatedType: 'order'
+      }
+    });
+  } catch (err) {
+    console.error('send password-reset notification error:', err);
+  }
 
   return {
     success: true,

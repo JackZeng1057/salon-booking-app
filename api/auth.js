@@ -15,3 +15,8 @@ export function login(payload) {
 export function me() {
   return callCloud('auth-me');
 }
+
+// 绑定手机号（用于忘记密码）
+export function bindPhone(payload) {
+  return callCloud('user-bind-phone', payload);
+}

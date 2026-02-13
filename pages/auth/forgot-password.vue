@@ -1,7 +1,7 @@
 <template>
   <view class="forgot-password-page">
-    <!-- 自定义顶部导航（重置密码页保留返回按钮，但不使用悬浮布局，避免整体往上顶） -->
-    <app-nav :overlay="false" />
+    <!-- 自定义顶部导航（仅占位，不显示返回按钮） -->
+    <app-nav :overlay="false" :showBack="false" />
     <!-- 顶部装饰 -->
     <view class="circle-bg"></view>
 
@@ -421,10 +421,6 @@ export default {
       .step-circle {
         background-color: #52c41a;
         color: #ffffff;
-        
-        &::after {
-          content: '✓';
-        }
       }
     }
   }
@@ -506,13 +502,16 @@ export default {
   .send-code-btn {
     width: 200rpx;
     height: 88rpx;
-    line-height: 88rpx;
+    line-height: 1;
     padding: 0;
     background: linear-gradient(135deg, $uni-color-primary, #52c41a);
     color: #ffffff;
     font-size: 24rpx;
-    border-radius: $uni-border-radius-lg;
+    border-radius: 44rpx;
     border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     
     &:disabled {
       background: #e8e8e8;
@@ -598,20 +597,37 @@ export default {
 .submit-btn {
   width: 100%;
   height: 88rpx;
+  line-height: 1;
   margin-bottom: 20rpx;
   background: linear-gradient(135deg, $uni-color-primary, #52c41a);
   border: none;
+  border-radius: 44rpx;
   font-size: $uni-font-size-base;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .back-btn {
   width: 100%;
   height: 88rpx;
+  line-height: 1;
   background-color: transparent;
   color: $uni-text-color-grey;
   border: 2rpx solid $uni-border-color;
+  border-radius: 44rpx;
   font-size: $uni-font-size-base;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send-code-btn::after,
+.next-btn::after,
+.submit-btn::after,
+.back-btn::after {
+  border: none;
 }
 
 /* 底部 */

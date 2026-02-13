@@ -269,16 +269,52 @@ exports.main = withResponse(async (event, context) => {
 
   // 发送预约成功通知（失败不影响主流程）
   try {
+    const userId = user._id || user.uid || user.userId;
     await uniCloud.callFunction({
       name: 'notifications-create',
       data: {
-        userId: user._id || user.uid || user.userId,
-        type: 'BOOKING_SUCCESS',
+        userId,
+        type: 'booking_success',
         title: '预约成功',
         content: `您已成功预约 ${date} ${startTime} 的服务，核验码：${verifyCode}，请按时到店。`,
         relatedId: orderId
       }
     });
+
+    // 通知理发师：有新的预约
+    await uniCloud.callFunction({
+      name: 'notifications-create',
+      data: {
+        userId: barberId,
+        type: 'arrival_reminder',
+        title: '新预约提醒',
+        content: `您有一条新的预约：${date} ${startTime}（核验码 ${verifyCode}）。`,
+        relatedId: orderId
+      }
+    });
+
+    // 通知店家：有新的预约（同店多个管理员全部通知）
+    const adminRes = await db
+      .collection('users')
+      .where({ role: 'admin', storeId })
+      .field({ _id: true })
+      .get();
+    const admins = adminRes.data || [];
+    for (let i = 0; i < admins.length; i += 1) {
+      const admin = admins[i] || {};
+      const adminId = admin._id || '';
+      if (!adminId || adminId === userId) continue;
+      await uniCloud.callFunction({
+        name: 'notifications-create',
+        data: {
+          userId: adminId,
+          type: 'arrival_reminder',
+          title: '新预约提醒',
+          content: `门店收到新预约：${date} ${startTime}（核验码 ${verifyCode}）。`,
+          relatedId: orderId
+        }
+      });
+    }
   } catch (err) {
     console.error('send notification error:', err);
   }

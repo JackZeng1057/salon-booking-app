@@ -2,6 +2,12 @@
   <view class="page">
     <!-- 自定义顶部导航占位：去掉原生白色导航栏，同时提供返回按钮 -->
     <app-nav :showBack="false" />
+    <view class="page-actions">
+      <view class="notify-btn" @click="goNotifications">
+        <text class="notify-icon">🔔</text>
+        <text v-if="unreadCount > 0" class="notify-dot"></text>
+      </view>
+    </view>
     <text class="title">排班设置</text>
 
     <view class="form">
@@ -14,16 +20,12 @@
 
       <view class="field">
         <text class="label">工作开始</text>
-        <picker mode="time" :value="workStart" @change="onStartChange">
-          <view class="picker-value">{{ workStart || '请选择开始时间' }}</view>
-        </picker>
+        <view class="picker-value" @tap="openTimePicker('workStart')">{{ workStart || '请选择开始时间' }}</view>
       </view>
 
       <view class="field">
         <text class="label">工作结束</text>
-        <picker mode="time" :value="workEnd" @change="onEndChange">
-          <view class="picker-value">{{ workEnd || '请选择结束时间' }}</view>
-        </picker>
+        <view class="picker-value" @tap="openTimePicker('workEnd')">{{ workEnd || '请选择结束时间' }}</view>
       </view>
 
       <view class="field">
@@ -52,7 +54,30 @@
 
       <view class="logout-card">
         <text class="logout-label">账号</text>
-        <button class="logout-btn" type="default" @click="handleLogout">退出登录</button>
+        <view class="logout-actions">
+          <button class="logout-btn" type="default" @click="goAccountSettings">账号设置</button>
+          <button class="logout-btn" type="default" @click="handleLogout">退出登录</button>
+        </view>
+      </view>
+    </view>
+
+    <view v-if="showTimePicker" class="picker-mask" @tap="cancelTimePicker">
+      <view class="picker-panel" @tap.stop>
+        <view class="picker-toolbar">
+          <text class="picker-action picker-cancel" @tap="cancelTimePicker">取消</text>
+          <text class="picker-action picker-done" @tap="confirmTimePicker">完成</text>
+        </view>
+        <view class="picker-wheel-wrap">
+          <picker-view class="picker-wheel" :value="tempTimeValue" indicator-class="picker-indicator" @change="onTimePickerChange">
+            <picker-view-column>
+              <view v-for="hour in hourOptions" :key="`hour-${hour}`" class="picker-item">{{ hour }}</view>
+            </picker-view-column>
+            <picker-view-column>
+              <view v-for="minute in minuteOptions" :key="`minute-${minute}`" class="picker-item">{{ minute }}</view>
+            </picker-view-column>
+          </picker-view>
+          <text class="picker-colon">:</text>
+        </view>
       </view>
     </view>
   </view>
@@ -65,6 +90,7 @@
 import { setBarberSchedule, fetchBarberSlots } from '../../../api/barber';
 import { fetchStoreServices } from '../../../api/store';
 import { me } from '../../../api/auth';
+import { getUnreadCount } from '../../../api/notifications';
 import { authStore } from '../../../store/auth';
 
 // 日期格式化为 YYYY-MM-DD（用于选择器回显与接口入参）
@@ -75,6 +101,24 @@ function toDateString(date) {
   return `${y}-${m}-${d}`;
 }
 
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => pad2(i));
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => pad2(i));
+
+function parseTimeToPickerValue(value) {
+  const text = String(value || '').trim();
+  const matched = text.match(/^(\d{2}):(\d{2})$/);
+  if (!matched) return [10, 0];
+  const h = Number(matched[1]);
+  const m = Number(matched[2]);
+  const hourIndex = Number.isFinite(h) && h >= 0 && h <= 23 ? h : 10;
+  const minuteIndex = Number.isFinite(m) && m >= 0 && m <= 59 ? m : 0;
+  return [hourIndex, minuteIndex];
+}
+
 export default {
   data() {
     return {
@@ -83,6 +127,11 @@ export default {
       // 默认起止时间，提供一个常用工作区间
       workStart: '10:00',
       workEnd: '18:00',
+      hourOptions: HOUR_OPTIONS,
+      minuteOptions: MINUTE_OPTIONS,
+      showTimePicker: false,
+      timePickerKey: '',
+      tempTimeValue: [10, 0],
       // 是否生成未来 7 天时段，便于一次性排多天班
       generateFuture: true,
       // 按钮 loading 态
@@ -92,21 +141,55 @@ export default {
       // 统计时段时的加载状态
       summaryLoading: false,
       // 各服务的可预约时段汇总
-      serviceSummaries: []
+      serviceSummaries: [],
+      unreadCount: 0
     };
   },
+  onShow() {
+    this.loadUnreadCount();
+  },
   methods: {
+    async loadUnreadCount() {
+      try {
+        this.unreadCount = await getUnreadCount();
+      } catch (err) {
+        this.unreadCount = 0;
+      }
+    },
+    goNotifications() {
+      uni.navigateTo({ url: '/pages/user/notifications/index' });
+    },
     // 日期选择变更
     onDateChange(e) {
       this.date = e.detail.value || '';
     },
-    // 开始时间变更
-    onStartChange(e) {
-      this.workStart = e.detail.value || '';
+    // time picker 默认索引（小时、分钟）
+    timePickerValue(value) {
+      return parseTimeToPickerValue(value);
     },
-    // 结束时间变更
-    onEndChange(e) {
-      this.workEnd = e.detail.value || '';
+    openTimePicker(key) {
+      this.timePickerKey = key;
+      this.tempTimeValue = this.timePickerValue(this[key] || '');
+      this.showTimePicker = true;
+    },
+    onTimePickerChange(e) {
+      const value = (e && e.detail && e.detail.value) || [0, 0];
+      this.tempTimeValue = [Number(value[0] || 0), Number(value[1] || 0)];
+    },
+    cancelTimePicker() {
+      this.showTimePicker = false;
+      this.timePickerKey = '';
+    },
+    confirmTimePicker() {
+      if (!this.timePickerKey) {
+        this.cancelTimePicker();
+        return;
+      }
+      const value = this.tempTimeValue || [0, 0];
+      const hour = HOUR_OPTIONS[Number(value[0] || 0)] || '00';
+      const minute = MINUTE_OPTIONS[Number(value[1] || 0)] || '00';
+      this[this.timePickerKey] = `${hour}:${minute}`;
+      this.cancelTimePicker();
     },
     // 是否生成未来 7 天
     onFutureChange(e) {
@@ -198,6 +281,18 @@ export default {
     handleLogout() {
       authStore.clear();
       uni.reLaunch({ url: '/pages/auth/login' });
+    },
+    // 跳转账号设置（手机号绑定）
+    goAccountSettings() {
+      uni.navigateTo({
+        url: '/pages/user/settings/index',
+        fail: () => {
+          uni.showToast({
+            title: '页面未生效，请重新编译',
+            icon: 'none'
+          });
+        }
+      });
     }
   }
 };
@@ -209,6 +304,39 @@ export default {
   /* 顶部留白再多一点，避免“排班设置”标题与返回按钮重叠感 */
   padding: 96rpx 30rpx 30rpx;
   background-color: $uni-bg-color-grey;
+}
+
+.page-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8rpx;
+  margin-bottom: 6rpx;
+}
+
+.notify-btn {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 36rpx;
+  background: #ffffff;
+  box-shadow: 0 6rpx 16rpx rgba(15, 23, 42, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.notify-icon {
+  font-size: 34rpx;
+}
+
+.notify-dot {
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 7rpx;
+  background: #ff4d4f;
 }
 
 .title {
@@ -302,14 +430,94 @@ export default {
 }
 
 .logout-btn {
+  flex: 1;
   height: 88rpx;
   line-height: 88rpx;
-  width: 100%;
   padding: 0 36rpx;
   border-radius: 44rpx;
   font-size: $uni-font-size-base;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.logout-actions {
+  display: flex;
+  gap: 12rpx;
+}
+
+.picker-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 999;
+  display: flex;
+  align-items: flex-end;
+}
+
+.picker-panel {
+  width: 100%;
+  background: #ffffff;
+  border-top-left-radius: 24rpx;
+  border-top-right-radius: 24rpx;
+  overflow: hidden;
+}
+
+.picker-toolbar {
+  height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.picker-action {
+  font-size: 34rpx;
+}
+
+.picker-cancel {
+  color: $uni-text-color-grey;
+}
+
+.picker-done {
+  color: #007aff;
+  font-weight: 500;
+}
+
+.picker-wheel-wrap {
+  position: relative;
+  width: 320rpx;
+  margin: 0 auto;
+}
+
+.picker-wheel {
+  height: 420rpx;
+}
+
+.picker-item {
+  height: 84rpx;
+  line-height: 84rpx;
+  text-align: center;
+  font-size: 42rpx;
+  color: $uni-text-color;
+}
+
+:deep(.picker-indicator) {
+  height: 84rpx;
+}
+
+.picker-colon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 44rpx;
+  color: $uni-text-color;
+  font-weight: 500;
+  pointer-events: none;
 }
 </style>

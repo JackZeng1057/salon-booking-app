@@ -43,6 +43,20 @@
       }
     },
     {
+      "path": "pages/user/settings/index",
+      "style": {
+        "navigationBarTitleText": "Settings",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/user/notifications/index",
+      "style": {
+        "navigationBarTitleText": "Notifications",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/barber/schedule/index",
       "style": {
         "navigationBarTitleText": "Schedule",
@@ -60,6 +74,13 @@
       "path": "pages/admin/manage/index",
       "style": {
         "navigationBarTitleText": "Admin",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/admin/store-settings/index",
+      "style": {
+        "navigationBarTitleText": "Store Settings",
         "navigationStyle": "custom"
       }
     },

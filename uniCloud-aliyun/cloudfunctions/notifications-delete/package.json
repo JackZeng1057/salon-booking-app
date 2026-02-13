@@ -1,0 +1,9 @@
+{
+  "name": "notifications-delete",
+  "description": "删除通知",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}
+

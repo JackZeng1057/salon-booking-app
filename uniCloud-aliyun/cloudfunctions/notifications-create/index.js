@@ -2,13 +2,41 @@
 // 引入统一响应包装
 const { withResponse, ApiError } = require('sb-common');
 
+const TYPE_ALIAS = {
+  BOOKING_SUCCESS: 'booking_success',
+  RESCHEDULE: 'reschedule',
+  CANCEL: 'cancel',
+  NO_SHOW: 'no_show',
+  ARRIVAL_REMINDER: 'arrival_reminder',
+  SERVICE_START: 'service_start',
+  SERVICE_FINISH: 'service_finish'
+};
+
+const ALLOWED_TYPES = new Set([
+  'booking_success',
+  'reschedule',
+  'cancel',
+  'no_show',
+  'arrival_reminder',
+  'service_start',
+  'service_finish'
+]);
+
+function normalizeType(type) {
+  const raw = String(type || '').trim();
+  if (!raw) return '';
+  const mapped = TYPE_ALIAS[raw] || raw.toLowerCase();
+  if (ALLOWED_TYPES.has(mapped)) return mapped;
+  return 'arrival_reminder';
+}
+
 /**
  * 创建通知（系统内部调用）
  * 可被其他云函数调用
  */
 exports.main = withResponse(async (event, context) => {
   const userId = event && event.userId;
-  const type = event && event.type;
+  const type = normalizeType(event && event.type);
   const title = event && event.title;
   const content = event && event.content;
   const relatedId = event && event.relatedId;
@@ -45,7 +73,7 @@ async function createNotification(userId, type, title, content, relatedId = '', 
 
   const notificationData = {
     userId,
-    type,
+    type: normalizeType(type),
     title,
     content,
     relatedId,

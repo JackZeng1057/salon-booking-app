@@ -20,8 +20,13 @@
         </view>
         
         <!-- 标签 -->
-        <view v-if="store.tags && store.tags.length > 0" class="tags-row">
-          <text v-for="(tag, idx) in store.tags" :key="idx" class="tag">{{ tag }}</text>
+        <view class="tags-row">
+          <text
+            v-for="(tag, idx) in (store.tags || [])"
+            :key="idx"
+            class="tag"
+          >{{ tag }}</text>
+          <text v-if="!store.tags || store.tags.length === 0" class="tag tag-empty">暂无标签</text>
         </view>
         
         <text class="desc">{{ store.description || '暂无简介' }}</text>
@@ -52,15 +57,15 @@
         </view>
         
         <!-- 营业时间 -->
-        <view v-if="store.businessHours" class="business-hours">
+        <view class="business-hours">
           <text class="label">营业时间</text>
           <view class="hours-row">
             <text class="hours-label">工作日：</text>
-            <text class="hours-value">{{ store.businessHours.weekday || '未设置' }}</text>
+            <text class="hours-value">{{ getBusinessHoursText('weekday') }}</text>
           </view>
           <view class="hours-row">
             <text class="hours-label">周末：</text>
-            <text class="hours-value">{{ store.businessHours.weekend || '未设置' }}</text>
+            <text class="hours-value">{{ getBusinessHoursText('weekend') }}</text>
           </view>
         </view>
       </view>
@@ -114,28 +119,28 @@
       </view>
       
       <!-- 预约规则 -->
-      <view v-if="store.bookingRules" class="section rules-section">
+      <view class="section rules-section">
         <text class="section-title">预约须知</text>
         <view class="rules-content">
-          <view v-if="store.bookingRules.notice" class="rule-item">
+          <view class="rule-item">
             <text class="rule-icon">📋</text>
             <view class="rule-text">
               <text class="rule-title">预约须知</text>
-              <text class="rule-desc">{{ store.bookingRules.notice }}</text>
+              <text class="rule-desc">{{ getBookingRuleText('notice') }}</text>
             </view>
           </view>
-          <view v-if="store.bookingRules.cancelRule" class="rule-item">
+          <view class="rule-item">
             <text class="rule-icon">❌</text>
             <view class="rule-text">
               <text class="rule-title">取消规则</text>
-              <text class="rule-desc">{{ store.bookingRules.cancelRule }}</text>
+              <text class="rule-desc">{{ getBookingRuleText('cancelRule') }}</text>
             </view>
           </view>
-          <view v-if="store.bookingRules.rescheduleRule" class="rule-item">
+          <view class="rule-item">
             <text class="rule-icon">🔄</text>
             <view class="rule-text">
               <text class="rule-title">改期规则</text>
-              <text class="rule-desc">{{ store.bookingRules.rescheduleRule }}</text>
+              <text class="rule-desc">{{ getBookingRuleText('rescheduleRule') }}</text>
             </view>
           </view>
         </view>
@@ -268,7 +273,7 @@ export default {
   },
   onShow() {
     if (this.storeId) {
-      this.loadDetail();
+      this.loadDetail({ forceRefresh: true });
     }
   },
   methods: {
@@ -365,11 +370,11 @@ export default {
       });
     },
     // 同时拉取门店详情、服务、理发师
-    async loadDetail() {
+    async loadDetail(options = {}) {
       this.loading = true;
       try {
         const [store, services, barbers] = await Promise.all([
-          fetchStoreDetail(this.storeId),
+          fetchStoreDetail(this.storeId, { noCache: !!options.forceRefresh }),
           fetchStoreServices(this.storeId),
           fetchStoreBarbers(this.storeId)
         ]);
@@ -444,6 +449,16 @@ export default {
     formatRating(store) {
       if (!store.rating || !store.rating.overall) return '5.0';
       return store.rating.overall.toFixed(1);
+    },
+    // 读取营业时间（缺省显示未设置）
+    getBusinessHoursText(key) {
+      const businessHours = (this.store && this.store.businessHours) || {};
+      return businessHours[key] || '未设置';
+    },
+    // 读取预约规则（缺省显示未设置）
+    getBookingRuleText(key) {
+      const bookingRules = (this.store && this.store.bookingRules) || {};
+      return bookingRules[key] || '未设置';
     },
     // 格式化图片类型
     formatImageType(type) {
@@ -546,6 +561,12 @@ export default {
     padding: 6rpx 16rpx;
     border-radius: 12rpx;
     border: 1rpx solid rgba(82, 196, 26, 0.3);
+  }
+
+  .tag-empty {
+    color: #8b95a7;
+    background: #f3f5f8;
+    border-color: #dfe4ea;
   }
 }
 

@@ -43,5 +43,35 @@ exports.main = withResponse(async (event, context) => {
     updatedAt: now
   });
 
-  return { id: res.id || (res.ids && res.ids[0]) || '' };
+  const aftersaleId = res.id || (res.ids && res.ids[0]) || '';
+
+  // 通知店家处理售后（失败不影响主流程）
+  try {
+    const adminRes = await db
+      .collection('users')
+      .where({ role: 'admin', storeId: order.storeId })
+      .field({ _id: true })
+      .get();
+    const admins = adminRes.data || [];
+    for (let i = 0; i < admins.length; i += 1) {
+      const admin = admins[i] || {};
+      const adminId = admin._id || '';
+      if (!adminId) continue;
+      await uniCloud.callFunction({
+        name: 'notifications-create',
+        data: {
+          userId: adminId,
+          type: 'reschedule',
+          title: '售后待处理',
+          content: `有新的售后申请，请及时处理。工单类型：${type}。`,
+          relatedId: aftersaleId,
+          relatedType: 'aftersale'
+        }
+      });
+    }
+  } catch (err) {
+    console.error('send aftersales-create notification error:', err);
+  }
+
+  return { id: aftersaleId };
 });

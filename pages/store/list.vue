@@ -117,7 +117,14 @@
           />
           <!-- 标签：评分/距离/价格 -->
           <view class="badge-status">
-            <text class="status-dot"></text> 营业中
+            <text
+              class="status-dot"
+              :class="{
+                closed: getBusinessStatus(store) === 'closed',
+                unknown: getBusinessStatus(store) === 'unknown'
+              }"
+            ></text>
+            {{ getBusinessStatusText(store) }}
           </view>
           <view class="badge-rating">
             ★ {{ formatRating(store) }}
@@ -140,6 +147,10 @@
             </view>
             
             <text class="store-address">{{ store.address || '地址暂无' }}</text>
+            <view class="store-hours">
+              <text class="hours-icon">🕒</text>
+              <text class="hours-text">今日 {{ getTodayHours(store) }}</text>
+            </view>
           </view>
           
           <view class="footer-info">
@@ -195,7 +206,7 @@ export default {
     };
   },
   onPullDownRefresh() {
-    this.loadStores().then(() => {
+    this.loadStores({ noCache: true }).then(() => {
       uni.stopPullDownRefresh();
     });
   },
@@ -205,7 +216,7 @@ export default {
     this.loadStores();
   },
   onShow() {
-    this.loadStores();
+    this.loadStores({ noCache: true });
   },
   methods: {
     /**
@@ -288,7 +299,7 @@ export default {
     /**
      * 获取门店数据
      */
-    async loadStores() {
+    async loadStores(options = {}) {
       this.loading = true;
       try {
         const params = {
@@ -298,7 +309,8 @@ export default {
           maxDistance: this.maxDistance,
           maxPrice: this.maxPrice,
           userLat: this.userLat,
-          userLng: this.userLng
+          userLng: this.userLng,
+          noCache: !!options.noCache
         };
         const data = await fetchStores(params);
         let list = Array.isArray(data) ? data : [];
@@ -341,6 +353,63 @@ export default {
       const count = store.rating.count;
       if (count >= 1000) return `${(count / 1000).toFixed(1)}k条评价`;
       return `${count}条评价`;
+    },
+    /**
+     * 获取今日营业时段
+     */
+    getTodayHours(store) {
+      if (!store || !store.businessHours) return '未设置';
+      const day = new Date().getDay();
+      const source = day === 0 || day === 6
+        ? store.businessHours.weekend
+        : store.businessHours.weekday;
+      return source || '未设置';
+    },
+    /**
+     * 解析营业时段（如 09:00-21:00）
+     */
+    parseBusinessRange(rangeText) {
+      const text = String(rangeText || '').trim();
+      if (!text) return null;
+      const matched = text.match(/(\d{1,2}):(\d{2})\s*[-~到至]\s*(\d{1,2}):(\d{2})/);
+      if (!matched) return null;
+      const startHour = Number(matched[1]);
+      const startMinute = Number(matched[2]);
+      const endHour = Number(matched[3]);
+      const endMinute = Number(matched[4]);
+      if (
+        startHour > 23 || endHour > 23 ||
+        startMinute > 59 || endMinute > 59
+      ) {
+        return null;
+      }
+      return {
+        start: startHour * 60 + startMinute,
+        end: endHour * 60 + endMinute
+      };
+    },
+    /**
+     * 判断营业状态：open/closed/unknown
+     */
+    getBusinessStatus(store) {
+      const todayHours = this.getTodayHours(store);
+      const range = this.parseBusinessRange(todayHours);
+      if (!range) return 'unknown';
+      const now = new Date();
+      const minutes = now.getHours() * 60 + now.getMinutes();
+      if (range.end < range.start) {
+        return minutes >= range.start || minutes <= range.end ? 'open' : 'closed';
+      }
+      return minutes >= range.start && minutes <= range.end ? 'open' : 'closed';
+    },
+    /**
+     * 营业状态文本
+     */
+    getBusinessStatusText(store) {
+      const status = this.getBusinessStatus(store);
+      if (status === 'open') return '营业中';
+      if (status === 'closed') return '休息中';
+      return '待设置';
     },
     /**
      * 跳转到门店详情
@@ -534,11 +603,11 @@ export default {
     }
     
     /* 徽章覆层 */
-    .badge-status {
-      position: absolute;
-      top: 20rpx;
-      left: 20rpx;
-      background-color: rgba(0, 0, 0, 0.6);
+      .badge-status {
+        position: absolute;
+        top: 20rpx;
+        left: 20rpx;
+        background-color: rgba(0, 0, 0, 0.6);
       color: #fff;
       font-size: 20rpx;
       padding: 6rpx 16rpx;
@@ -553,6 +622,14 @@ export default {
         background-color: $uni-color-success;
         border-radius: 50%;
         margin-right: 8rpx;
+      }
+
+      .status-dot.closed {
+        background-color: $uni-color-error;
+      }
+
+      .status-dot.unknown {
+        background-color: #b0b8c6;
       }
     }
     
@@ -621,6 +698,22 @@ export default {
       -webkit-line-clamp: 1; 
       overflow: hidden;
     }
+
+    .store-hours {
+      margin-top: 8rpx;
+      display: flex;
+      align-items: center;
+      gap: 6rpx;
+
+      .hours-icon {
+        font-size: 20rpx;
+      }
+
+      .hours-text {
+        font-size: 22rpx;
+        color: #7a8393;
+      }
+    }
     
     .footer-info {
       display: flex;
@@ -662,4 +755,3 @@ export default {
   transform: scale(0.98);
 }
 </style>
-

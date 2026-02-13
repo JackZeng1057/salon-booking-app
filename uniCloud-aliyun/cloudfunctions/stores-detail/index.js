@@ -22,7 +22,14 @@ exports.main = withResponse(async (event, context) => {
       description: true,
       address: true,
       phone: true,
-      cover: true
+      cover: true,
+      images: true,
+      tags: true,
+      businessHours: true,
+      bookingRules: true,
+      location: true,
+      rating: true,
+      minPrice: true
     })
     .get();
   // 从查询结果中取出第一条门店记录

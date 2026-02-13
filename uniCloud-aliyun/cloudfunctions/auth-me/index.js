@@ -15,6 +15,8 @@ exports.main = withResponse(async (event, context) => {
     // 用户角色字段，若不存在则默认 user
     role: user.role || 'user',
     // 门店 ID（理发师/店家可能需要）
-    storeId: user.storeId || ''
+    storeId: user.storeId || '',
+    // 绑定手机号（用于找回密码/通知）
+    phone: user.phone || ''
   };
 });

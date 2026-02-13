@@ -6,7 +6,7 @@ const { withResponse, requireRole, ApiError } = require('sb-common');
  * 标记通知为已读
  */
 exports.main = withResponse(async (event, context) => {
-  const user = await requireRole(['user'], event, context);
+  const user = await requireRole(['user', 'admin', 'barber'], event, context);
   const userId = user._id || user.uid || user.userId;
 
   const notificationId = event && event.notificationId;
