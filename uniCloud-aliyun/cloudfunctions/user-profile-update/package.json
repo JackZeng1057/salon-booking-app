@@ -1,0 +1,9 @@
+{
+  "name": "user-profile-update",
+  "description": "更新账号资料",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}
+

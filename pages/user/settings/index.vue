@@ -1,104 +1,59 @@
 <template>
   <view class="page">
     <app-nav />
-    <view class="container">
-      <view class="header">
-        <text class="title">账号设置</text>
-        <text class="subtitle">绑定手机号后可用于找回密码与账号验证</text>
+
+    <view class="header">
+      <text class="title">账号设置</text>
+      <text class="subtitle">请选择要维护的账号信息</text>
+    </view>
+
+    <view class="profile-card">
+      <image v-if="user.avatar" class="avatar" :src="user.avatar" mode="aspectFill" />
+      <view v-else class="avatar placeholder">{{ (user.username || 'U').slice(0, 1).toUpperCase() }}</view>
+      <view class="profile-info">
+        <text class="name">{{ user.username || '-' }}</text>
+        <text class="meta">{{ user.phone || '未绑定手机号' }}</text>
       </view>
+    </view>
 
-      <view class="profile-card">
-        <view class="profile-row">
-          <text class="profile-label">当前账号</text>
-          <text class="profile-value">{{ user.username || '-' }}</text>
+    <view class="menu-card">
+      <view class="menu-item" @click="goProfile">
+        <view class="menu-left">
+          <text class="menu-title">修改账号名/头像</text>
+          <text class="menu-desc">更新展示名称与头像</text>
         </view>
-        <view class="profile-row">
-          <text class="profile-label">已绑定手机号</text>
-          <text class="profile-value">{{ user.phone || '未绑定' }}</text>
-        </view>
+        <text class="menu-arrow">›</text>
       </view>
-
-      <view class="form-card">
-        <text class="section-title">绑定手机号</text>
-
-        <view class="field">
-          <text class="field-label">手机号</text>
-          <input
-            class="input"
-            type="number"
-            maxlength="11"
-            v-model="phone"
-            placeholder="请输入手机号"
-          />
+      <view class="menu-item" @click="goPhone">
+        <view class="menu-left">
+          <text class="menu-title">绑定/修改手机号</text>
+          <text class="menu-desc">用于账号安全与找回密码</text>
         </view>
-
-        <view class="field">
-          <text class="field-label">验证码</text>
-          <view class="code-row">
-            <input
-              class="input code-input"
-              type="number"
-              maxlength="6"
-              v-model="code"
-              placeholder="请输入6位验证码"
-            />
-            <button
-              class="code-btn"
-              :class="{ disabled: countdown > 0 || !canSend }"
-              :disabled="countdown > 0 || !canSend"
-              @click="sendCode"
-            >
-              {{ countdown > 0 ? countdown + 's' : '发送验证码' }}
-            </button>
-          </view>
+        <text class="menu-arrow">›</text>
+      </view>
+      <view class="menu-item" @click="goPassword">
+        <view class="menu-left">
+          <text class="menu-title">修改密码</text>
+          <text class="menu-desc">通过手机号验证码修改</text>
         </view>
-
-        <view v-if="demoCode" class="demo-tip">演示验证码：{{ demoCode }}</view>
-
-        <button
-          class="submit-btn"
-          :class="{ disabled: !canSubmit }"
-          :loading="saving"
-          :disabled="!canSubmit"
-          @click="handleBind"
-        >
-          绑定手机号
-        </button>
+        <text class="menu-arrow">›</text>
       </view>
     </view>
   </view>
 </template>
 
 <script>
-import { me, bindPhone } from '../../../api/auth';
+import { me } from '../../../api/auth';
 import { authStore } from '../../../store/auth';
-import { callCloud } from '../../../api/client';
 
 export default {
   data() {
     return {
-      user: authStore.state.user || {},
-      phone: '',
-      code: '',
-      demoCode: '',
-      countdown: 0,
-      timer: null,
-      saving: false
+      user: authStore.state.user || {}
     };
-  },
-  computed: {
-    canSend() {
-      return /^1[3-9]\d{9}$/.test(this.phone);
-    },
-    canSubmit() {
-      return this.canSend && /^\d{6}$/.test(this.code);
-    }
   },
   onShow() {
     this.loadMe();
-  },
-  onUnload() {
-    if (this.timer) clearInterval(this.timer);
   },
   methods: {
     async loadMe() {
@@ -110,50 +65,14 @@ export default {
         uni.showToast({ title: err.message || '获取用户失败', icon: 'none' });
       }
     },
-    async sendCode() {
-      if (!this.canSend) {
-        uni.showToast({ title: '请输入正确手机号', icon: 'none' });
-        return;
-      }
-      try {
-        const res = await callCloud('sms-send-code', {
-          phone: this.phone,
-          type: 'login'
-        });
-        this.demoCode = (res && res.code) || '';
-        uni.showToast({ title: '验证码已发送', icon: 'success' });
-        this.countdown = 60;
-        if (this.timer) clearInterval(this.timer);
-        this.timer = setInterval(() => {
-          this.countdown -= 1;
-          if (this.countdown <= 0) {
-            clearInterval(this.timer);
-            this.timer = null;
-          }
-        }, 1000);
-      } catch (err) {
-        uni.showToast({ title: err.message || '发送失败', icon: 'none' });
-      }
+    goProfile() {
+      uni.navigateTo({ url: '/pages/user/settings/profile' });
     },
-    async handleBind() {
-      if (!this.canSubmit) return;
-      this.saving = true;
-      try {
-        await bindPhone({
-          phone: this.phone,
-          code: this.code,
-          type: 'login'
-        });
-        uni.showToast({ title: '绑定成功', icon: 'success' });
-        this.code = '';
-        this.demoCode = '';
-        await this.loadMe();
-      } catch (err) {
-        const msg = err.code === 409 ? '手机号已被其他账号绑定' : (err.message || '绑定失败');
-        uni.showToast({ title: msg, icon: 'none' });
-      } finally {
-        this.saving = false;
-      }
+    goPhone() {
+      uni.navigateTo({ url: '/pages/user/settings/phone' });
+    },
+    goPassword() {
+      uni.navigateTo({ url: '/pages/user/settings/password' });
     }
   }
 };
@@ -166,10 +85,6 @@ export default {
   background: $uni-bg-color-grey;
 }
 
-.container {
-  padding: 0;
-}
-
 .header {
   margin-bottom: 24rpx;
 }
@@ -179,8 +94,8 @@ export default {
   font-size: 48rpx;
   font-weight: 700;
   color: $uni-color-primary;
-  padding-left: 6rpx;
   line-height: 1.25;
+  padding-left: 6rpx;
 }
 
 .subtitle {
@@ -195,139 +110,88 @@ export default {
 .profile-card {
   background: linear-gradient(145deg, $uni-color-primary, $uni-color-primary-light);
   border-radius: $uni-border-radius-lg;
-  padding: 28rpx;
   box-shadow: $uni-shadow-base;
+  padding: 24rpx;
   margin-bottom: 24rpx;
-}
-
-.profile-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 14rpx;
+  gap: 18rpx;
 }
 
-.profile-row:last-child {
-  margin-bottom: 0;
+.avatar {
+  width: 92rpx;
+  height: 92rpx;
+  border-radius: 46rpx;
+  flex-shrink: 0;
 }
 
-.profile-label {
-  color: rgba(255, 255, 255, 0.72);
+.avatar.placeholder {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.name {
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.meta {
+  color: rgba(255, 255, 255, 0.82);
   font-size: $uni-font-size-sm;
 }
 
-.profile-value {
-  color: #ffffff;
+.menu-card {
+  background: #ffffff;
+  border-radius: $uni-border-radius-lg;
+  box-shadow: $uni-shadow-base;
+}
+
+.menu-item {
+  min-height: 120rpx;
+  padding: 22rpx 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1rpx solid #f1f3f6;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.menu-title {
+  color: $uni-text-color;
   font-size: $uni-font-size-base;
   font-weight: 600;
 }
 
-.form-card {
-  background: #ffffff;
-  border-radius: $uni-border-radius-lg;
-  box-shadow: $uni-shadow-base;
-  padding: 28rpx;
-}
-
-.section-title {
-  display: block;
-  margin-bottom: 20rpx;
-  font-size: 34rpx;
-  color: $uni-text-color;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-.field {
-  margin-bottom: 24rpx;
-}
-
-.field-label {
-  display: block;
+.menu-desc {
   color: $uni-text-color-grey;
   font-size: $uni-font-size-sm;
-  margin-bottom: 12rpx;
-  line-height: 1.4;
 }
 
-.input {
-  width: 100%;
-  height: 96rpx;
-  border-radius: $uni-border-radius-lg;
-  padding: 0 24rpx;
-  background: $uni-bg-color-grey;
-  border: 1rpx solid transparent;
-  font-size: $uni-font-size-base;
-  color: $uni-text-color;
-}
-
-.code-row {
-  display: flex;
-  gap: 14rpx;
-  align-items: center;
-}
-
-.code-input {
-  flex: 1;
-}
-
-.code-btn {
-  width: 220rpx;
-  height: 96rpx;
-  line-height: 96rpx;
-  padding: 0;
-  border-radius: 48rpx;
-  background: #ffffff;
-  border: 1rpx solid $uni-color-primary;
-  color: $uni-color-primary;
-  font-size: $uni-font-size-sm;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.code-btn::after {
-  border: none;
-}
-
-.code-btn.disabled {
-  color: $uni-text-color-disable;
-  border-color: $uni-border-color;
-  background: #f8f9fb;
-}
-
-.demo-tip {
-  margin: 8rpx 0 24rpx;
-  color: #7a4f00;
-  background: rgba(240, 180, 41, 0.12);
-  border: 1rpx solid rgba(240, 180, 41, 0.36);
-  border-radius: $uni-border-radius-base;
-  padding: 14rpx 18rpx;
-  font-size: 24rpx;
-}
-
-.submit-btn {
-  width: 100%;
-  height: 96rpx;
-  line-height: 96rpx;
-  border-radius: 48rpx;
-  background: $uni-color-primary;
-  color: #ffffff;
-  font-size: $uni-font-size-base;
-  font-weight: 600;
-  margin-top: 12rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.submit-btn::after {
-  border: none;
-}
-
-.submit-btn.disabled {
-  background: #c7ced9;
-  color: rgba(255, 255, 255, 0.8);
+.menu-arrow {
+  color: $uni-text-color-placeholder;
+  font-size: 46rpx;
+  line-height: 1;
 }
 </style>
+

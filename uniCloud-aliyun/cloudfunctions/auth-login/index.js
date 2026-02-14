@@ -70,7 +70,13 @@ exports.main = withResponse(async (event, context) => {
       // 返回角色（缺省为 user）
       role: user.role || 'user',
       // 返回门店 ID（理发师/店家需要）
-      storeId: user.storeId || ''
+      storeId: user.storeId || '',
+      // 返回绑定手机号
+      phone: user.phone || '',
+      // 返回显示昵称
+      name: user.name || '',
+      // 返回头像
+      avatar: user.avatar || ''
     }
   };
 });

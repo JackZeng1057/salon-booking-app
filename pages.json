@@ -50,9 +50,37 @@
       }
     },
     {
+      "path": "pages/user/settings/profile",
+      "style": {
+        "navigationBarTitleText": "Profile",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/user/settings/phone",
+      "style": {
+        "navigationBarTitleText": "Phone",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/user/settings/password",
+      "style": {
+        "navigationBarTitleText": "Password",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/user/notifications/index",
       "style": {
         "navigationBarTitleText": "Notifications",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/user/notifications/detail",
+      "style": {
+        "navigationBarTitleText": "Notification Detail",
         "navigationStyle": "custom"
       }
     },

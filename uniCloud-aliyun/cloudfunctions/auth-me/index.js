@@ -6,17 +6,38 @@ const { withResponse, requireLogin } = require('sb-common');
 exports.main = withResponse(async (event, context) => {
   // 校验登录并获取当前用户信息
   const user = await requireLogin(event, context);
+  const userId = user._id || user.uid || user.userId || '';
+  const db = uniCloud.database();
+
+  let latest = null;
+  if (userId) {
+    const userRes = await db.collection('users').doc(userId).field({
+      _id: true,
+      username: true,
+      role: true,
+      storeId: true,
+      phone: true,
+      name: true,
+      avatar: true
+    }).get();
+    latest = userRes.data && userRes.data[0];
+  }
+  const target = latest || user;
   // 返回用户基础信息（兼容不同字段命名）
   return {
     // 用户唯一标识，按多种可能字段兜底
-    _id: user._id || user.uid || user.userId || '',
+    _id: target._id || target.uid || target.userId || userId,
     // 用户名字段，若不存在则返回空字符串
-    username: user.username || '',
+    username: target.username || '',
     // 用户角色字段，若不存在则默认 user
-    role: user.role || 'user',
+    role: target.role || 'user',
     // 门店 ID（理发师/店家可能需要）
-    storeId: user.storeId || '',
+    storeId: target.storeId || '',
     // 绑定手机号（用于找回密码/通知）
-    phone: user.phone || ''
+    phone: target.phone || '',
+    // 显示昵称
+    name: target.name || '',
+    // 头像地址
+    avatar: target.avatar || ''
   };
 });

@@ -90,34 +90,6 @@
         </view>
       </view>
       
-      <!-- 地图与导航 -->
-      <view v-if="store.location && store.location.lat && store.location.lng" class="section map-section">
-        <text class="section-title">门店位置</text>
-        <view class="map-container">
-          <map 
-            class="map"
-            :latitude="store.location.lat"
-            :longitude="store.location.lng"
-            :markers="mapMarkers"
-            :show-location="true"
-          ></map>
-        </view>
-        <view class="location-actions">
-          <view class="action-item" @click="openLocation">
-            <text class="action-icon">📍</text>
-            <text class="action-text">查看地图</text>
-          </view>
-          <view class="action-item" @click="navigateToStore">
-            <text class="action-icon">🧭</text>
-            <text class="action-text">一键导航</text>
-          </view>
-          <view v-if="distance !== null" class="action-item">
-            <text class="action-icon">📏</text>
-            <text class="action-text">距离 {{ formatDistance(distance) }}</text>
-          </view>
-        </view>
-      </view>
-      
       <!-- 预约规则 -->
       <view class="section rules-section">
         <text class="section-title">预约须知</text>

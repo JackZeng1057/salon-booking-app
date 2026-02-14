@@ -7,7 +7,7 @@
     <!-- 头部欢迎区 -->
     <view class="header-section">
       <view class="text-container">
-        <text class="greeting">你好, {{ currentUser.nickname || '新朋友' }} 👋</text>
+        <text class="greeting">你好, {{ displayName }} 👋</text>
         <text class="sub-greeting">换个新造型，遇见全新自己</text>
       </view>
       <view class="header-actions">
@@ -17,8 +17,8 @@
         </view>
         <!-- 头像 -->
         <view class="avatar-container">
-          <!-- 暂无图片，使用样式模拟头像 -->
-          <view class="avatar-placeholder">{{ (currentUser.nickname || 'U')[0] }}</view>
+          <image v-if="currentUser.avatar" class="avatar-placeholder" :src="currentUser.avatar" mode="aspectFill" />
+          <view v-else class="avatar-placeholder">{{ displayName.slice(0, 1).toUpperCase() }}</view>
         </view>
       </view>
     </view>
@@ -112,6 +112,10 @@ export default {
     // 从状态仓库获取用户信息
     currentUser() {
       return authStore.state.user || { nickname: 'Guest' };
+    },
+    displayName() {
+      const user = this.currentUser || {};
+      return user.username || user.name || user.nickname || '新朋友';
     }
   },
   methods: {

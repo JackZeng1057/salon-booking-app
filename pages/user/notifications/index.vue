@@ -96,7 +96,6 @@
 <script>
 // 通知列表页：筛选未读、标记已读与跳转
 import { fetchNotifications, markNotificationsRead, deleteNotification } from '../../../api/notifications';
-import { authStore } from '../../../store/auth';
 
 export default {
   data() {
@@ -254,7 +253,7 @@ export default {
       this.notifications = this.notifications.map((item) => ({ ...item, isRead: true }));
       try {
         await markNotificationsRead({ markAll: true });
-        uni.showToast({ title: '已全部标记为已读', icon: 'success' });
+        uni.showToast({ title: '全部消息已读', icon: 'none' });
         await this.loadNotifications(true);
       } catch (err) {
         this.unreadCount = prevUnread;
@@ -284,21 +283,19 @@ export default {
         }
       }
 
-      // 跳转到相关页面
-      if (notif.relatedType === 'order' && notif.relatedId) {
-        uni.navigateTo({
-          url: `/pages/order/detail?id=${notif.relatedId}`
-        });
-        return;
-      }
-      if (notif.relatedType === 'aftersale') {
-        const role = (authStore.state && authStore.state.role) || '';
-        if (role === 'admin') {
-          uni.navigateTo({ url: '/pages/admin/aftersales' });
-        } else {
-          uni.navigateTo({ url: '/pages/order/list' });
-        }
-      }
+      // 统一跳转消息详情页：先看完整通知，再决定是否查看关联订单
+      const payload = encodeURIComponent(JSON.stringify({
+        _id: notif._id || '',
+        title: notif.title || '',
+        content: notif.content || '',
+        type: notif.type || '',
+        createdAt: notif.createdAt || 0,
+        relatedId: notif.relatedId || '',
+        relatedType: notif.relatedType || ''
+      }));
+      uni.navigateTo({
+        url: `/pages/user/notifications/detail?payload=${payload}`
+      });
     },
     // 获取通知图标
     getNotificationIcon(type) {

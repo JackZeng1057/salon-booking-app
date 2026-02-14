@@ -20,3 +20,8 @@ export function me() {
 export function bindPhone(payload) {
   return callCloud('user-bind-phone', payload);
 }
+
+// 更新资料（昵称/头像）
+export function updateProfile(payload) {
+  return callCloud('user-profile-update', payload);
+}
