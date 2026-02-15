@@ -21,6 +21,8 @@
               v-model="username"
               placeholder="请输入用户名"
               placeholder-class="placeholder"
+              :adjust-position="false"
+              cursor-spacing="20"
             />
           </view>
 
@@ -31,15 +33,29 @@
             </picker>
           </view>
 
-          <view v-if="needStoreId" class="input-group">
-            <text class="label">店铺ID</text>
+          <view v-if="needStoreName" class="input-group">
+            <text class="label">所属门店</text>
+            <picker
+              v-if="isBarberRole"
+              :range="storeOptions"
+              range-key="name"
+              :value="storeIndex"
+              @change="onStoreChange"
+            >
+              <view class="input-field picker-value">{{ selectedStoreText }}</view>
+            </picker>
             <input
+              v-else
               class="input-field"
               type="text"
-              v-model="storeId"
-              placeholder="请输入店铺ID"
+              v-model="storeName"
+              :placeholder="storeNamePlaceholder"
               placeholder-class="placeholder"
+              :adjust-position="false"
+              cursor-spacing="20"
             />
+            <text class="help-text" v-if="isBarberRole && loadingStores">正在加载门店列表...</text>
+            <text class="help-text" v-else-if="isBarberRole && storeOptions.length === 0">暂无可选门店，请先由店家创建门店</text>
           </view>
 
           <view class="input-group">
@@ -50,6 +66,8 @@
               v-model="password"
               placeholder="请输入密码"
               placeholder-class="placeholder"
+              :adjust-position="false"
+              cursor-spacing="20"
             />
           </view>
 
@@ -61,6 +79,8 @@
               v-model="confirmPassword"
               placeholder="请再次输入密码"
               placeholder-class="placeholder"
+              :adjust-position="false"
+              cursor-spacing="20"
             />
           </view>
 
@@ -86,6 +106,7 @@
 <script>
 // 注册页面：选择角色、校验输入并提交注册
 import { register } from '../../api/auth';
+import { fetchStores } from '../../api/store';
 
 export default {
   data() {
@@ -93,21 +114,50 @@ export default {
       username: '',
       password: '',
       confirmPassword: '',
-      storeId: '',
+      storeName: '',
       roleOptions: [
         { label: '普通用户', value: 'user' },
         { label: '理发师', value: 'barber' },
         { label: '店家', value: 'admin' }
       ],
       roleIndex: 0,
-      loading: false
+      loading: false,
+      loadingStores: false,
+      storeOptions: [],
+      storeIndex: -1,
+      selectedStoreId: ''
     };
   },
   computed: {
-    // 管理员/理发师需要绑定店铺ID
-    needStoreId() {
+    // 管理员/理发师需要填写所属门店名称
+    needStoreName() {
       const role = this.roleOptions[this.roleIndex].value;
       return role === 'admin' || role === 'barber';
+    },
+    isAdminRole() {
+      return this.roleOptions[this.roleIndex].value === 'admin';
+    },
+    isBarberRole() {
+      return this.roleOptions[this.roleIndex].value === 'barber';
+    },
+    selectedStoreText() {
+      if (this.loadingStores) return '正在加载门店列表...';
+      if (this.storeOptions.length === 0) return '暂无可选门店';
+      if (this.storeIndex < 0 || !this.storeOptions[this.storeIndex]) {
+        return '请选择门店';
+      }
+      const item = this.storeOptions[this.storeIndex];
+      return `${item.name || ''}${item.address ? `（${item.address}）` : ''}`;
+    },
+    storeNamePlaceholder() {
+      return this.isAdminRole
+        ? '请输入门店名称（将自动创建新门店）'
+        : '请输入所属门店名称';
+    }
+  },
+  onLoad() {
+    if (this.isBarberRole) {
+      this.loadStores();
     }
   },
   methods: {
@@ -118,6 +168,50 @@ export default {
     // 角色选择变更
     onRoleChange(e) {
       this.roleIndex = Number(e.detail.value || 0);
+      if (this.isBarberRole) {
+        this.loadStores();
+      } else {
+        this.storeOptions = [];
+        this.loadingStores = false;
+        this.storeIndex = -1;
+        this.selectedStoreId = '';
+      }
+      if (!this.needStoreName) {
+        this.storeName = '';
+      }
+      if (this.isAdminRole) {
+        this.storeName = '';
+      }
+    },
+    async loadStores() {
+      this.loadingStores = true;
+      try {
+        const list = await fetchStores({ page: 1, pageSize: 50, noCache: true });
+        this.storeOptions = Array.isArray(list) ? list.filter((item) => item && item.name) : [];
+        if (this.storeOptions.length > 0) {
+          this.storeIndex = 0;
+          this.storeName = this.storeOptions[0].name || '';
+          this.selectedStoreId = this.storeOptions[0]._id || '';
+        } else {
+          this.storeIndex = -1;
+          this.storeName = '';
+          this.selectedStoreId = '';
+        }
+      } catch (err) {
+        this.storeOptions = [];
+        this.storeIndex = -1;
+        this.storeName = '';
+        this.selectedStoreId = '';
+      } finally {
+        this.loadingStores = false;
+      }
+    },
+    onStoreChange(e) {
+      const index = Number(e && e.detail && e.detail.value);
+      if (!Number.isFinite(index) || index < 0 || !this.storeOptions[index]) return;
+      this.storeIndex = index;
+      this.storeName = this.storeOptions[index].name || '';
+      this.selectedStoreId = this.storeOptions[index]._id || '';
     },
     // 处理注册
     async handleRegister() {
@@ -129,8 +223,12 @@ export default {
         uni.showToast({ title: '两次密码不一致', icon: 'none' });
         return;
       }
-      if (this.needStoreId && !this.storeId.trim()) {
-        uni.showToast({ title: '请输入店铺ID', icon: 'none' });
+      if (this.isAdminRole && !this.storeName.trim()) {
+        uni.showToast({ title: '请填写所属门店名称', icon: 'none' });
+        return;
+      }
+      if (this.isBarberRole && !this.selectedStoreId) {
+        uni.showToast({ title: '请选择所属门店', icon: 'none' });
         return;
       }
 
@@ -141,9 +239,13 @@ export default {
           username: this.username,
           password: this.password,
           role,
-          storeId: this.needStoreId ? this.storeId.trim() : ''
+          storeName: this.needStoreName ? this.storeName.trim() : '',
+          storeId: this.isBarberRole ? this.selectedStoreId : ''
         });
-        uni.showToast({ title: '注册成功', icon: 'success' });
+        uni.showToast({
+          title: this.isBarberRole ? '申请已提交' : '注册成功',
+          icon: 'success'
+        });
         setTimeout(() => {
           uni.navigateBack();
         }, 500);
@@ -251,8 +353,18 @@ export default {
   .picker-value {
     height: 100rpx;
     line-height: 100rpx;
-    display: flex;
-    align-items: center;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .help-text {
+    margin-top: 10rpx;
+    display: block;
+    font-size: 24rpx;
+    color: $uni-text-color-grey;
+    line-height: 1.4;
   }
 }
 
@@ -265,10 +377,16 @@ export default {
   color: #ffffff;
   height: 100rpx;
   line-height: 100rpx;
+  width: 100%;
+  padding: 0;
   border-radius: 50rpx;
   font-size: $uni-font-size-lg;
   font-weight: 600;
   box-shadow: 0 10rpx 20rpx rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 
   &::after {
     border: none;

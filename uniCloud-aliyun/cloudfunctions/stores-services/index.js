@@ -20,6 +20,7 @@ exports.main = withResponse(async (event, context) => {
     // 仅查询当前门店的服务记录
     .where({ storeId })
     .field({
+      _id: true,
       name: true,
       price: true,
       duration: true,

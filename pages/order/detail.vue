@@ -325,7 +325,7 @@ export default {
         if (storeId) {
           const [services, barbers] = await Promise.all([
             fetchStoreServices(storeId),
-            fetchStoreBarbers(storeId)
+            fetchStoreBarbers(storeId, { noCache: true })
           ]);
           this.serviceMap = (Array.isArray(services) ? services : []).reduce((acc, item) => {
             acc[item._id] = item.name || item._id;

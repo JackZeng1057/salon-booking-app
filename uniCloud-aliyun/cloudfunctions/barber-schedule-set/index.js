@@ -2,7 +2,7 @@ const { withResponse, ApiError, ERROR_CODES, requireRole } = require('sb-common'
 
 // 排班设置与时段生成：
 // 1) 按 5 分钟粒度生成当天/未来 N 天 AVAILABLE slots
-// 2) 保留已 BOOKED 时段，避免覆盖历史预约
+// 2) 已存在时段一律跳过（不重复生成，不覆盖历史）
 // 3) 批量写入，降低超时风险
 
 // 校验日期格式是否为 YYYY-MM-DD
@@ -35,19 +35,186 @@ function minutesToTime(minutes) {
 
 // 校验是否对齐粒度
 const SLOT_STEP_MIN = 5;
+const REST_GAP_MIN = 5;
+const BREAK_WINDOWS = [
+  { start: '12:00', end: '13:00' },
+  { start: '18:00', end: '19:00' }
+];
 
 // 校验是否对齐粒度
 function ensureAligned(minutes) {
   return minutes % SLOT_STEP_MIN === 0;
 }
 
+function isInBreakWindow(startMin) {
+  return BREAK_WINDOWS.some((window) => {
+    const windowStart = timeToMinutes(window.start);
+    const windowEnd = timeToMinutes(window.end);
+    if (Number.isNaN(windowStart) || Number.isNaN(windowEnd)) return false;
+    return startMin >= windowStart && startMin < windowEnd;
+  });
+}
+
+function isWindowAvailable(statusMap, startMin, requiredSlots) {
+  for (let i = 0; i < requiredSlots; i += 1) {
+    const current = startMin + i * SLOT_STEP_MIN;
+    const time = minutesToTime(current);
+    if (statusMap.get(time) !== 'AVAILABLE') return false;
+  }
+  return true;
+}
+
+function calcBookableStats({
+  beforeStatusMap,
+  afterStatusMap,
+  date,
+  startMin,
+  endMin,
+  durationMin,
+  nowTs
+}) {
+  const requiredMin = durationMin + REST_GAP_MIN;
+  const requiredSlots = Math.ceil(requiredMin / SLOT_STEP_MIN);
+  const stepMin = requiredMin;
+  let created = 0;
+  let existed = 0;
+  let total = 0;
+  const now = Number(nowTs || Date.now());
+  const today = getChinaDateString(now);
+  const isPastDate = date < today;
+
+  for (let start = startMin; start + durationMin <= endMin; start += stepMin) {
+    if (isPastDate) continue;
+    if (isInBreakWindow(start)) continue;
+    if (date === today) {
+      const startMs = toChinaTimestamp(date, minutesToTime(start));
+      if (startMs && startMs <= now) continue;
+    }
+    const beforeAvailable = isWindowAvailable(beforeStatusMap, start, requiredSlots);
+    const afterAvailable = isWindowAvailable(afterStatusMap, start, requiredSlots);
+    if (afterAvailable) {
+      total += 1;
+      if (beforeAvailable) {
+        existed += 1;
+      } else {
+        created += 1;
+      }
+    }
+  }
+  return { created, existed, total, requiredMin };
+}
+
+function calcTotalBookable({
+  statusMap,
+  date,
+  startMin,
+  endMin,
+  durationMin,
+  nowTs
+}) {
+  const requiredMin = durationMin + REST_GAP_MIN;
+  const requiredSlots = Math.ceil(requiredMin / SLOT_STEP_MIN);
+  const stepMin = requiredMin;
+  const now = Number(nowTs || Date.now());
+  const today = getChinaDateString(now);
+  const isPastDate = date < today;
+  if (isPastDate) return 0;
+
+  let total = 0;
+  for (let start = startMin; start + durationMin <= endMin; start += stepMin) {
+    if (isInBreakWindow(start)) continue;
+    if (date === today) {
+      const startMs = toChinaTimestamp(date, minutesToTime(start));
+      if (startMs && startMs <= now) continue;
+    }
+    if (isWindowAvailable(statusMap, start, requiredSlots)) {
+      total += 1;
+    }
+  }
+  return total;
+}
+
+function pad2(num) {
+  return String(num).padStart(2, '0');
+}
+
+function getChinaDateString(ts = Date.now()) {
+  const china = new Date(ts + 8 * 60 * 60 * 1000);
+  const y = china.getUTCFullYear();
+  const m = pad2(china.getUTCMonth() + 1);
+  const d = pad2(china.getUTCDate());
+  return `${y}-${m}-${d}`;
+}
+
+function toChinaTimestamp(dateStr, timeStr) {
+  if (!dateStr || !timeStr) return 0;
+  return new Date(`${dateStr}T${timeStr}:00+08:00`).getTime();
+}
+
+async function fetchAllSlotsByDate(slotCol, barberId, date) {
+  const PAGE_SIZE = 500;
+  const MAX_PAGES = 50;
+  const list = [];
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const res = await slotCol
+      .where({ barberId, date })
+      .field({ startTime: true, status: true })
+      .orderBy('startTime', 'asc')
+      .skip(page * PAGE_SIZE)
+      .limit(PAGE_SIZE)
+      .get();
+    const batch = (res && res.data) || [];
+    list.push(...batch);
+    if (batch.length < PAGE_SIZE) break;
+  }
+  return list;
+}
+
+async function resolveAssignedService(db, storeId, barberId) {
+  const defaultService = { id: '', durationMin: 30, name: '默认服务' };
+  if (!storeId || !barberId) return defaultService;
+
+  const [serviceRes, barberRes] = await Promise.all([
+    db
+      .collection('services')
+      .where({ storeId })
+      .field({ _id: true, name: true, duration: true, durationMin: true })
+      .orderBy('createdAt', 'desc')
+      .get(),
+    db
+      .collection('users')
+      .where({ storeId, role: 'barber' })
+      .field({ _id: true })
+      .orderBy('createdAt', 'desc')
+      .get()
+  ]);
+
+  const serviceList = (serviceRes && serviceRes.data) || [];
+  const barberList = (barberRes && barberRes.data) || [];
+  const pairCount = Math.min(serviceList.length, barberList.length);
+  const barberIndex = barberList.findIndex((item) => item && item._id === barberId);
+  if (barberIndex < 0 || barberIndex >= pairCount) {
+    return defaultService;
+  }
+
+  const service = serviceList[barberIndex] || {};
+  const durationMin = Number(service.duration || service.durationMin || defaultService.durationMin);
+  return {
+    id: service._id || '',
+    durationMin: Number.isFinite(durationMin) && durationMin > 0 ? durationMin : defaultService.durationMin,
+    name: service.name || defaultService.name
+  };
+}
+
 // 计算日期偏移（YYYY-MM-DD -> YYYY-MM-DD）
 function addDays(dateStr, days) {
   const [y, m, d] = dateStr.split('-').map(Number);
-  const date = new Date(y, m - 1, d + days);
-  const yy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
+  // 使用 UTC 中午时间计算偏移，避免时区边界导致跨天异常
+  const utcTs = Date.UTC(y, m - 1, d + days, 12, 0, 0);
+  const date = new Date(utcTs);
+  const yy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
   return `${yy}-${mm}-${dd}`;
 }
 
@@ -105,11 +272,19 @@ exports.main = withResponse(async (event, context) => {
   // 统计生成结果
   let createdCount = 0;
   let existedCount = 0;
+  let totalBookableCount = 0;
+  let rawCreatedCount = 0;
+  let rawExistedCount = 0;
   let skippedBookedCount = 0;
+  let skippedDateCount = 0;
+  const generatedDates = [];
   const BATCH_SIZE = 500;
+  const assignedService = await resolveAssignedService(db, storeId, barberId);
+  const durationMin = Number(assignedService.durationMin || 30);
+  const nowTs = Date.now();
 
-    // 生成某一天排班与 slots（幂等）
-    async function upsertScheduleAndSlots(targetDate) {
+  // 生成某一天排班与 slots（幂等）
+  async function upsertScheduleAndSlots(targetDate) {
     // 查找是否已存在该理发师当天排班
     const existingSchedule = await scheduleCol
       .where({ barberId, date: targetDate })
@@ -134,29 +309,25 @@ exports.main = withResponse(async (event, context) => {
     }
 
     // 一次性读取当天已存在的 slots
-    const existingRes = await slotCol
-      .where({ barberId, date: targetDate })
-      .field({ startTime: true, status: true })
-      .get();
-
-    const existing = existingRes.data || [];
+    const existing = await fetchAllSlotsByDate(slotCol, barberId, targetDate);
+    const existingStartSet = new Set(existing.map((slot) => slot.startTime));
+    const beforeStatusMap = new Map(
+      existing.map((slot) => [slot.startTime, slot.status || 'AVAILABLE'])
+    );
     const bookedSet = new Set(
       existing.filter((slot) => slot.status === 'BOOKED').map((slot) => slot.startTime)
     );
-    skippedBookedCount += bookedSet.size;
-
-    // 删除当天所有 AVAILABLE slots，避免逐条更新（BOOKED 会保留）
-    if (existing.length > 0) {
-      await slotCol.where({ barberId, date: targetDate, status: 'AVAILABLE' }).remove();
-    }
 
     const now = Date.now();
     const toInsert = [];
     for (let current = startMin; current < endMin; current += SLOT_STEP_MIN) {
       const startTime = minutesToTime(current);
       const endTime = minutesToTime(current + SLOT_STEP_MIN);
-      if (bookedSet.has(startTime)) {
-        existedCount += 1;
+      if (existingStartSet.has(startTime)) {
+        rawExistedCount += 1;
+        if (bookedSet.has(startTime)) {
+          skippedBookedCount += 1;
+        }
         continue;
       }
       toInsert.push({
@@ -169,13 +340,50 @@ exports.main = withResponse(async (event, context) => {
         updatedAt: now
       });
     }
+    if (toInsert.length === 0) {
+      skippedDateCount += 1;
+    }
+
+    const afterStatusMap = new Map(beforeStatusMap);
+    toInsert.forEach((slot) => {
+      afterStatusMap.set(slot.startTime, 'AVAILABLE');
+    });
+
+    const dayBookable = calcBookableStats({
+      beforeStatusMap,
+      afterStatusMap,
+      date: targetDate,
+      startMin,
+      endMin,
+      durationMin,
+      nowTs
+    });
+    createdCount += dayBookable.created;
+    existedCount += dayBookable.existed;
+
+    // 与预约查询口径对齐：排班窗口内缺失 5 分钟基础槽位按 AVAILABLE 参与可预约统计
+    const effectiveStatusMap = new Map(afterStatusMap);
+    for (let current = startMin; current < endMin; current += SLOT_STEP_MIN) {
+      const time = minutesToTime(current);
+      if (!effectiveStatusMap.has(time)) {
+        effectiveStatusMap.set(time, 'AVAILABLE');
+      }
+    }
+    totalBookableCount += calcTotalBookable({
+      statusMap: effectiveStatusMap,
+      date: targetDate,
+      startMin,
+      endMin,
+      durationMin,
+      nowTs
+    });
 
     // 批量写入避免单次过大造成超时
     for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
       const batch = toInsert.slice(i, i + BATCH_SIZE);
       if (batch.length) {
         await slotCol.add(batch);
-        createdCount += batch.length;
+        rawCreatedCount += batch.length;
       }
     }
   }
@@ -184,13 +392,22 @@ exports.main = withResponse(async (event, context) => {
   for (let i = 0; i < safeDays; i += 1) {
     const targetDate = addDays(date, i);
     await upsertScheduleAndSlots(targetDate);
+    generatedDates.push(targetDate);
   }
 
   // 返回生成统计给前端展示
   return {
     days: safeDays,
+    generatedDates,
     createdCount,
     existedCount,
-    skippedBookedCount
+    totalBookableCount,
+    rawCreatedCount,
+    rawExistedCount,
+    serviceId: assignedService.id || '',
+    serviceName: assignedService.name || '默认服务',
+    serviceDurationMin: durationMin,
+    skippedBookedCount,
+    skippedDateCount
   };
 });

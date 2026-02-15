@@ -51,6 +51,36 @@ function buildSlotStartTimes(startTime, durationMin) {
   return list;
 }
 
+async function ensureInScheduleWindow(db, barberId, date, slotTimes) {
+  const scheduleRes = await db
+    .collection('barber_schedules')
+    .where({ barberId, date })
+    .field({ workStart: true, workEnd: true })
+    .limit(1)
+    .get();
+  const schedule = scheduleRes.data && scheduleRes.data[0];
+  if (!schedule) {
+    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'schedule_not_set');
+  }
+  const scheduleStartMin = timeToMinutes(schedule.workStart);
+  const scheduleEndMin = timeToMinutes(schedule.workEnd);
+  if (
+    Number.isNaN(scheduleStartMin) ||
+    Number.isNaN(scheduleEndMin) ||
+    scheduleStartMin >= scheduleEndMin
+  ) {
+    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'schedule_invalid');
+  }
+
+  const outside = slotTimes.some((time) => {
+    const min = timeToMinutes(time);
+    return Number.isNaN(min) || min < scheduleStartMin || min >= scheduleEndMin;
+  });
+  if (outside) {
+    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'outside_schedule');
+  }
+}
+
 // 确保目标时间段的 slots 已存在（排班漏生成时兜底创建）
 async function ensureSlotsExist(db, storeId, barberId, date, slotTimes) {
   if (!slotTimes.length) return;
@@ -160,6 +190,7 @@ exports.main = withResponse(async (event, context) => {
 
   const _ = db.command;
   const newSlotTimes = buildSlotStartTimes(newStartTime, durationMin);
+  await ensureInScheduleWindow(db, order.barberId, newDate, newSlotTimes);
   await ensureSlotsExist(db, order.storeId || '', order.barberId, newDate, newSlotTimes);
 
   // 先尝试占用新 slot，避免释放旧 slot 后抢占失败

@@ -131,9 +131,21 @@ export default {
         });
 
         // 登录成功提示
+        const isBarberPending =
+          res &&
+          res.user &&
+          res.user.pendingRole === 'barber' &&
+          res.user.approvalStatus === 'PENDING';
+        const isBarberRejected =
+          res &&
+          res.user &&
+          res.user.pendingRole === 'barber' &&
+          res.user.approvalStatus === 'REJECTED';
         uni.showToast({
-          title: '登录成功',
-          icon: 'success'
+          title: isBarberPending
+            ? '理发师申请审核中，先进入用户端'
+            : (isBarberRejected ? '理发师申请未通过，请联系店家' : '登录成功'),
+          icon: (isBarberPending || isBarberRejected) ? 'none' : 'success'
         });
 
         // 延迟跳转，提升体验

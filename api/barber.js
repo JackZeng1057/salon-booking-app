@@ -19,14 +19,19 @@ export function setBarberSchedule(payload) {
 // 查询理发师某天时段
 // 入参：{ barberId, date, serviceId? }
 export function fetchBarberSlots(payload) {
-  const barberId = payload && payload.barberId ? payload.barberId : '';
-  const date = payload && payload.date ? payload.date : '';
-  const serviceId = payload && payload.serviceId ? payload.serviceId : '';
+  const noCache = !!(payload && payload.noCache);
+  const request = { ...(payload || {}) };
+  delete request.noCache;
+  const barberId = request && request.barberId ? request.barberId : '';
+  const date = request && request.date ? request.date : '';
+  const serviceId = request && request.serviceId ? request.serviceId : '';
   // 同一天不同服务会有不同可预约窗口，缓存 key 需包含 serviceId
   const key = `barber-slots:${barberId}:${date}:${serviceId}`;
-  const cached = getCache(key);
-  if (cached) return Promise.resolve(cached);
-  return callCloud('barber-slots-get', payload).then((data) => {
+  if (!noCache) {
+    const cached = getCache(key);
+    if (cached) return Promise.resolve(cached);
+  }
+  return callCloud('barber-slots-get', request).then((data) => {
     setCache(key, data, SLOT_TTL);
     return data;
   });

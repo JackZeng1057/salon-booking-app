@@ -76,7 +76,11 @@ exports.main = withResponse(async (event, context) => {
       // 返回显示昵称
       name: user.name || '',
       // 返回头像
-      avatar: user.avatar || ''
+      avatar: user.avatar || '',
+      // 待审核角色（如 barber）
+      pendingRole: user.pendingRole || '',
+      // 审核状态（PENDING/APPROVED/REJECTED）
+      approvalStatus: user.approvalStatus || ''
     }
   };
 });

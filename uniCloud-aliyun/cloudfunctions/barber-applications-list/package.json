@@ -1,0 +1,8 @@
+{
+  "name": "barber-applications-list",
+  "description": "店家查看理发师审核申请",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}

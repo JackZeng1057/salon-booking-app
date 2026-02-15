@@ -31,9 +31,24 @@ exports.main = withResponse(async (event, context) => {
     if (existed && existed._id !== userId) {
       throw new ApiError(409, 'username already exists');
     }
-    // 按你的规则：账号名和昵称视为同一字段，保持同步
+    // 用户名可修改，但昵称按角色规则生成
     updateData.username = username;
-    updateData.name = username;
+    if (user.role === 'admin' || user.role === 'barber') {
+      const storeId = user.storeId || '';
+      let storeName = '';
+      if (storeId) {
+        const storeRes = await db.collection('stores').doc(storeId).field({ name: true }).get();
+        const store = storeRes && storeRes.data && storeRes.data[0];
+        storeName = String((store && store.name) || '').trim();
+      }
+      if (user.role === 'admin') {
+        updateData.name = storeName || username;
+      } else {
+        updateData.name = storeName ? `${storeName}_${username}` : username;
+      }
+    } else {
+      updateData.name = username;
+    }
   }
   if (avatar) updateData.avatar = avatar;
 

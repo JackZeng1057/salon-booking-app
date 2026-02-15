@@ -18,7 +18,9 @@ exports.main = withResponse(async (event, context) => {
       storeId: true,
       phone: true,
       name: true,
-      avatar: true
+      avatar: true,
+      pendingRole: true,
+      approvalStatus: true
     }).get();
     latest = userRes.data && userRes.data[0];
   }
@@ -38,6 +40,10 @@ exports.main = withResponse(async (event, context) => {
     // 显示昵称
     name: target.name || '',
     // 头像地址
-    avatar: target.avatar || ''
+    avatar: target.avatar || '',
+    // 待审核角色（如 barber）
+    pendingRole: target.pendingRole || '',
+    // 审核状态（PENDING/APPROVED/REJECTED）
+    approvalStatus: target.approvalStatus || ''
   };
 });

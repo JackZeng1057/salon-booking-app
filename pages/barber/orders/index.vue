@@ -46,6 +46,11 @@
         </view>
       </view>
     </view>
+
+    <view class="account-card">
+      <text class="label">账号</text>
+      <button class="account-btn" type="default" @click="goAccountSettings">账号设置（修改头像）</button>
+    </view>
   </view>
 </template>
 
@@ -192,6 +197,17 @@ export default {
       } finally {
         this.setActionLoading(orderId, 'finish', false);
       }
+    },
+    goAccountSettings() {
+      uni.navigateTo({
+        url: '/pages/user/settings/index',
+        fail: () => {
+          uni.showToast({
+            title: '页面未生效，请重新编译',
+            icon: 'none'
+          });
+        }
+      });
     }
   }
 };
@@ -270,5 +286,23 @@ export default {
 
 .action-btn {
   flex: 1;
+}
+
+.account-card {
+  margin-top: 20rpx;
+  background: #ffffff;
+  border-radius: $uni-border-radius-lg;
+  padding: 24rpx;
+  box-shadow: $uni-shadow-base;
+}
+
+.account-btn {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

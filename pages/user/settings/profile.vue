@@ -4,7 +4,7 @@
 
     <view class="header">
       <text class="title">修改账号名/头像</text>
-      <text class="subtitle">账号名与昵称保持一致</text>
+      <text class="subtitle">昵称按角色规则自动生成</text>
     </view>
 
     <view class="card">
@@ -59,8 +59,9 @@ export default {
   computed: {
     canSave() {
       const name = String(this.username || '').trim();
-      if (!name) return false;
-      return name !== this.originUsername || this.avatar !== this.originAvatar;
+      const avatarChanged = this.avatar !== this.originAvatar;
+      const nameChanged = !!name && name !== this.originUsername;
+      return avatarChanged || nameChanged;
     }
   },
   onShow() {
@@ -260,4 +261,3 @@ export default {
   color: rgba(255, 255, 255, 0.82);
 }
 </style>
-

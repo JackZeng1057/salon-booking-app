@@ -9,10 +9,10 @@
 
     <view class="profile-card">
       <image v-if="user.avatar" class="avatar" :src="user.avatar" mode="aspectFill" />
-      <view v-else class="avatar placeholder">{{ (user.username || 'U').slice(0, 1).toUpperCase() }}</view>
+      <view v-else class="avatar placeholder">{{ (displayName || 'U').slice(0, 1).toUpperCase() }}</view>
       <view class="profile-info">
-        <text class="name">{{ user.username || '-' }}</text>
-        <text class="meta">{{ user.phone || '未绑定手机号' }}</text>
+        <text class="name">{{ displayName || '-' }}</text>
+        <text class="meta">{{ accountName || '-' }}</text>
       </view>
     </view>
 
@@ -20,7 +20,7 @@
       <view class="menu-item" @click="goProfile">
         <view class="menu-left">
           <text class="menu-title">修改账号名/头像</text>
-          <text class="menu-desc">更新展示名称与头像</text>
+          <text class="menu-desc">更新登录账号名与头像</text>
         </view>
         <text class="menu-arrow">›</text>
       </view>
@@ -51,6 +51,14 @@ export default {
     return {
       user: authStore.state.user || {}
     };
+  },
+  computed: {
+    displayName() {
+      return this.user.name || this.user.username || '';
+    },
+    accountName() {
+      return this.user.username || '';
+    }
   },
   onShow() {
     this.loadMe();
@@ -194,4 +202,3 @@ export default {
   line-height: 1;
 }
 </style>
-

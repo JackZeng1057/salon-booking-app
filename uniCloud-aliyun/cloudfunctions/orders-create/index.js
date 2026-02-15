@@ -51,6 +51,36 @@ function buildSlotStartTimes(startTime, durationMin) {
   return list;
 }
 
+async function ensureInScheduleWindow(db, barberId, date, slotTimes) {
+  const scheduleRes = await db
+    .collection('barber_schedules')
+    .where({ barberId, date })
+    .field({ workStart: true, workEnd: true })
+    .limit(1)
+    .get();
+  const schedule = scheduleRes.data && scheduleRes.data[0];
+  if (!schedule) {
+    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'schedule_not_set');
+  }
+  const scheduleStartMin = timeToMinutes(schedule.workStart);
+  const scheduleEndMin = timeToMinutes(schedule.workEnd);
+  if (
+    Number.isNaN(scheduleStartMin) ||
+    Number.isNaN(scheduleEndMin) ||
+    scheduleStartMin >= scheduleEndMin
+  ) {
+    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'schedule_invalid');
+  }
+
+  const outside = slotTimes.some((time) => {
+    const min = timeToMinutes(time);
+    return Number.isNaN(min) || min < scheduleStartMin || min >= scheduleEndMin;
+  });
+  if (outside) {
+    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'outside_schedule');
+  }
+}
+
 // 确保目标时间段的 slots 已存在（排班漏生成时兜底创建）
 async function ensureSlotsExist(db, storeId, barberId, date, slotTimes) {
   if (!slotTimes.length) return;
@@ -139,6 +169,33 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(400, 'barber not belongs to store');
   }
 
+  // 临时规则：一位理发师仅负责一个服务（按服务/理发师创建时间倒序一一对应）
+  const [serviceListRes, barberListRes] = await Promise.all([
+    db
+      .collection('services')
+      .where({ storeId })
+      .field({ _id: true })
+      .orderBy('createdAt', 'desc')
+      .get(),
+    db
+      .collection('users')
+      .where({ storeId, role: 'barber' })
+      .field({ _id: true })
+      .orderBy('createdAt', 'desc')
+      .get()
+  ]);
+  const serviceList = (serviceListRes && serviceListRes.data) || [];
+  const barberList = (barberListRes && barberListRes.data) || [];
+  const pairCount = Math.min(serviceList.length, barberList.length);
+  const serviceIndex = serviceList.findIndex((item) => (item && item._id) === serviceId);
+  if (pairCount <= 0 || serviceIndex < 0 || serviceIndex >= pairCount) {
+    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'service not available for booking');
+  }
+  const assignedBarber = barberList[serviceIndex];
+  if (!assignedBarber || assignedBarber._id !== barberId) {
+    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'barber not available for selected service');
+  }
+
   // 获取门店信息用于订单快照，仅取所需字段减少读取量
   const storeRes = await db
     .collection('stores')
@@ -195,6 +252,7 @@ exports.main = withResponse(async (event, context) => {
 
   try {
     const slotTimes = buildSlotStartTimes(startTime, durationMin);
+    await ensureInScheduleWindow(db, barberId, date, slotTimes);
     await ensureSlotsExist(db, storeId, barberId, date, slotTimes);
     const _ = db.command;
     // 尝试占用 slot：仅当全部 AVAILABLE 时更新为 BOOKED

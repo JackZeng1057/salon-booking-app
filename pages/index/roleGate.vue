@@ -17,9 +17,6 @@
 import { me } from '../../api/auth';
 import { authStore } from '../../store/auth';
 
-const ME_CACHE_KEY = 'me_cache_ts';
-const ME_CACHE_TTL = 5 * 60 * 1000; // 5 分钟
-
 export default {
   data() {
     return {
@@ -49,17 +46,9 @@ export default {
       }
 
       try {
-        const cachedUser = authStore.state.user;
-        const lastMeAt = Number(uni.getStorageSync(ME_CACHE_KEY) || 0);
-        const isFresh = cachedUser && Date.now() - lastMeAt < ME_CACHE_TTL;
-
-        let user = cachedUser;
-        if (!isFresh) {
-          this.statusText = '正在获取用户信息...';
-          user = await me();
-          authStore.setUser(user);
-          uni.setStorageSync(ME_CACHE_KEY, Date.now());
-        }
+        this.statusText = '正在获取用户信息...';
+        const user = await me();
+        authStore.setUser(user);
         
         this.statusText = `欢迎回来, ${user.nickname || user.username}`;
         

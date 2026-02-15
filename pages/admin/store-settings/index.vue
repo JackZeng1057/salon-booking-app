@@ -2,7 +2,7 @@
   <view class="page">
     <app-nav />
     <text class="title">门店信息设置</text>
-    <text class="subtitle">管理员可维护地址、标签、营业时间和预约规则</text>
+    <text class="subtitle">管理员可维护地址、标签、服务、营业时间和预约规则</text>
 
     <view v-if="loading" class="card hint-card">加载中...</view>
 
@@ -10,6 +10,16 @@
       <view class="field">
         <text class="label">门店名称</text>
         <input class="input" v-model="form.name" placeholder="请输入门店名称" />
+      </view>
+
+      <view class="field">
+        <text class="label">门店封面</text>
+        <view class="cover-row">
+          <image class="cover-preview" :src="form.cover || defaultCover" mode="aspectFill" />
+          <button class="cover-btn" :loading="uploadingCover" @click="pickCover">
+            {{ uploadingCover ? '上传中...' : '上传封面' }}
+          </button>
+        </view>
       </view>
 
       <view class="field">
@@ -30,6 +40,31 @@
           maxlength="200"
           placeholder="例如：男士精剪, 造型设计, 头皮护理"
         />
+      </view>
+
+      <view class="field">
+        <view class="field-head">
+          <text class="label">服务项目设置</text>
+          <button class="mini-btn" @click="addService">新增服务</button>
+        </view>
+        <view v-if="form.services.length === 0" class="service-empty">暂无服务，请点击“新增服务”</view>
+        <view v-for="(item, idx) in form.services" :key="item.localId" class="service-item">
+          <view class="service-row-top">
+            <text class="service-index">服务 {{ idx + 1 }}</text>
+            <text class="service-remove" @click="removeService(idx)">删除</text>
+          </view>
+          <input class="input" v-model="item.name" placeholder="服务名称，例如：男士剪发" />
+          <view class="service-grid">
+            <view class="service-cell">
+              <text class="sub-label">价格（元）</text>
+              <input class="input input-small" type="digit" v-model="item.price" placeholder="68" />
+            </view>
+            <view class="service-cell">
+              <text class="sub-label">时长（分钟）</text>
+              <input class="input input-small" type="number" v-model="item.duration" placeholder="45" />
+            </view>
+          </view>
+        </view>
       </view>
 
       <view class="field">
@@ -109,7 +144,7 @@
 </template>
 
 <script>
-import { fetchStoreDetail, updateManagedStore } from '../../../api/store';
+import { fetchStoreDetail, fetchStoreServices, updateManagedStore } from '../../../api/store';
 import { me } from '../../../api/auth';
 import { authStore } from '../../../store/auth';
 
@@ -139,12 +174,24 @@ function parseTimeToPickerValue(value) {
   return [hourIndex, minuteIndex];
 }
 
+function createEmptyService() {
+  return {
+    localId: `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
+    _id: '',
+    name: '',
+    price: '',
+    duration: ''
+  };
+}
+
 export default {
   data() {
     return {
       loading: false,
       saving: false,
+      uploadingCover: false,
       storeId: '',
+      defaultCover: 'https://dummyimage.com/600x400/efefef/333&text=Store',
       hourOptions: HOUR_OPTIONS,
       minuteOptions: MINUTE_OPTIONS,
       showTimePicker: false,
@@ -152,6 +199,7 @@ export default {
       tempTimeValue: [9, 0],
       form: {
         name: '',
+        cover: '',
         phone: '',
         address: '',
         tagsText: '',
@@ -162,7 +210,8 @@ export default {
         description: '',
         notice: '',
         cancelRule: '',
-        rescheduleRule: ''
+        rescheduleRule: '',
+        services: []
       }
     };
   },
@@ -179,12 +228,14 @@ export default {
       }
       return user.storeId || '';
     },
-    fillForm(store) {
+    fillForm(store, services) {
       const businessHours = store.businessHours || {};
       const bookingRules = store.bookingRules || {};
       const weekdayRange = this.parseTimeRange(businessHours.weekday || '');
       const weekendRange = this.parseTimeRange(businessHours.weekend || '');
+      const serviceList = Array.isArray(services) ? services : [];
       this.form.name = store.name || '';
+      this.form.cover = store.cover || '';
       this.form.phone = store.phone || '';
       this.form.address = store.address || '';
       this.form.tagsText = (store.tags || []).join(', ');
@@ -196,6 +247,15 @@ export default {
       this.form.notice = bookingRules.notice || '';
       this.form.cancelRule = bookingRules.cancelRule || '';
       this.form.rescheduleRule = bookingRules.rescheduleRule || '';
+      this.form.services = serviceList.length > 0
+        ? serviceList.map((item) => ({
+          localId: `${item._id || 'svc'}_${Math.random().toString(16).slice(2, 8)}`,
+          _id: item._id || '',
+          name: item.name || '',
+          price: item.price !== undefined && item.price !== null ? String(item.price) : '',
+          duration: item.duration !== undefined && item.duration !== null ? String(item.duration) : ''
+        }))
+        : [createEmptyService()];
     },
     parseTimeRange(text) {
       const value = String(text || '').trim();
@@ -239,6 +299,49 @@ export default {
       this.form[this.timePickerKey] = `${hour}:${minute}`;
       this.cancelTimePicker();
     },
+    addService() {
+      this.form.services.push(createEmptyService());
+    },
+    removeService(index) {
+      const list = Array.isArray(this.form.services) ? this.form.services : [];
+      if (index < 0 || index >= list.length) return;
+      this.form.services.splice(index, 1);
+    },
+    buildServicesPayload() {
+      const list = Array.isArray(this.form.services) ? this.form.services : [];
+      const result = [];
+      for (let i = 0; i < list.length; i += 1) {
+        const item = list[i] || {};
+        const name = String(item.name || '').trim();
+        const priceText = String(item.price || '').trim();
+        const durationText = String(item.duration || '').trim();
+        const hasAny = !!(name || priceText || durationText);
+        if (!hasAny) continue;
+
+        if (!name) {
+          throw new Error(`第${i + 1}项服务名称不能为空`);
+        }
+        const price = Number(item.price);
+        if (!Number.isFinite(price) || price < 0) {
+          throw new Error(`第${i + 1}项服务价格格式错误`);
+        }
+        const duration = Math.round(Number(item.duration));
+        if (!Number.isFinite(duration) || duration <= 0 || duration > 600) {
+          throw new Error(`第${i + 1}项服务时长格式错误`);
+        }
+
+        result.push({
+          _id: item._id || '',
+          name,
+          price: Number(price.toFixed(2)),
+          duration
+        });
+      }
+      if (result.length === 0) {
+        throw new Error('请至少配置1个服务项目');
+      }
+      return result;
+    },
     async loadStoreProfile(options = {}) {
       this.loading = true;
       try {
@@ -248,16 +351,53 @@ export default {
           return;
         }
         this.storeId = storeId;
-        const store = await fetchStoreDetail(storeId, { noCache: !!options.forceRefresh });
+        const [store, services] = await Promise.all([
+          fetchStoreDetail(storeId, { noCache: !!options.forceRefresh }),
+          fetchStoreServices(storeId, { noCache: !!options.forceRefresh })
+        ]);
         if (!store) {
           uni.showToast({ title: '门店不存在', icon: 'none' });
           return;
         }
-        this.fillForm(store);
+        this.fillForm(store, services);
       } catch (err) {
         uni.showToast({ title: err.message || '加载门店信息失败', icon: 'none' });
       } finally {
         this.loading = false;
+      }
+    },
+    pickCover() {
+      if (this.uploadingCover) return;
+      uni.chooseImage({
+        count: 1,
+        sizeType: ['compressed'],
+        sourceType: ['album', 'camera'],
+        success: (res) => {
+          const path = res && res.tempFilePaths && res.tempFilePaths[0];
+          if (!path) return;
+          this.uploadCover(path);
+        }
+      });
+    },
+    async uploadCover(filePath) {
+      this.uploadingCover = true;
+      try {
+        const ext = (filePath.split('.').pop() || 'jpg').toLowerCase();
+        const cloudPath = `store-covers/${this.storeId || 'store'}_${Date.now()}.${ext}`;
+        const uploadRes = await uniCloud.uploadFile({
+          cloudPath,
+          filePath
+        });
+        const fileID = (uploadRes && uploadRes.fileID) || '';
+        if (!fileID) {
+          uni.showToast({ title: '上传封面失败', icon: 'none' });
+          return;
+        }
+        this.form.cover = fileID;
+      } catch (err) {
+        uni.showToast({ title: '上传封面失败', icon: 'none' });
+      } finally {
+        this.uploadingCover = false;
       }
     },
     async saveStoreProfile() {
@@ -275,8 +415,10 @@ export default {
       }
       this.saving = true;
       try {
+        const servicesPayload = this.buildServicesPayload();
         const result = await updateManagedStore({
           name: this.form.name,
+          cover: this.form.cover,
           phone: this.form.phone,
           address: this.form.address,
           description: this.form.description,
@@ -289,7 +431,8 @@ export default {
             notice: this.form.notice,
             cancelRule: this.form.cancelRule,
             rescheduleRule: this.form.rescheduleRule
-          }
+          },
+          services: servicesPayload
         });
         if (result && result.updated === false) {
           uni.showToast({ title: '未检测到更新', icon: 'none' });
@@ -350,12 +493,37 @@ export default {
   margin-bottom: 24rpx;
 }
 
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
 .label {
   display: block;
   color: $uni-text-color-grey;
   font-size: $uni-font-size-sm;
   margin-bottom: 12rpx;
   line-height: 1.4;
+}
+
+.mini-btn {
+  height: 64rpx;
+  line-height: 64rpx;
+  border-radius: 32rpx;
+  padding: 0 22rpx;
+  background: #ffffff;
+  color: $uni-color-primary;
+  border: 1rpx solid $uni-color-primary;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mini-btn::after {
+  border: none;
 }
 
 .input {
@@ -366,6 +534,90 @@ export default {
   padding: 0 22rpx;
   font-size: $uni-font-size-base;
   color: $uni-text-color;
+}
+
+.service-empty {
+  color: $uni-text-color-placeholder;
+  font-size: $uni-font-size-sm;
+  padding: 16rpx 0;
+}
+
+.service-item {
+  background: #f8f9fc;
+  border-radius: $uni-border-radius-lg;
+  padding: 18rpx;
+  margin-bottom: 14rpx;
+}
+
+.service-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.service-index {
+  color: $uni-text-color;
+  font-size: $uni-font-size-sm;
+  font-weight: 600;
+}
+
+.service-remove {
+  color: $uni-color-error;
+  font-size: $uni-font-size-sm;
+}
+
+.service-grid {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+
+.service-cell {
+  flex: 1;
+}
+
+.sub-label {
+  display: block;
+  color: $uni-text-color-grey;
+  font-size: 24rpx;
+  margin-bottom: 8rpx;
+}
+
+.input-small {
+  height: 84rpx;
+  font-size: $uni-font-size-sm;
+}
+
+.cover-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.cover-preview {
+  width: 220rpx;
+  height: 132rpx;
+  border-radius: $uni-border-radius-lg;
+  background: #eef1f6;
+  flex-shrink: 0;
+}
+
+.cover-btn {
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 44rpx;
+  padding: 0 28rpx;
+  background: #ffffff;
+  color: $uni-color-primary;
+  border: 1rpx solid $uni-color-primary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cover-btn::after {
+  border: none;
 }
 
 .time-row {

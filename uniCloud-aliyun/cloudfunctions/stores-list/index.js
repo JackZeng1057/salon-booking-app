@@ -81,6 +81,7 @@ exports.main = withResponse(async (event, context) => {
 
   // 字段选择
   query = query.field({
+    _id: true,
     name: true,
     address: true,
     phone: true,

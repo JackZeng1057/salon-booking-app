@@ -58,6 +58,25 @@ function isInBreakWindow(startMin) {
   });
 }
 
+async function fetchAllSlotsByDate(slotCol, barberId, date) {
+  const PAGE_SIZE = 500;
+  const MAX_PAGES = 50;
+  const list = [];
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const res = await slotCol
+      .where({ barberId, date })
+      .field({ startTime: true, endTime: true, status: true })
+      .orderBy('startTime', 'asc')
+      .skip(page * PAGE_SIZE)
+      .limit(PAGE_SIZE)
+      .get();
+    const batch = (res && res.data) || [];
+    list.push(...batch);
+    if (batch.length < PAGE_SIZE) break;
+  }
+  return list;
+}
+
 // 云函数入口：查询理发师某天 slots
 exports.main = withResponse(async (event, context) => {
   // 权限校验：只要登录即可查询
@@ -81,11 +100,8 @@ exports.main = withResponse(async (event, context) => {
   const db = uniCloud.database();
 
   // 按理发师 + 日期查询 slots，并按 startTime 升序
-  const res = await db
-    .collection('time_slots')
-    .where({ barberId, date })
-    .orderBy('startTime', 'asc')
-    .get();
+  const slotCol = db.collection('time_slots');
+  const slotList = await fetchAllSlotsByDate(slotCol, barberId, date);
 
   const scheduleRes = await db
     .collection('barber_schedules')
@@ -113,7 +129,7 @@ exports.main = withResponse(async (event, context) => {
   const today = getChinaDateString(now);
   const isPastDate = date < today;
 
-  const rawSlots = (res.data || []).map((item) => ({
+  const rawSlots = (slotList || []).map((item) => ({
     startTime: item.startTime,
     endTime: item.endTime,
     status: item.status || 'AVAILABLE'

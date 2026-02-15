@@ -95,10 +95,13 @@ export function fetchStoreDetail(id, options = {}) {
 }
 
 // 获取门店服务列表
-export function fetchStoreServices(id) {
+export function fetchStoreServices(id, options = {}) {
+  const noCache = !!(options && options.noCache);
   const key = `stores-services:${id}`;
-  const cached = getCache(key);
-  if (cached) return Promise.resolve(cached);
+  if (!noCache) {
+    const cached = getCache(key);
+    if (cached) return Promise.resolve(cached);
+  }
   return callCloud('stores-services', { id }).then((data) => {
     setCache(key, data);
     return data;
@@ -106,10 +109,13 @@ export function fetchStoreServices(id) {
 }
 
 // 获取门店理发师列表
-export function fetchStoreBarbers(id) {
+export function fetchStoreBarbers(id, options = {}) {
+  const noCache = !!(options && options.noCache);
   const key = `stores-barbers:${id}`;
-  const cached = getCache(key);
-  if (cached) return Promise.resolve(cached);
+  if (!noCache) {
+    const cached = getCache(key);
+    if (cached) return Promise.resolve(cached);
+  }
   return callCloud('stores-barbers', { id }).then((data) => {
     setCache(key, data);
     return data;

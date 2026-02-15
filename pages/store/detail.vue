@@ -347,8 +347,8 @@ export default {
       try {
         const [store, services, barbers] = await Promise.all([
           fetchStoreDetail(this.storeId, { noCache: !!options.forceRefresh }),
-          fetchStoreServices(this.storeId),
-          fetchStoreBarbers(this.storeId)
+          fetchStoreServices(this.storeId, { noCache: !!options.forceRefresh }),
+          fetchStoreBarbers(this.storeId, { noCache: true })
         ]);
         this.store = store || null;
         this.services = Array.isArray(services) ? services : [];

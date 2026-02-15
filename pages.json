@@ -106,6 +106,13 @@
       }
     },
     {
+      "path": "pages/admin/barber-approvals/index",
+      "style": {
+        "navigationBarTitleText": "Barber Approvals",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/admin/store-settings/index",
       "style": {
         "navigationBarTitleText": "Store Settings",

@@ -30,6 +30,14 @@
       <button class="btn" type="primary" @click="goStoreSettings">编辑门店资料</button>
     </view>
 
+    <view class="card">
+      <view class="label-row">
+        <text class="label">理发师审核</text>
+        <text v-if="pendingBarberCount > 0" class="count-tag">{{ pendingBarberCount }}</text>
+      </view>
+      <button class="btn" type="primary" @click="goBarberApprovals">审核申请</button>
+    </view>
+
     <view class="card logout-card">
       <text class="label">账号</text>
       <view class="account-actions">
@@ -44,15 +52,18 @@
 // 店家管理入口页：跳转订单/看板/售后
 import { authStore } from '../../../store/auth';
 import { getUnreadCount } from '../../../api/notifications';
+import { fetchBarberApplications } from '../../../api/barberApproval';
 
 export default {
   data() {
     return {
-      unreadCount: 0
+      unreadCount: 0,
+      pendingBarberCount: 0
     };
   },
   onShow() {
     this.loadUnreadCount();
+    this.loadPendingBarberCount();
   },
   // 管理员管理页最小入口
   methods: {
@@ -61,6 +72,14 @@ export default {
         this.unreadCount = await getUnreadCount();
       } catch (err) {
         this.unreadCount = 0;
+      }
+    },
+    async loadPendingBarberCount() {
+      try {
+        const data = await fetchBarberApplications({ page: 1, pageSize: 1, status: 'PENDING' });
+        this.pendingBarberCount = Number((data && data.pendingCount) || 0);
+      } catch (err) {
+        this.pendingBarberCount = 0;
       }
     },
     goNotifications() {
@@ -82,6 +101,18 @@ export default {
     goStoreSettings() {
       uni.navigateTo({
         url: '/pages/admin/store-settings/index',
+        fail: () => {
+          uni.showToast({
+            title: '页面未生效，请重新编译',
+            icon: 'none'
+          });
+        }
+      });
+    },
+    // 跳转理发师审核
+    goBarberApprovals() {
+      uni.navigateTo({
+        url: '/pages/admin/barber-approvals/index',
         fail: () => {
           uni.showToast({
             title: '页面未生效，请重新编译',
@@ -173,6 +204,31 @@ export default {
   font-size: $uni-font-size-sm;
   color: $uni-text-color-grey;
   margin-bottom: 12rpx;
+}
+
+.label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.label-row .label {
+  margin-bottom: 0;
+}
+
+.count-tag {
+  min-width: 40rpx;
+  height: 40rpx;
+  border-radius: 20rpx;
+  padding: 0 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ff4d4f;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 600;
 }
 
 .btn {

@@ -38,7 +38,16 @@
       </button>
 
       <view v-if="result" class="result">
-        <text class="result-title">生成成功</text>
+        <text class="result-title">{{ Number(result.createdCount || 0) > 0 ? '生成成功' : '已设置排班' }}</text>
+        <text
+          v-if="result.generatedDates && result.generatedDates.length > 1"
+          class="result-tip"
+        >
+          已生成日期：{{ result.generatedDates[0] }} 至 {{ result.generatedDates[result.generatedDates.length - 1] }}
+        </text>
+        <text class="result-tip">
+          当前可预约 {{ Number(result.totalBookableCount || (Number(result.createdCount || 0) + Number(result.existedCount || 0))) }} 段
+        </text>
         <text v-if="summaryLoading" class="result-tip">正在统计可预约时间段...</text>
         <view v-else class="summary-list">
           <text
@@ -111,10 +120,10 @@ const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => pad2(i));
 function parseTimeToPickerValue(value) {
   const text = String(value || '').trim();
   const matched = text.match(/^(\d{2}):(\d{2})$/);
-  if (!matched) return [10, 0];
+  if (!matched) return [9, 0];
   const h = Number(matched[1]);
   const m = Number(matched[2]);
-  const hourIndex = Number.isFinite(h) && h >= 0 && h <= 23 ? h : 10;
+  const hourIndex = Number.isFinite(h) && h >= 0 && h <= 23 ? h : 9;
   const minuteIndex = Number.isFinite(m) && m >= 0 && m <= 59 ? m : 0;
   return [hourIndex, minuteIndex];
 }
@@ -125,13 +134,13 @@ export default {
       // 默认日期为今天，避免空值导致接口校验失败
       date: toDateString(new Date()),
       // 默认起止时间，提供一个常用工作区间
-      workStart: '10:00',
-      workEnd: '18:00',
+      workStart: '09:00',
+      workEnd: '22:00',
       hourOptions: HOUR_OPTIONS,
       minuteOptions: MINUTE_OPTIONS,
       showTimePicker: false,
       timePickerKey: '',
-      tempTimeValue: [10, 0],
+      tempTimeValue: [9, 0],
       // 是否生成未来 7 天时段，便于一次性排多天班
       generateFuture: true,
       // 按钮 loading 态
@@ -215,8 +224,22 @@ export default {
         });
         this.result = res || null;
         // 排班成功后统计可预约时段
-        await this.loadServiceSummaries();
-        uni.showToast({ title: '保存成功', icon: 'success' });
+        const generatedDates = (res && Array.isArray(res.generatedDates) && res.generatedDates.length > 0)
+          ? res.generatedDates
+          : [this.date];
+        await this.loadServiceSummaries(generatedDates, {
+          _id: (res && res.serviceId) || '',
+          name: (res && res.serviceName) || ''
+        });
+        const dayCount = Number((res && res.days) || 0);
+        const created = Number((res && res.createdCount) || 0);
+        const rawCreated = Number((res && res.rawCreatedCount) || 0);
+        uni.showToast({
+          title: (rawCreated > 0 || created > 0)
+            ? (dayCount > 1 ? `已生成${dayCount}天时段` : '保存成功')
+            : '已设置排班',
+          icon: 'success'
+        });
       } catch (err) {
         // 统一错误提示
         uni.showToast({
@@ -228,7 +251,7 @@ export default {
       }
     },
     // 统计各服务可预约时段数量（便于排班后自检）
-    async loadServiceSummaries() {
+    async loadServiceSummaries(targetDates = [], preferredService = null) {
       this.summaryLoading = true;
       this.serviceSummaries = [];
       try {
@@ -248,23 +271,49 @@ export default {
         if (!storeId || !barberId) {
           return;
         }
-        // 先取门店服务列表，再逐项统计可预约数量
-        const services = await fetchStoreServices(storeId);
-        const list = Array.isArray(services) ? services : [];
+        // 优先统计当前理发师对应服务，避免“服务数 × 天数”高并发请求
+        let list = [];
+        if (preferredService && preferredService._id) {
+          list = [{
+            _id: preferredService._id,
+            name: preferredService.name || '服务'
+          }];
+        } else {
+          const services = await fetchStoreServices(storeId);
+          const serviceList = Array.isArray(services) ? services : [];
+          if (preferredService && preferredService.name) {
+            const matched = serviceList.find((item) => (item && item.name) === preferredService.name);
+            if (matched) {
+              list = [matched];
+            }
+          }
+          if (list.length === 0) {
+            list = serviceList;
+          }
+        }
+        const dates = Array.isArray(targetDates) && targetDates.length > 0
+          ? Array.from(new Set(targetDates))
+          : [this.date];
+
         const summaries = await Promise.all(
           list.map(async (service) => {
-            const data = await fetchBarberSlots({
-              barberId,
-              date: this.date,
-              serviceId: service._id
-            });
-            // 仅统计可预约状态的时段数量
-            const available = Array.isArray(data)
-              ? data.filter((slot) => slot.status === 'AVAILABLE').length
-              : 0;
+            const counts = await Promise.all(
+              dates.map(async (date) => {
+                const data = await fetchBarberSlots({
+                  barberId,
+                  date,
+                  serviceId: service._id,
+                  noCache: true
+                });
+                return Array.isArray(data)
+                  ? data.filter((slot) => slot.status === 'AVAILABLE').length
+                  : 0;
+              })
+            );
+            const available = counts.reduce((sum, item) => sum + Number(item || 0), 0);
             return {
               id: service._id || service.name || String(Math.random()),
-              name: service.name || '服务',
+              name: `${service.name || '服务'}（${dates.length}天）`,
               count: available
             };
           })

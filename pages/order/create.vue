@@ -31,9 +31,11 @@
 
       <view class="field">
         <text class="label">选择理发师</text>
-        <picker :range="barberOptions" range-key="name" :value="barberIndex" @change="onBarberChange">
+        <picker v-if="!oneBarberOneService" :range="barberOptions" range-key="name" :value="barberIndex" @change="onBarberChange">
           <view class="picker-value">{{ currentBarberName }}</view>
         </picker>
+        <view v-else class="picker-value">{{ currentBarberName }}</view>
+        <text v-if="oneBarberOneService" class="hint">当前为一对一分配：每位理发师仅负责一个服务</text>
       </view>
 
       <view class="field">
@@ -144,7 +146,9 @@ export default {
         barber: '',
         time: ''
       },
-      pendingPayload: null
+      pendingPayload: null,
+      // 临时策略：每位理发师仅负责一个服务（按列表顺序一一对应）
+      oneBarberOneService: true
     };
   },
   computed: {
@@ -163,8 +167,9 @@ export default {
     },
     // 当前理发师名称
     currentBarberName() {
-      if (this.barberIndex < 0 || !this.barberOptions[this.barberIndex]) return '请选择理发师';
-      return this.barberOptions[this.barberIndex].name || this.barberOptions[this.barberIndex].username || '未命名理发师';
+      const index = this.oneBarberOneService ? this.serviceIndex : this.barberIndex;
+      if (index < 0 || !this.barberOptions[index]) return '当前服务暂无可用理发师';
+      return this.barberOptions[index].name || this.barberOptions[index].username || '未命名理发师';
     }
   },
   onLoad(options) {
@@ -230,17 +235,25 @@ export default {
       try {
         const [services, barbers, storeDetail] = await Promise.all([
           fetchStoreServices(store._id),
-          fetchStoreBarbers(store._id),
+          fetchStoreBarbers(store._id, { noCache: true }),
           fetchStoreDetail(store._id)
         ]);
-        this.serviceOptions = Array.isArray(services) ? services : [];
+        const serviceList = Array.isArray(services) ? services : [];
         // 兼容理发师显示名为空的情况
-        this.barberOptions = Array.isArray(barbers)
+        const barberList = Array.isArray(barbers)
           ? barbers.map((item) => ({
               ...item,
               name: item.name || item.username || '理发师'
             }))
           : [];
+        if (this.oneBarberOneService) {
+          const pairCount = Math.min(serviceList.length, barberList.length);
+          this.serviceOptions = serviceList.slice(0, pairCount);
+          this.barberOptions = barberList.slice(0, pairCount);
+        } else {
+          this.serviceOptions = serviceList;
+          this.barberOptions = barberList;
+        }
         // 加载门店规则
         if (storeDetail && storeDetail.bookingRules) {
           this.storeRules = storeDetail.bookingRules;
@@ -250,8 +263,8 @@ export default {
           this.serviceIndex = 0;
           this.currentStep = 2;
         }
-        if (this.barberOptions.length > 0) {
-          this.barberIndex = 0;
+        if (this.barberOptions.length > 0 && this.serviceIndex >= 0) {
+          this.barberIndex = this.oneBarberOneService ? this.serviceIndex : 0;
           this.currentStep = 3;
         }
         this.tryLoadSlots();
@@ -262,12 +275,16 @@ export default {
     // 选择服务
     onServiceChange(e) {
       this.serviceIndex = Number(e.detail.value || 0);
+      if (this.oneBarberOneService) {
+        this.barberIndex = this.serviceIndex < this.barberOptions.length ? this.serviceIndex : -1;
+      }
       this.currentStep = Math.max(this.currentStep, 2);
       // serviceId 仅透传，不影响查询逻辑
       this.tryLoadSlots();
     },
     // 选择理发师
     onBarberChange(e) {
+      if (this.oneBarberOneService) return;
       this.barberIndex = Number(e.detail.value || 0);
       this.currentStep = Math.max(this.currentStep, 3);
       this.tryLoadSlots();
@@ -311,7 +328,8 @@ export default {
         const data = await fetchBarberSlots({
           barberId: barber._id,
           date: this.date,
-          serviceId: service ? service._id : ''
+          serviceId: service ? service._id : '',
+          noCache: true
         });
         const list = Array.isArray(data) ? data : [];
         this.slots = this.applySlotExpiration(list);
