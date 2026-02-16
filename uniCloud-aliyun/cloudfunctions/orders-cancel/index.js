@@ -1,5 +1,71 @@
 const { withResponse, ApiError, ERROR_CODES, requireRole, logAudit, logOrderEvent } = require('sb-common');
 
+async function notifyCancelStakeholders(db, payload = {}) {
+  const {
+    orderId = '',
+    storeId = '',
+    barberId = '',
+    userId = '',
+    date = '',
+    startTime = '',
+    reason = '',
+    operatorId = ''
+  } = payload;
+
+  const reasonText = reason ? `，原因：${reason}` : '';
+
+  // 通知下单用户本人
+  if (userId) {
+    await uniCloud.callFunction({
+      name: 'notifications-create',
+      data: {
+        userId,
+        type: 'cancel',
+        title: '订单已取消',
+        content: `您已取消 ${date} ${startTime} 的预约${reasonText}。`,
+        relatedId: orderId
+      }
+    });
+  }
+
+  // 通知理发师
+  if (barberId && barberId !== operatorId) {
+    await uniCloud.callFunction({
+      name: 'notifications-create',
+      data: {
+        userId: barberId,
+        type: 'cancel',
+        title: '订单取消提醒',
+        content: `顾客已取消 ${date} ${startTime} 的预约${reasonText}。`,
+        relatedId: orderId
+      }
+    });
+  }
+
+  // 通知门店管理员（同店多个管理员）
+  if (!storeId) return;
+  const adminRes = await db
+    .collection('users')
+    .where({ role: 'admin', storeId })
+    .field({ _id: true })
+    .get();
+  const admins = adminRes.data || [];
+  for (let i = 0; i < admins.length; i += 1) {
+    const adminId = (admins[i] && admins[i]._id) || '';
+    if (!adminId || adminId === operatorId) continue;
+    await uniCloud.callFunction({
+      name: 'notifications-create',
+      data: {
+        userId: adminId,
+        type: 'cancel',
+        title: '订单取消提醒',
+        content: `门店预约 ${date} ${startTime} 已被顾客取消${reasonText}。`,
+        relatedId: orderId
+      }
+    });
+  }
+}
+
 // 取消预约：仅 BOOKED 可取消，取消后释放关联 slots
 exports.main = withResponse(async (event, context) => {
   const requestId = (context && (context.requestId || context.eventId || context.traceId)) || '';
@@ -22,6 +88,7 @@ exports.main = withResponse(async (event, context) => {
     .doc(orderId)
     .field({
       userId: true,
+      storeId: true,
       status: true,
       barberId: true,
       date: true,
@@ -98,6 +165,22 @@ exports.main = withResponse(async (event, context) => {
       requestId
     });
     throw err;
+  }
+
+  // 通知理发师与门店管理员（失败不影响主流程）
+  try {
+    await notifyCancelStakeholders(db, {
+      orderId,
+      storeId: order.storeId || '',
+      barberId: order.barberId || '',
+      userId,
+      date: order.date || '',
+      startTime: order.startTime || '',
+      reason: reason || '',
+      operatorId: userId
+    });
+  } catch (err) {
+    console.error('notify cancel stakeholders failed:', err);
   }
 
   // 直接拼装返回，避免二次读取

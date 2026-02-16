@@ -131,6 +131,19 @@ export function updateManagedStore(payload) {
   });
 }
 
+// 管理员批量设置理发师可做项目
+export function setStoreBarberServices(assignments, options = {}) {
+  const payload = {
+    assignments: Array.isArray(assignments) ? assignments : [],
+    overwriteAll: options.overwriteAll !== false
+  };
+  return callCloud('barber-services-set', payload).then((data) => {
+    const storeId = (data && data.storeId) || '';
+    clearStoreCache(storeId);
+    return data;
+  });
+}
+
 // 供页面在特殊场景主动清理缓存
 export function invalidateStoreCache(storeId) {
   clearStoreCache(storeId || '');

@@ -29,7 +29,8 @@ exports.main = withResponse(async (event, context) => {
       bookingRules: true,
       location: true,
       rating: true,
-      minPrice: true
+      minPrice: true,
+      barberServiceAssignmentEnabled: true
     })
     .get();
   // 从查询结果中取出第一条门店记录

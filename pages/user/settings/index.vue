@@ -38,6 +38,13 @@
         </view>
         <text class="menu-arrow">›</text>
       </view>
+      <view class="menu-item" @click="goReviews">
+        <view class="menu-left">
+          <text class="menu-title">我的评价</text>
+          <text class="menu-desc">查看并管理已发布评价</text>
+        </view>
+        <text class="menu-arrow">›</text>
+      </view>
     </view>
   </view>
 </template>
@@ -81,6 +88,9 @@ export default {
     },
     goPassword() {
       uni.navigateTo({ url: '/pages/user/settings/password' });
+    },
+    goReviews() {
+      uni.navigateTo({ url: '/pages/user/reviews/index' });
     }
   }
 };

@@ -1,0 +1,306 @@
+<template>
+  <view class="page">
+    <app-nav />
+    <text class="title">理发师项目设置</text>
+    <text class="subtitle">为门店理发师配置可承接的服务项目</text>
+
+    <view v-if="loading" class="hint">加载中...</view>
+    <view v-else-if="services.length === 0" class="hint">当前门店暂无服务项目，请先到门店设置里新增服务</view>
+    <view v-else-if="barbers.length === 0" class="hint">当前门店暂无理发师</view>
+
+    <view v-else class="list">
+      <view v-for="barber in barbers" :key="barber._id" class="card">
+        <view class="header">
+          <view class="identity">
+            <image class="avatar" :src="barber.avatar || defaultAvatar" mode="aspectFill" />
+            <view class="meta">
+              <text class="name">{{ barber.name || barber.username || '理发师' }}</text>
+              <text class="sub">账号：{{ barber.username || '-' }}</text>
+            </view>
+          </view>
+          <text class="clear" @click="clearBarber(barber._id)">清空</text>
+        </view>
+
+        <view class="chips">
+          <view
+            v-for="service in services"
+            :key="service._id"
+            class="chip"
+            :class="{ active: hasService(barber._id, service._id) }"
+            @click="toggleService(barber._id, service._id)"
+          >
+            {{ service.name }}
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="action-bar">
+      <button class="save-btn" :loading="saving" @click="saveAssignments">保存配置</button>
+    </view>
+  </view>
+</template>
+
+<script>
+import { fetchStoreServices, fetchStoreBarbers, setStoreBarberServices } from '../../../api/store';
+import { me } from '../../../api/auth';
+import { authStore } from '../../../store/auth';
+
+function normalizeIds(list) {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set();
+  const result = [];
+  list.forEach((item) => {
+    const id = String(item || '').trim();
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    result.push(id);
+  });
+  return result;
+}
+
+export default {
+  data() {
+    return {
+      loading: false,
+      saving: false,
+      storeId: '',
+      services: [],
+      barbers: [],
+      selectedMap: {},
+      defaultAvatar: 'https://dummyimage.com/100x100/efefef/999&text=B'
+    };
+  },
+  onShow() {
+    this.loadData();
+  },
+  methods: {
+    async ensureStoreId() {
+      let user = authStore.state.user || {};
+      if (!user.storeId) {
+        const profile = await me();
+        user = profile || {};
+        authStore.setUser(profile || null);
+      }
+      return user.storeId || '';
+    },
+    async loadData() {
+      this.loading = true;
+      try {
+        const storeId = await this.ensureStoreId();
+        if (!storeId) {
+          uni.showToast({ title: '当前账号未绑定门店', icon: 'none' });
+          this.services = [];
+          this.barbers = [];
+          return;
+        }
+        this.storeId = storeId;
+        const [services, barbers] = await Promise.all([
+          fetchStoreServices(storeId, { noCache: true }),
+          fetchStoreBarbers(storeId, { noCache: true })
+        ]);
+
+        this.services = Array.isArray(services) ? services : [];
+        this.barbers = (Array.isArray(barbers) ? barbers : []).map((item) => ({
+          ...item,
+          serviceIds: normalizeIds(item && item.serviceIds)
+        }));
+
+        const validServiceSet = new Set(this.services.map((item) => item && item._id).filter((id) => !!id));
+        const selectedMap = {};
+        this.barbers.forEach((barber) => {
+          const ids = normalizeIds(barber.serviceIds).filter((id) => validServiceSet.has(id));
+          selectedMap[barber._id] = ids;
+        });
+        this.selectedMap = selectedMap;
+      } catch (err) {
+        this.services = [];
+        this.barbers = [];
+        this.selectedMap = {};
+        uni.showToast({ title: err.message || '加载失败', icon: 'none' });
+      } finally {
+        this.loading = false;
+      }
+    },
+    hasService(barberId, serviceId) {
+      const ids = this.selectedMap[barberId] || [];
+      return ids.includes(serviceId);
+    },
+    toggleService(barberId, serviceId) {
+      const list = normalizeIds(this.selectedMap[barberId] || []);
+      const idx = list.findIndex((id) => id === serviceId);
+      if (idx >= 0) {
+        list.splice(idx, 1);
+      } else {
+        list.push(serviceId);
+      }
+      this.selectedMap = {
+        ...this.selectedMap,
+        [barberId]: list
+      };
+    },
+    clearBarber(barberId) {
+      this.selectedMap = {
+        ...this.selectedMap,
+        [barberId]: []
+      };
+    },
+    buildAssignments() {
+      return this.barbers.map((barber) => ({
+        barberId: barber._id,
+        serviceIds: normalizeIds(this.selectedMap[barber._id] || [])
+      }));
+    },
+    async saveAssignments() {
+      if (this.saving) return;
+      if (!this.storeId) {
+        uni.showToast({ title: '门店信息缺失', icon: 'none' });
+        return;
+      }
+      this.saving = true;
+      try {
+        const assignments = this.buildAssignments();
+        await setStoreBarberServices(assignments, { overwriteAll: true });
+        uni.showToast({ title: '保存成功', icon: 'success' });
+        await this.loadData();
+      } catch (err) {
+        uni.showToast({ title: err.message || '保存失败', icon: 'none' });
+      } finally {
+        this.saving = false;
+      }
+    }
+  }
+};
+</script>
+
+<style scoped lang="scss">
+.page {
+  min-height: 100vh;
+  padding: 120rpx 30rpx 30rpx;
+  background-color: $uni-bg-color-grey;
+}
+
+.title {
+  display: block;
+  font-size: 48rpx;
+  font-weight: 700;
+  color: $uni-color-primary;
+  margin-bottom: 10rpx;
+  padding-left: 6rpx;
+}
+
+.subtitle {
+  display: block;
+  font-size: $uni-font-size-sm;
+  color: $uni-text-color-grey;
+  margin-bottom: 22rpx;
+  padding-left: 6rpx;
+}
+
+.hint {
+  font-size: $uni-font-size-sm;
+  color: $uni-text-color-placeholder;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: $uni-border-radius-lg;
+  padding: 24rpx;
+  box-shadow: $uni-shadow-base;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.avatar {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 42rpx;
+  background: #f2f4f8;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.name {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: $uni-text-color;
+}
+
+.sub {
+  font-size: $uni-font-size-sm;
+  color: $uni-text-color-grey;
+}
+
+.clear {
+  color: $uni-color-error;
+  font-size: $uni-font-size-sm;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.chip {
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: $uni-font-size-sm;
+  color: $uni-text-color-grey;
+  background: #f5f7fb;
+  border: 1rpx solid #d9deea;
+}
+
+.chip.active {
+  color: #1b5e20;
+  background: #f0f9eb;
+  border-color: #7ac943;
+}
+
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  margin-top: 18rpx;
+  padding: 16rpx 0 6rpx;
+  background: linear-gradient(to bottom, rgba(246, 247, 251, 0), rgba(246, 247, 251, 1) 30%);
+}
+
+.save-btn {
+  width: 100%;
+  height: 92rpx;
+  line-height: 92rpx;
+  border-radius: 46rpx;
+  background: $uni-color-primary;
+  color: #ffffff;
+  font-size: $uni-font-size-base;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.save-btn::after {
+  border: none;
+}
+</style>

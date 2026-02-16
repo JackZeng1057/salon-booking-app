@@ -1,4 +1,4 @@
-const { withResponse, ApiError, requireRole } = require('sb-common');
+const { withResponse, ApiError, requireRole, normalizeIdList } = require('sb-common');
 
 function hasOwn(obj, key) {
   return Object.prototype.hasOwnProperty.call(obj || {}, key);
@@ -157,6 +157,25 @@ exports.main = withResponse(async (event, context) => {
       .filter((id) => !!id && !keepIds.has(id));
     if (removeIds.length > 0) {
       await servicesCol.where({ storeId, _id: _.in(removeIds) }).remove();
+
+      // 服务被删除后，自动清理理发师上已失效的 serviceIds，避免出现不可见脏配置
+      const removeIdSet = new Set(removeIds);
+      const barberRes = await db
+        .collection('users')
+        .where({ storeId, role: 'barber' })
+        .field({ _id: true, serviceIds: true })
+        .get();
+      const barbers = barberRes.data || [];
+      for (let i = 0; i < barbers.length; i += 1) {
+        const barber = barbers[i] || {};
+        const current = normalizeIdList(barber.serviceIds);
+        const next = current.filter((id) => !removeIdSet.has(id));
+        if (next.length === current.length) continue;
+        await db.collection('users').doc(barber._id).update({
+          serviceIds: next,
+          updatedAt: now
+        });
+      }
     }
 
     servicesProcessed = true;

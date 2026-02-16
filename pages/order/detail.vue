@@ -392,7 +392,8 @@ export default {
         const data = await fetchBarberSlots({
           barberId: this.detail.order.barberId,
           date: this.rescheduleDate,
-          serviceId: this.detail.order.serviceId
+          serviceId: this.detail.order.serviceId,
+          noCache: true
         });
         this.slots = Array.isArray(data) ? data : [];
       } catch (err) {
@@ -428,7 +429,8 @@ export default {
         this.loadDetail();
       } catch (err) {
         if (err && err.code === 409) {
-          uni.showToast({ title: '该时段已被预约', icon: 'none' });
+          await this.loadSlots();
+          uni.showToast({ title: '时段状态已变化，请重试', icon: 'none' });
           return;
         }
         if (err && err.code === 422) {

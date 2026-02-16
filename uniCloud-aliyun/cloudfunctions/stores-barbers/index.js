@@ -22,7 +22,8 @@ exports.main = withResponse(async (event, context) => {
     .field({
       name: true,
       username: true,
-      avatar: true
+      avatar: true,
+      serviceIds: true
     })
     // 按创建时间倒序排列，最新理发师在前
     .orderBy('createdAt', 'desc')
@@ -30,5 +31,13 @@ exports.main = withResponse(async (event, context) => {
     .get();
 
   // 返回理发师列表数据，若无结果则返回空数组
-  return res.data || [];
+  return (res.data || []).map((item) => {
+    const serviceIds = Array.isArray(item && item.serviceIds) ? item.serviceIds : [];
+    return {
+      ...item,
+      serviceIds: serviceIds
+        .map((id) => String(id || '').trim())
+        .filter((id) => !!id)
+    };
+  });
 });

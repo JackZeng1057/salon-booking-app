@@ -1,51 +1,30 @@
-const { withResponse, ApiError, ERROR_CODES, requireRole } = require('sb-common');
+const {
+  withResponse,
+  ApiError,
+  ERROR_CODES,
+  requireRole,
+  SLOT_STEP_MIN,
+  REST_GAP_MIN,
+  isValidBookingDate,
+  timeToMinutes,
+  minutesToTime,
+  isAlignedToSlotStep,
+  getChinaDateString,
+  toChinaTimestamp,
+  resolveAssignedServiceForBarber
+} = require('sb-common');
 
 // 排班设置与时段生成：
 // 1) 按 5 分钟粒度生成当天/未来 N 天 AVAILABLE slots
 // 2) 已存在时段一律跳过（不重复生成，不覆盖历史）
 // 3) 批量写入，降低超时风险
 
-// 校验日期格式是否为 YYYY-MM-DD
-function isValidDate(date) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(date);
-}
-
-// 校验时间格式是否为 HH:mm
-function isValidTime(time) {
-  return /^\d{2}:\d{2}$/.test(time);
-}
-
-// 将 HH:mm 转换为分钟数（用于比较与步进）
-function timeToMinutes(time) {
-  if (!isValidTime(time)) return NaN;
-  const [h, m] = time.split(':').map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m)) return NaN;
-  if (h < 0 || h > 23 || m < 0 || m > 59) return NaN;
-  return h * 60 + m;
-}
-
-// 将分钟数转换回 HH:mm 字符串
-function minutesToTime(minutes) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  const hh = String(h).padStart(2, '0');
-  const mm = String(m).padStart(2, '0');
-  return `${hh}:${mm}`;
-}
-
-// 校验是否对齐粒度
-const SLOT_STEP_MIN = 5;
-const REST_GAP_MIN = 5;
 const BREAK_WINDOWS = [
   { start: '12:00', end: '13:00' },
   { start: '18:00', end: '19:00' }
 ];
 
 // 校验是否对齐粒度
-function ensureAligned(minutes) {
-  return minutes % SLOT_STEP_MIN === 0;
-}
-
 function isInBreakWindow(startMin) {
   return BREAK_WINDOWS.some((window) => {
     const windowStart = timeToMinutes(window.start);
@@ -134,23 +113,6 @@ function calcTotalBookable({
   return total;
 }
 
-function pad2(num) {
-  return String(num).padStart(2, '0');
-}
-
-function getChinaDateString(ts = Date.now()) {
-  const china = new Date(ts + 8 * 60 * 60 * 1000);
-  const y = china.getUTCFullYear();
-  const m = pad2(china.getUTCMonth() + 1);
-  const d = pad2(china.getUTCDate());
-  return `${y}-${m}-${d}`;
-}
-
-function toChinaTimestamp(dateStr, timeStr) {
-  if (!dateStr || !timeStr) return 0;
-  return new Date(`${dateStr}T${timeStr}:00+08:00`).getTime();
-}
-
 async function fetchAllSlotsByDate(slotCol, barberId, date) {
   const PAGE_SIZE = 500;
   const MAX_PAGES = 50;
@@ -168,42 +130,6 @@ async function fetchAllSlotsByDate(slotCol, barberId, date) {
     if (batch.length < PAGE_SIZE) break;
   }
   return list;
-}
-
-async function resolveAssignedService(db, storeId, barberId) {
-  const defaultService = { id: '', durationMin: 30, name: '默认服务' };
-  if (!storeId || !barberId) return defaultService;
-
-  const [serviceRes, barberRes] = await Promise.all([
-    db
-      .collection('services')
-      .where({ storeId })
-      .field({ _id: true, name: true, duration: true, durationMin: true })
-      .orderBy('createdAt', 'desc')
-      .get(),
-    db
-      .collection('users')
-      .where({ storeId, role: 'barber' })
-      .field({ _id: true })
-      .orderBy('createdAt', 'desc')
-      .get()
-  ]);
-
-  const serviceList = (serviceRes && serviceRes.data) || [];
-  const barberList = (barberRes && barberRes.data) || [];
-  const pairCount = Math.min(serviceList.length, barberList.length);
-  const barberIndex = barberList.findIndex((item) => item && item._id === barberId);
-  if (barberIndex < 0 || barberIndex >= pairCount) {
-    return defaultService;
-  }
-
-  const service = serviceList[barberIndex] || {};
-  const durationMin = Number(service.duration || service.durationMin || defaultService.durationMin);
-  return {
-    id: service._id || '',
-    durationMin: Number.isFinite(durationMin) && durationMin > 0 ? durationMin : defaultService.durationMin,
-    name: service.name || defaultService.name
-  };
 }
 
 // 计算日期偏移（YYYY-MM-DD -> YYYY-MM-DD）
@@ -234,7 +160,7 @@ exports.main = withResponse(async (event, context) => {
   if (!date || !workStart || !workEnd) {
     throw new ApiError(400, 'date, workStart and workEnd required');
   }
-  if (!isValidDate(date)) {
+  if (!isValidBookingDate(date)) {
     throw new ApiError(400, 'invalid date format');
   }
 
@@ -248,7 +174,7 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(400, 'workStart must be earlier than workEnd');
   }
   // 强制时间对齐（减少前后端误差）
-  if (!ensureAligned(startMin) || !ensureAligned(endMin)) {
+  if (!isAlignedToSlotStep(startMin) || !isAlignedToSlotStep(endMin)) {
     throw new ApiError(400, 'workStart/workEnd must align to slot step');
   }
 
@@ -279,7 +205,12 @@ exports.main = withResponse(async (event, context) => {
   let skippedDateCount = 0;
   const generatedDates = [];
   const BATCH_SIZE = 500;
-  const assignedService = await resolveAssignedService(db, storeId, barberId);
+  const assignedService = await resolveAssignedServiceForBarber(db, {
+    storeId,
+    barberId,
+    defaultDurationMin: 30,
+    defaultName: '默认服务'
+  });
   const durationMin = Number(assignedService.durationMin || 30);
   const nowTs = Date.now();
 

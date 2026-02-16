@@ -1,4 +1,4 @@
-const { withResponse, ApiError, requireRole } = require('sb-common');
+const { withResponse, ApiError, requireRole, autoCancelOverdueBookedOrders } = require('sb-common');
 
 // 门店查看当天订单
 // - 只返回本店指定日期订单
@@ -21,6 +21,13 @@ exports.main = withResponse(async (event, context) => {
 
   const db = uniCloud.database();
   const storeId = admin.storeId || '';
+
+  // 自动取消本店已超时且未处理的预约单
+  try {
+    await autoCancelOverdueBookedOrders(db, { storeId, limit: 200 });
+  } catch (err) {
+    console.error('auto cancel overdue orders (store) failed:', err);
+  }
 
   // 仅查询本店指定日期订单
   const where = { storeId, date, deletedByStore: db.command.neq(true) };

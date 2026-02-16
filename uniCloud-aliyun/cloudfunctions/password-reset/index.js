@@ -1,12 +1,6 @@
 // 密码重置：校验短信验证码并更新密码摘要
-// 引入 Node.js 加密模块
-const crypto = require('crypto');
 // 引入统一响应包装
-const { withResponse, ApiError } = require('sb-common');
-
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
+const { withResponse, ApiError, hashPassword } = require('sb-common');
 
 /**
  * 验证验证码并重置密码

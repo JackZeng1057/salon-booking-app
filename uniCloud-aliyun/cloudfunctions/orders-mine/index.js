@@ -1,4 +1,4 @@
-const { withResponse, ApiError, ERROR_CODES, requireRole } = require('sb-common');
+const { withResponse, requireRole, autoCancelOverdueBookedOrders } = require('sb-common');
 
 // 获取当前用户的订单列表（支持状态筛选与分页）
 // - 逻辑删除的订单不返回
@@ -18,6 +18,13 @@ exports.main = withResponse(async (event, context) => {
 
   const db = uniCloud.database();
   const userId = user._id || user.uid || user.userId;
+
+  // 自动取消已超时但仍为 BOOKED 的订单（按当前用户范围）
+  try {
+    await autoCancelOverdueBookedOrders(db, { userId, limit: 100 });
+  } catch (err) {
+    console.error('auto cancel overdue orders (mine) failed:', err);
+  }
 
   const where = { userId, deletedByUser: db.command.neq(true) };
   if (status) {

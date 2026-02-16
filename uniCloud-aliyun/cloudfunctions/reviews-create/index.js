@@ -1,4 +1,4 @@
-const { withResponse, ApiError, ERROR_CODES, requireRole } = require('sb-common');
+const { withResponse, ApiError, ERROR_CODES, requireRole, updateStoreRating } = require('sb-common');
 
 // 创建评价（仅 FINISHED 订单可评价）：支持多维评分与图片
 exports.main = withResponse(async (event, context) => {
@@ -91,52 +91,3 @@ exports.main = withResponse(async (event, context) => {
 
   return { id: reviewId };
 });
-
-/**
- * 更新门店评分统计
- */
-async function updateStoreRating(db, storeId) {
-  try {
-    // 获取该门店所有评价
-    const reviewsRes = await db.collection('reviews')
-      .where({ storeId })
-      .field({ rating: true })
-      .get();
-
-    if (!reviewsRes.data || reviewsRes.data.length === 0) {
-      return;
-    }
-
-    const reviews = reviewsRes.data;
-    const count = reviews.length;
-
-    // 计算平均分
-    let totalOverall = 0;
-    let totalService = 0;
-    let totalEnvironment = 0;
-
-    reviews.forEach(review => {
-      if (review.rating) {
-        totalOverall += review.rating.overall || 0;
-        totalService += review.rating.service || 0;
-        totalEnvironment += review.rating.environment || 0;
-      }
-    });
-
-    const avgOverall = count > 0 ? (totalOverall / count).toFixed(1) : 5.0;
-    const avgService = count > 0 ? (totalService / count).toFixed(1) : 5.0;
-    const avgEnvironment = count > 0 ? (totalEnvironment / count).toFixed(1) : 5.0;
-
-    // 更新门店评分
-    await db.collection('stores').doc(storeId).update({
-      rating: {
-        overall: Number(avgOverall),
-        service: Number(avgService),
-        environment: Number(avgEnvironment),
-        count: count
-      }
-    });
-  } catch (err) {
-    console.error('updateStoreRating error:', err);
-  }
-}

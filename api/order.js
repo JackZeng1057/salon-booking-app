@@ -7,6 +7,7 @@ import { getCache, setCache, removeCacheByPrefix } from '../utils/cache';
 const LIST_TTL = 5 * 60 * 1000; // 5 分钟
 const DETAIL_TTL = 2 * 60 * 1000; // 2 分钟
 const REVIEW_TTL = 10 * 60 * 1000; // 10 分钟
+const REVIEW_MINE_TTL = 2 * 60 * 1000; // 2 分钟
 const ITEM_TTL = 10 * 60 * 1000; // 10 分钟
 const EVENT_TTL = 10 * 60 * 1000; // 10 分钟
 
@@ -43,6 +44,14 @@ function clearOrderCaches() {
   removeCacheByPrefix('aftersales-store-list:');
   // 订单变更可能影响占用时段，需要同步清理时段缓存
   removeCacheByPrefix('barber-slots:');
+}
+
+function clearReviewCaches() {
+  removeCacheByPrefix('reviews-by-order:');
+  removeCacheByPrefix('reviews-mine:');
+  // 评价变更会影响门店评分展示
+  removeCacheByPrefix('stores-detail:');
+  removeCacheByPrefix('stores-list:');
 }
 
 // 创建预约订单
@@ -150,6 +159,7 @@ export function fetchStoreOrders(payload) {
 export function createReview(payload) {
   return callCloud('reviews-create', payload).then((data) => {
     clearOrderCaches();
+    clearReviewCaches();
     return data;
   });
 }
@@ -159,6 +169,24 @@ export function createReview(payload) {
 export function fetchReviewByOrder(payload) {
   const key = `reviews-by-order:${payload && payload.orderId ? payload.orderId : ''}`;
   return cachedCall(key, () => callCloud('reviews-by-order', payload), REVIEW_TTL);
+}
+
+// 获取我的评价列表
+// 入参：{ page, pageSize }
+export function fetchMyReviews(params = {}) {
+  const page = params.page || 1;
+  const pageSize = params.pageSize || 10;
+  const key = `reviews-mine:${page}:${pageSize}`;
+  return cachedCall(key, () => callCloud('reviews-mine', params), REVIEW_MINE_TTL);
+}
+
+// 删除我的评价
+// 入参：{ reviewId }
+export function deleteReview(payload) {
+  return callCloud('reviews-delete', payload).then((data) => {
+    clearReviewCaches();
+    return data;
+  });
 }
 
 // 订单明细项

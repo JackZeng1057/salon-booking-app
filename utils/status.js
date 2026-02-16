@@ -1,5 +1,5 @@
 // 订单与时段状态文案映射：统一前端展示用词
-export const ORDER_STATUS_TEXT = {
+const ORDER_STATUS_TEXT = {
   BOOKED: '已预约',
   ARRIVED: '已到店',
   IN_SERVICE: '服务中',
@@ -9,20 +9,20 @@ export const ORDER_STATUS_TEXT = {
 };
 
 // 时段状态（包含过期/不可预约，用于时间窗口场景）
-export const SLOT_STATUS_TEXT = {
+const SLOT_STATUS_TEXT = {
   AVAILABLE: '可预约',
   BOOKED: '已预约',
   EXPIRED: '已过期',
   UNAVAILABLE: '不可预约'
 };
 
-export const AFTERSALE_STATUS_TEXT = {
+const AFTERSALE_STATUS_TEXT = {
   OPEN: '待处理',
   PROCESSING: '处理中',
   RESOLVED: '已解决'
 };
 
-export const AFTERSALE_TYPE_TEXT = {
+const AFTERSALE_TYPE_TEXT = {
   SERVICE: '服务问题',
   NO_SHOW: '迟到/爽约',
   OTHER: '其他'

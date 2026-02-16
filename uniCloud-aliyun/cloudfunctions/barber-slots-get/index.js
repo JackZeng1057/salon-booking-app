@@ -1,52 +1,45 @@
-const { withResponse, ApiError, requireLogin } = require('sb-common');
+const {
+  withResponse,
+  ApiError,
+  requireLogin,
+  SLOT_STEP_MIN,
+  REST_GAP_MIN,
+  isValidBookingDate,
+  timeToMinutes,
+  minutesToTime,
+  getChinaDateString,
+  toChinaTimestamp
+} = require('sb-common');
 
 // 查询理发师可预约时段：
 // - 以 5 分钟为基础粒度
 // - 结合服务时长 + 5 分钟缓冲，生成可预约窗口
 // - 午休/晚休窗口不可作为起始时间
 
-// 校验日期格式是否为 YYYY-MM-DD
-function isValidDate(date) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(date);
-}
-
-function pad2(num) {
-  return String(num).padStart(2, '0');
-}
-
-function getChinaDateString(ts = Date.now()) {
-  const china = new Date(ts + 8 * 60 * 60 * 1000);
-  const y = china.getUTCFullYear();
-  const m = pad2(china.getUTCMonth() + 1);
-  const d = pad2(china.getUTCDate());
-  return `${y}-${m}-${d}`;
-}
-
-function toChinaTimestamp(dateStr, timeStr) {
-  if (!dateStr || !timeStr) return 0;
-  return new Date(`${dateStr}T${timeStr}:00+08:00`).getTime();
-}
-
-const SLOT_STEP_MIN = 5;
-const REST_GAP_MIN = 5;
 // 休息时间段（起始时间落在该窗口内则不可预约）
 const BREAK_WINDOWS = [
   { start: '12:00', end: '13:00' },
   { start: '18:00', end: '19:00' }
 ];
 
-function timeToMinutes(time) {
-  const [h, m] = String(time || '').split(':').map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m)) return NaN;
-  return h * 60 + m;
+function normalizeSlotStatus(status) {
+  const raw = String(status || 'AVAILABLE').toUpperCase();
+  if (raw === 'BOOKED' || raw === 'UNAVAILABLE' || raw === 'EXPIRED' || raw === 'AVAILABLE') {
+    return raw;
+  }
+  return 'AVAILABLE';
 }
 
-function minutesToTime(minutes) {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  const hh = String(h).padStart(2, '0');
-  const mm = String(m).padStart(2, '0');
-  return `${hh}:${mm}`;
+function mergeSlotStatus(current, incoming) {
+  const priority = {
+    AVAILABLE: 1,
+    EXPIRED: 2,
+    UNAVAILABLE: 3,
+    BOOKED: 4
+  };
+  const cur = normalizeSlotStatus(current);
+  const next = normalizeSlotStatus(incoming);
+  return (priority[next] || 0) > (priority[cur] || 0) ? next : cur;
 }
 
 function isInBreakWindow(startMin) {
@@ -92,7 +85,7 @@ exports.main = withResponse(async (event, context) => {
   if (!barberId || !date) {
     throw new ApiError(400, 'barberId and date required');
   }
-  if (!isValidDate(date)) {
+  if (!isValidBookingDate(date)) {
     throw new ApiError(400, 'invalid date format');
   }
 
@@ -129,11 +122,20 @@ exports.main = withResponse(async (event, context) => {
   const today = getChinaDateString(now);
   const isPastDate = date < today;
 
-  const rawSlots = (slotList || []).map((item) => ({
-    startTime: item.startTime,
-    endTime: item.endTime,
-    status: item.status || 'AVAILABLE'
-  }));
+  // 同一 startTime 可能存在重复记录，按“最严格状态”合并，避免前端误判可约
+  const slotMap = new Map();
+  (slotList || []).forEach((item) => {
+    const startTime = item && item.startTime;
+    if (!startTime) return;
+    const prev = slotMap.get(startTime);
+    slotMap.set(startTime, {
+      startTime,
+      endTime: (prev && prev.endTime) || item.endTime || '',
+      status: mergeSlotStatus(prev && prev.status, item && item.status)
+    });
+  });
+
+  const rawSlots = Array.from(slotMap.values()).sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));
 
   // statusMap 统一承接数据库状态与前端“过期”判断
   const statusMap = new Map();

@@ -31,11 +31,11 @@
 
       <view class="field">
         <text class="label">选择理发师</text>
-        <picker v-if="!oneBarberOneService" :range="barberOptions" range-key="name" :value="barberIndex" @change="onBarberChange">
+        <picker v-if="barberOptions.length > 0" :range="barberOptions" range-key="name" :value="barberIndex" @change="onBarberChange">
           <view class="picker-value">{{ currentBarberName }}</view>
         </picker>
-        <view v-else class="picker-value">{{ currentBarberName }}</view>
-        <text v-if="oneBarberOneService" class="hint">当前为一对一分配：每位理发师仅负责一个服务</text>
+        <view v-else class="picker-value">当前服务暂无可用理发师</view>
+        <text v-if="usingAdminBarberServices" class="hint">当前已按门店配置过滤可选理发师</text>
       </view>
 
       <view class="field">
@@ -123,6 +123,7 @@ export default {
       serviceOptions: [],
       serviceIndex: -1,
       // 理发师列表与选中索引
+      allBarbers: [],
       barberOptions: [],
       barberIndex: -1,
       // 日期与可预约时段
@@ -147,8 +148,8 @@ export default {
         time: ''
       },
       pendingPayload: null,
-      // 临时策略：每位理发师仅负责一个服务（按列表顺序一一对应）
-      oneBarberOneService: true
+      // true: 使用管理员配置的理发师项目；false: 回退历史一一配对策略
+      usingAdminBarberServices: false
     };
   },
   computed: {
@@ -167,9 +168,8 @@ export default {
     },
     // 当前理发师名称
     currentBarberName() {
-      const index = this.oneBarberOneService ? this.serviceIndex : this.barberIndex;
-      if (index < 0 || !this.barberOptions[index]) return '当前服务暂无可用理发师';
-      return this.barberOptions[index].name || this.barberOptions[index].username || '未命名理发师';
+      if (this.barberIndex < 0 || !this.barberOptions[this.barberIndex]) return '当前服务暂无可用理发师';
+      return this.barberOptions[this.barberIndex].name || this.barberOptions[this.barberIndex].username || '未命名理发师';
     }
   },
   onLoad(options) {
@@ -224,12 +224,14 @@ export default {
     // 拉取服务与理发师
     async loadStoreRelated() {
       this.serviceOptions = [];
+      this.allBarbers = [];
       this.barberOptions = [];
       this.serviceIndex = -1;
       this.barberIndex = -1;
       this.slots = [];
       this.selectedStartTime = '';
       this.storeRules = null;
+      this.usingAdminBarberServices = false;
       const store = this.storeOptions[this.storeIndex];
       if (!store || !store._id) return;
       try {
@@ -243,28 +245,46 @@ export default {
         const barberList = Array.isArray(barbers)
           ? barbers.map((item) => ({
               ...item,
-              name: item.name || item.username || '理发师'
+              name: item.name || item.username || '理发师',
+              serviceIds: Array.isArray(item.serviceIds) ? item.serviceIds : []
             }))
           : [];
-        if (this.oneBarberOneService) {
-          const pairCount = Math.min(serviceList.length, barberList.length);
-          this.serviceOptions = serviceList.slice(0, pairCount);
-          this.barberOptions = barberList.slice(0, pairCount);
-        } else {
+
+        // 优先使用管理员配置（store-level 开关）；若未启用则回退历史一一配对
+        const hasExplicitConfig = !!(storeDetail && storeDetail.barberServiceAssignmentEnabled);
+        this.usingAdminBarberServices = hasExplicitConfig;
+
+        if (hasExplicitConfig) {
           this.serviceOptions = serviceList;
-          this.barberOptions = barberList;
+          const validServiceIdSet = new Set(serviceList.map((item) => item && item._id).filter((id) => !!id));
+          this.allBarbers = barberList.map((item) => ({
+            ...item,
+            supportedServiceIds: (item.serviceIds || [])
+              .map((id) => String(id || '').trim())
+              .filter((id) => !!id && validServiceIdSet.has(id))
+          }));
+        } else {
+          const pairCount = Math.min(serviceList.length, barberList.length);
+          const pairedServices = serviceList.slice(0, pairCount);
+          const pairedBarbers = barberList.slice(0, pairCount);
+          this.serviceOptions = pairedServices;
+          this.allBarbers = pairedBarbers.map((item, idx) => ({
+            ...item,
+            supportedServiceIds: pairedServices[idx] && pairedServices[idx]._id ? [pairedServices[idx]._id] : []
+          }));
         }
+
         // 加载门店规则
         if (storeDetail && storeDetail.bookingRules) {
           this.storeRules = storeDetail.bookingRules;
         }
-        // 默认选中第一个服务与理发师，并尝试拉取时段
+        // 默认选中第一个服务，并按服务过滤理发师
         if (this.serviceOptions.length > 0) {
           this.serviceIndex = 0;
           this.currentStep = 2;
+          this.rebuildBarberOptions();
         }
-        if (this.barberOptions.length > 0 && this.serviceIndex >= 0) {
-          this.barberIndex = this.oneBarberOneService ? this.serviceIndex : 0;
+        if (this.barberOptions.length > 0) {
           this.currentStep = 3;
         }
         this.tryLoadSlots();
@@ -272,19 +292,34 @@ export default {
         uni.showToast({ title: err.message || '加载门店信息失败', icon: 'none' });
       }
     },
+    rebuildBarberOptions() {
+      const service = this.serviceOptions[this.serviceIndex];
+      if (!service || !service._id) {
+        this.barberOptions = [];
+        this.barberIndex = -1;
+        return;
+      }
+      const serviceId = service._id;
+      const prevBarber = this.barberOptions[this.barberIndex];
+      const prevBarberId = prevBarber && prevBarber._id ? prevBarber._id : '';
+      const list = this.allBarbers.filter((item) => {
+        const supported = Array.isArray(item.supportedServiceIds) ? item.supportedServiceIds : [];
+        return supported.includes(serviceId);
+      });
+      this.barberOptions = list;
+      const nextIndex = list.findIndex((item) => item && item._id === prevBarberId);
+      this.barberIndex = nextIndex >= 0 ? nextIndex : list.length > 0 ? 0 : -1;
+    },
     // 选择服务
     onServiceChange(e) {
       this.serviceIndex = Number(e.detail.value || 0);
-      if (this.oneBarberOneService) {
-        this.barberIndex = this.serviceIndex < this.barberOptions.length ? this.serviceIndex : -1;
-      }
+      this.rebuildBarberOptions();
       this.currentStep = Math.max(this.currentStep, 2);
       // serviceId 仅透传，不影响查询逻辑
       this.tryLoadSlots();
     },
     // 选择理发师
     onBarberChange(e) {
-      if (this.oneBarberOneService) return;
       this.barberIndex = Number(e.detail.value || 0);
       this.currentStep = Math.max(this.currentStep, 3);
       this.tryLoadSlots();

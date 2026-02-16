@@ -1,4 +1,4 @@
-const { withResponse, ApiError, requireRole } = require('sb-common');
+const { withResponse, ApiError, requireRole, autoCancelOverdueBookedOrders } = require('sb-common');
 
 // 理发师查看当天订单（支持增量同步与分页）
 exports.main = withResponse(async (event, context) => {
@@ -19,6 +19,13 @@ exports.main = withResponse(async (event, context) => {
 
   const db = uniCloud.database();
   const barberId = barber._id || barber.uid || barber.userId;
+
+  // 自动取消理发师名下已超时且未处理的预约单
+  try {
+    await autoCancelOverdueBookedOrders(db, { barberId, limit: 200 });
+  } catch (err) {
+    console.error('auto cancel overdue orders (barber) failed:', err);
+  }
 
   // 仅查询本人指定日期订单
   const where = { barberId, date };

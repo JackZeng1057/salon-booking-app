@@ -2,13 +2,7 @@
 // 引入 Node.js 加密模块
 const crypto = require('crypto');
 // 引入统一响应包装、错误类型与错误码常量
-const { withResponse, ApiError, ERROR_CODES } = require('sb-common');
-
-// 与注册保持一致的摘要算法
-function hashPassword(password) {
-  // 创建 sha256 哈希并生成十六进制摘要
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
+const { withResponse, ApiError, ERROR_CODES, hashPassword } = require('sb-common');
 
 // 生成随机令牌作为登录会话
 function createToken() {

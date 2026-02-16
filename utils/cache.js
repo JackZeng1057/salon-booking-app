@@ -14,10 +14,6 @@ export function setCache(key, value, ttl = DEFAULT_TTL) {
   uni.setStorageSync(key, { value, time: Date.now(), ttl });
 }
 
-export function removeCache(key) {
-  uni.removeStorageSync(key);
-}
-
 export function removeCacheByPrefix(prefix) {
   try {
     const info = uni.getStorageInfoSync();

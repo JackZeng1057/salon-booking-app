@@ -4,11 +4,23 @@ const errors = require('./errors');
 const auth = require('./auth');
 const withResponse = require('./withResponse');
 const audit = require('./audit');
+const autoCancel = require('./autoCancel');
+const bookingSlots = require('./bookingSlots');
+const chinaTime = require('./chinaTime');
+const reviewStats = require('./reviewStats');
+const password = require('./password');
+const barberServices = require('./barberServices');
 
 module.exports = {
   ...response,
   ...errors,
   ...auth,
   ...withResponse,
-  ...audit
+  ...audit,
+  ...autoCancel,
+  ...bookingSlots,
+  ...chinaTime,
+  ...reviewStats,
+  ...password,
+  ...barberServices
 };

@@ -1,14 +1,6 @@
 ﻿// 注册接口：校验用户信息并创建账号
-// 引入 Node.js 加密模块
-const crypto = require('crypto');
 // 引入统一响应包装、错误类型与错误码常量
-const { withResponse, ApiError, ERROR_CODES } = require('sb-common');
-
-// 使用 sha256 生成密码摘要（示例用，生产可换更安全方案）
-function hashPassword(password) {
-  // 创建 sha256 哈希并生成十六进制摘要
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
+const { withResponse, ApiError, ERROR_CODES, hashPassword } = require('sb-common');
 
 // 只允许三种角色，其他一律降级为 user
 function normalizeRole(role) {

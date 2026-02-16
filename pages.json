@@ -71,6 +71,13 @@
       }
     },
     {
+      "path": "pages/user/reviews/index",
+      "style": {
+        "navigationBarTitleText": "My Reviews",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/user/notifications/index",
       "style": {
         "navigationBarTitleText": "Notifications",
@@ -109,6 +116,13 @@
       "path": "pages/admin/barber-approvals/index",
       "style": {
         "navigationBarTitleText": "Barber Approvals",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/admin/barber-services/index",
+      "style": {
+        "navigationBarTitleText": "Barber Services",
         "navigationStyle": "custom"
       }
     },

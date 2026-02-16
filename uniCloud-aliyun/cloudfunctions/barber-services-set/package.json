@@ -1,5 +1,5 @@
 {
-  "name": "orders-list",
+  "name": "barber-services-set",
   "dependencies": {
     "sb-common": "file:../common/sb-common"
   },

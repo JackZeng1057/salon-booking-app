@@ -38,6 +38,11 @@
       <button class="btn" type="primary" @click="goBarberApprovals">审核申请</button>
     </view>
 
+    <view class="card">
+      <text class="label">理发师项目设置</text>
+      <button class="btn" type="primary" @click="goBarberServices">配置项目</button>
+    </view>
+
     <view class="card logout-card">
       <text class="label">账号</text>
       <view class="account-actions">
@@ -113,6 +118,17 @@ export default {
     goBarberApprovals() {
       uni.navigateTo({
         url: '/pages/admin/barber-approvals/index',
+        fail: () => {
+          uni.showToast({
+            title: '页面未生效，请重新编译',
+            icon: 'none'
+          });
+        }
+      });
+    },
+    goBarberServices() {
+      uni.navigateTo({
+        url: '/pages/admin/barber-services/index',
         fail: () => {
           uni.showToast({
             title: '页面未生效，请重新编译',
