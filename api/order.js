@@ -55,7 +55,7 @@ function clearReviewCaches() {
 }
 
 // 创建预约订单
-// 入参：{ storeId, serviceId, barberId, date, startTime }
+// 入参：{ storeId, serviceId, barberId, date, startTime, remark? }
 export function createOrder(payload) {
   return callCloud('orders-create', payload).then((data) => {
     clearOrderCaches();

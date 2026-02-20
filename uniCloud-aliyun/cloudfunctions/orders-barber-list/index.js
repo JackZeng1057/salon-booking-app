@@ -20,11 +20,11 @@ exports.main = withResponse(async (event, context) => {
   const db = uniCloud.database();
   const barberId = barber._id || barber.uid || barber.userId;
 
-  // 自动取消理发师名下已超时且未处理的预约单
+  // 自动标记理发师名下已超时且未处理的预约单为爽约
   try {
-    await autoCancelOverdueBookedOrders(db, { barberId, limit: 200 });
+    await autoCancelOverdueBookedOrders(db, { barberId, limit: 200, graceMin: 20 });
   } catch (err) {
-    console.error('auto cancel overdue orders (barber) failed:', err);
+    console.error('auto no_show overdue orders (barber) failed:', err);
   }
 
   // 仅查询本人指定日期订单

@@ -1,0 +1,11 @@
+{
+  "name": "ai-service-advisor",
+  "cloudfunction-config": {
+    "timeout": 30,
+    "memorySize": 512
+  },
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}

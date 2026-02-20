@@ -13,7 +13,7 @@ exports.main = withResponse(async (event, context) => {
   const db = uniCloud.database();
   const notifRes = await db.collection('notifications')
     .doc(notificationId)
-    .field({ userId: true, isRead: true })
+    .field({ userId: true, isRead: true, isDeleted: true })
     .get();
 
   const notification = notifRes.data && notifRes.data[0];
@@ -24,11 +24,21 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(403, 'forbidden');
   }
 
-  await db.collection('notifications').doc(notificationId).remove();
+  if (notification.isDeleted === true) {
+    return {
+      success: true,
+      unreadReduced: 0
+    };
+  }
+
+  await db.collection('notifications').doc(notificationId).update({
+    isDeleted: true,
+    isRead: true,
+    deletedAt: Date.now()
+  });
 
   return {
     success: true,
     unreadReduced: notification.isRead ? 0 : 1
   };
 });
-

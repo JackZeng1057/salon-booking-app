@@ -1,0 +1,16 @@
+{
+  "dashscopeApiKey": "your_dashscope_api_key",
+  "qwenModel": "qwen3-vl-flash",
+  "qwenBaseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+  "qwenTimeoutMs": 12000,
+  "qwenCatalogLimit": 10,
+  "qwenRetryEnabled": true,
+  "qwenRetryTimeoutMs": 8000,
+  "qwenRetryCatalogLimit": 6,
+  "qwenImageOnlyCatalogLimit": 4,
+  "qwenImageMaxPixels": 1572864,
+  "qwenMaxTokens": 900,
+  "qwenImageOnlyMaxTokens": 900,
+  "qwenRetryMaxTokens": 1100,
+  "qwenImageOnlyRetryMaxTokens": 1100
+}

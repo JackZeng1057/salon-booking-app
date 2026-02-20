@@ -1,5 +1,14 @@
 const { withResponse, ApiError, ERROR_CODES, requireRole } = require('sb-common');
 
+function formatAftersaleType(type) {
+  const map = {
+    SERVICE: '服务问题',
+    NO_SHOW: '迟到/爽约',
+    OTHER: '其他'
+  };
+  return map[String(type || '').toUpperCase()] || '售后问题';
+}
+
 // 创建售后工单：仅订单所属用户可提交
 exports.main = withResponse(async (event, context) => {
   const user = await requireRole(['user'], event, context);
@@ -47,6 +56,7 @@ exports.main = withResponse(async (event, context) => {
 
   // 通知店家处理售后（失败不影响主流程）
   try {
+    const typeText = formatAftersaleType(type);
     const adminRes = await db
       .collection('users')
       .where({ role: 'admin', storeId: order.storeId })
@@ -61,14 +71,27 @@ exports.main = withResponse(async (event, context) => {
         name: 'notifications-create',
         data: {
           userId: adminId,
-          type: 'reschedule',
-          title: '售后待处理',
-          content: `有新的售后申请，请及时处理。工单类型：${type}。`,
+          type: 'arrival_reminder',
+          title: '售后工单待处理',
+          content: `收到新的售后工单（${typeText}），请及时处理。`,
           relatedId: aftersaleId,
           relatedType: 'aftersale'
         }
       });
     }
+
+    // 给用户确认提交通知
+    await uniCloud.callFunction({
+      name: 'notifications-create',
+      data: {
+        userId,
+        type: 'arrival_reminder',
+        title: '售后申请已提交',
+        content: `您的${typeText}售后申请已提交，我们会尽快处理。`,
+        relatedId: aftersaleId,
+        relatedType: 'aftersale'
+      }
+    });
   } catch (err) {
     console.error('send aftersales-create notification error:', err);
   }

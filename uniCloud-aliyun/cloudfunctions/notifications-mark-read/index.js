@@ -17,7 +17,11 @@ exports.main = withResponse(async (event, context) => {
   if (markAll) {
     // 标记全部为已读
     await db.collection('notifications')
-      .where({ userId, isRead: false })
+      .where({
+        userId,
+        isRead: false,
+        isDeleted: db.command.neq(true)
+      })
       .update({ isRead: true });
     return { success: true, message: 'All marked as read' };
   }
@@ -29,11 +33,14 @@ exports.main = withResponse(async (event, context) => {
   // 验证通知归属
   const notifRes = await db.collection('notifications')
     .doc(notificationId)
-    .field({ userId: true })
+    .field({ userId: true, isDeleted: true })
     .get();
 
   const notification = notifRes.data && notifRes.data[0];
   if (!notification) {
+    throw new ApiError(404, 'notification not found');
+  }
+  if (notification.isDeleted === true) {
     throw new ApiError(404, 'notification not found');
   }
 

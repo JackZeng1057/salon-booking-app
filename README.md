@@ -126,7 +126,16 @@ npm install
 # 选择"上传所有云函数及公共模块"
 ```
 
-6. **运行项目**
+6. **配置 AI 顾问 API Key（Qwen）**
+- 云函数：`ai-service-advisor`
+- 若你的控制台支持云函数环境变量，可配置：
+  - `DASHSCOPE_API_KEY`（或 `QWEN_API_KEY`）
+  - `QWEN_MODEL`（默认 `qwen3-vl-flash`）
+  - `QWEN_BASE_URL`（默认 `https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions`）
+- 若控制台没有环境变量入口（常见），请在云函数目录新建：
+  - `uniCloud-aliyun/cloudfunctions/ai-service-advisor/config.json`
+
+7. **运行项目**
 ```bash
 # H5
 npm run dev:h5

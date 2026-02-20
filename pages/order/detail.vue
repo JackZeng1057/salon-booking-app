@@ -38,8 +38,8 @@
       </view>
 
       <view class="actions">
-        <button class="action-btn" type="default" :disabled="!canOperate" @click="openCancel">取消预约</button>
-        <button class="action-btn" type="primary" :disabled="!canOperate" @click="openReschedule">改期</button>
+        <button class="action-btn" type="default" :disabled="!canCancelOperate" @click="openCancel">取消预约</button>
+        <button class="action-btn" type="primary" :disabled="!canRescheduleOperate" @click="openReschedule">改期</button>
       </view>
 
       <view class="actions">
@@ -177,11 +177,28 @@ export default {
   computed: {
     // 仅 BOOKED 可操作
     canOperate() {
-      return this.detail && this.detail.order && this.detail.order.status === 'BOOKED';
+      if (!this.detail || !this.detail.order) return false;
+      return this.normalizeStatus(this.detail.order.status) === 'BOOKED';
+    },
+    // 取消预约：仅 BOOKED 且在开始后 5 分钟内
+    canCancelOperate() {
+      if (!this.detail || !this.detail.order) return false;
+      const order = this.detail.order;
+      return this.normalizeStatus(order.status) === 'BOOKED' && this.inCancelWindow(order, 5);
+    },
+    // 改期窗口：开始前 5 分钟截止
+    canRescheduleOperate() {
+      if (!this.detail || !this.detail.order) return false;
+      const order = this.detail.order;
+      if (this.normalizeStatus(order.status) !== 'BOOKED') return false;
+      const startMs = this.toChinaTimestamp(order.date, order.startTime);
+      if (!startMs) return false;
+      return Date.now() < startMs - 5 * 60 * 1000;
     },
     // 仅 FINISHED 可评价/售后
     canReview() {
-      return this.detail && this.detail.order && this.detail.order.status === 'FINISHED';
+      if (!this.detail || !this.detail.order) return false;
+      return this.normalizeStatus(this.detail.order.status) === 'FINISHED';
     },
     // 订单显示门店名（快照优先，其次缓存字典）
     displayStoreName() {
@@ -211,6 +228,28 @@ export default {
   methods: {
     formatOrderStatus,
     formatSlotStatus,
+    normalizeStatus(status) {
+      const map = {
+        已预约: 'BOOKED',
+        已到店: 'ARRIVED',
+        服务中: 'IN_SERVICE',
+        已完成: 'FINISHED',
+        已取消: 'CANCELLED',
+        爽约: 'NO_SHOW'
+      };
+      return map[status] || status;
+    },
+    toChinaTimestamp(date, time) {
+      if (!date || !time) return 0;
+      const ms = new Date(`${date}T${time}:00+08:00`).getTime();
+      return Number.isFinite(ms) ? ms : 0;
+    },
+    inCancelWindow(order, cancelWindowMin = 5) {
+      if (!order) return false;
+      const startMs = this.toChinaTimestamp(order.date, order.startTime);
+      if (!startMs) return false;
+      return Date.now() <= startMs + cancelWindowMin * 60 * 1000;
+    },
     formatReviewStars(rating) {
       if (!rating) return '';
       const overall = typeof rating === 'number' ? rating : rating.overall;
@@ -270,7 +309,7 @@ export default {
             // 快照缺失时补齐门店/服务/理发师名称
             await this.loadLocalMaps();
           }
-          if (order.status === 'FINISHED') {
+          if (this.normalizeStatus(order.status) === 'FINISHED') {
             // 已完成订单尝试加载评价
             const reviewRes = await fetchReviewByOrder({ orderId: this.id });
             this.review = reviewRes && reviewRes.review;
@@ -346,6 +385,10 @@ export default {
         uni.showToast({ title: '请输入取消原因', icon: 'none' });
         return;
       }
+      if (!this.canCancelOperate) {
+        uni.showToast({ title: '已超过可取消时限（开始后5分钟）', icon: 'none' });
+        return;
+      }
       try {
         const res = await cancelOrder({ orderId: this.id, reason: this.cancelReason });
         const order = res && res.order;
@@ -357,7 +400,10 @@ export default {
         this.cancelReason = '';
       } catch (err) {
         if (err && err.code === 422) {
-          uni.showToast({ title: '当前状态不允许取消', icon: 'none' });
+          const msg = err.message === 'cancel_window_expired'
+            ? '已超过可取消时限（开始后5分钟）'
+            : '当前状态不允许取消';
+          uni.showToast({ title: msg, icon: 'none' });
           return;
         }
         uni.showToast({ title: err.message || '取消失败', icon: 'none' });
@@ -365,11 +411,19 @@ export default {
     },
     // 打开取消面板（与改期面板互斥）
     openCancel() {
+      if (!this.canCancelOperate) {
+        uni.showToast({ title: '已超过可取消时限（开始后5分钟）', icon: 'none' });
+        return;
+      }
       this.showReschedule = false;
       this.showCancel = !this.showCancel;
     },
     // 打开改期面板（与取消面板互斥）
     openReschedule() {
+      if (!this.canRescheduleOperate) {
+        uni.showToast({ title: '距离开始不足5分钟，当前不可改期', icon: 'none' });
+        return;
+      }
       this.showCancel = false;
       this.showReschedule = !this.showReschedule;
       if (this.showReschedule) {
@@ -418,6 +472,10 @@ export default {
     // 确认改期：冲突与状态不允许时提示
     async handleReschedule() {
       if (!this.selectedStartTime) return;
+      if (!this.canRescheduleOperate) {
+        uni.showToast({ title: '距离开始不足5分钟，当前不可改期', icon: 'none' });
+        return;
+      }
       try {
         await rescheduleOrder({
           orderId: this.id,
@@ -434,7 +492,8 @@ export default {
           return;
         }
         if (err && err.code === 422) {
-          uni.showToast({ title: '当前状态不允许改期', icon: 'none' });
+          const msg = err.message || '当前状态不允许改期';
+          uni.showToast({ title: msg, icon: 'none' });
           return;
         }
         uni.showToast({ title: err.message || '改期失败', icon: 'none' });

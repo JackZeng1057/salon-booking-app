@@ -51,6 +51,15 @@
 			"description": "是否已读",
 			"default": false
 		},
+		"isDeleted": {
+			"bsonType": "bool",
+			"description": "是否已删除（软删除）",
+			"default": false
+		},
+		"deletedAt": {
+			"bsonType": "int",
+			"description": "删除时间戳"
+		},
 		"createdAt": {
 			"bsonType": "int",
 			"description": "创建时间戳"

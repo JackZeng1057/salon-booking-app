@@ -84,6 +84,64 @@ async function notifyRescheduleStakeholders(db, payload = {}) {
   }
 }
 
+function mapRescheduleFailMessage(errorCode) {
+  const map = {
+    reschedule_window_expired: '距离开始不足5分钟，当前不可改期。',
+    status_not_allowed: '当前订单状态不允许改期。',
+    booking_window_closed: '目标时段距离开始不足5分钟，已停止预约。',
+    time_expired: '目标时段已过期，请重新选择。',
+    outside_schedule: '目标时段不在排班内，请更换时间。',
+    slot_conflict: '目标时段已被占用，请重新选择。'
+  };
+  return map[errorCode] || '改期未成功，请稍后重试。';
+}
+
+async function hasRecentRescheduleFailNotice(db, userId, orderId, content, withinMin = 3) {
+  if (!userId || !orderId || !content) return false;
+  const now = Date.now();
+  const res = await db
+    .collection('notifications')
+    .where({
+      userId,
+      type: 'reschedule',
+      title: '订单改期失败',
+      relatedId: orderId,
+      content,
+      createdAt: db.command.gte(now - withinMin * 60 * 1000)
+    })
+    .limit(1)
+    .get();
+  return !!(res && res.data && res.data.length > 0);
+}
+
+async function notifyRescheduleFailure(db, payload = {}) {
+  const {
+    userId = '',
+    orderId = '',
+    oldDate = '',
+    oldStartTime = '',
+    errorCode = ''
+  } = payload;
+  if (!userId || !orderId) return;
+
+  const oldText = `${oldDate} ${oldStartTime}`.trim();
+  const reason = mapRescheduleFailMessage(errorCode);
+  const content = `您发起的 ${oldText} 改期失败。${reason}`;
+  const duplicated = await hasRecentRescheduleFailNotice(db, userId, orderId, content);
+  if (duplicated) return;
+
+  await uniCloud.callFunction({
+    name: 'notifications-create',
+    data: {
+      userId,
+      type: 'reschedule',
+      title: '订单改期失败',
+      content,
+      relatedId: orderId
+    }
+  });
+}
+
 // 订单改期：
 // 1) 先占用新时段（多段 5 分钟 slots）
 // 2) 更新订单时间与记录改期来源
@@ -138,7 +196,35 @@ exports.main = withResponse(async (event, context) => {
 
   // 状态校验：仅 BOOKED 可改期
   if (order.status !== 'BOOKED') {
+    try {
+      await notifyRescheduleFailure(db, {
+        userId,
+        orderId,
+        oldDate: order.date || '',
+        oldStartTime: order.startTime || '',
+        errorCode: 'status_not_allowed'
+      });
+    } catch (err) {
+      console.error('notify reschedule failed(status) error:', err);
+    }
     throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'status_not_allowed');
+  }
+
+  // 改期窗口：开始前 5 分钟截止
+  const orderStartMs = new Date(`${order.date}T${order.startTime}:00+08:00`).getTime();
+  if (orderStartMs && Date.now() >= orderStartMs - 5 * 60 * 1000) {
+    try {
+      await notifyRescheduleFailure(db, {
+        userId,
+        orderId,
+        oldDate: order.date || '',
+        oldStartTime: order.startTime || '',
+        errorCode: 'reschedule_window_expired'
+      });
+    } catch (err) {
+      console.error('notify reschedule failed(window) error:', err);
+    }
+    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'reschedule_window_expired');
   }
 
   // 若改期到同一日期与时段，直接返回，避免无效写
@@ -163,25 +249,51 @@ exports.main = withResponse(async (event, context) => {
   const newEndTime = minutesToTime(startMin + durationMin);
 
   const startMs = new Date(`${newDate}T${newStartTime}:00+08:00`).getTime();
-  if (startMs && startMs <= Date.now()) {
-    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'time_expired');
+  if (startMs && startMs <= Date.now() + 5 * 60 * 1000) {
+    try {
+      await notifyRescheduleFailure(db, {
+        userId,
+        orderId,
+        oldDate: order.date || '',
+        oldStartTime: order.startTime || '',
+        errorCode: 'booking_window_closed'
+      });
+    } catch (err) {
+      console.error('notify reschedule failed(expired) error:', err);
+    }
+    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'booking_window_closed');
   }
 
   const _ = db.command;
   const newSlotTimes = buildRequiredSlotStartTimes(newStartTime, durationMin);
-  await ensureSlotTimesWithinSchedule(db, order.barberId, newDate, newSlotTimes);
-  await ensureSlotDocsExist(db, {
-    storeId: order.storeId || '',
-    barberId: order.barberId,
-    date: newDate,
-    slotTimes: newSlotTimes
-  });
-  await lockSlotTimesForOrder(db, {
-    barberId: order.barberId,
-    date: newDate,
-    slotTimes: newSlotTimes,
-    orderId
-  });
+  try {
+    await ensureSlotTimesWithinSchedule(db, order.barberId, newDate, newSlotTimes);
+    await ensureSlotDocsExist(db, {
+      storeId: order.storeId || '',
+      barberId: order.barberId,
+      date: newDate,
+      slotTimes: newSlotTimes
+    });
+    await lockSlotTimesForOrder(db, {
+      barberId: order.barberId,
+      date: newDate,
+      slotTimes: newSlotTimes,
+      orderId
+    });
+  } catch (err) {
+    try {
+      await notifyRescheduleFailure(db, {
+        userId,
+        orderId,
+        oldDate: order.date || '',
+        oldStartTime: order.startTime || '',
+        errorCode: err && err.message ? err.message : 'reschedule_failed'
+      });
+    } catch (notifyErr) {
+      console.error('notify reschedule failed(slot) error:', notifyErr);
+    }
+    throw err;
+  }
 
   const rescheduleFrom = `${order.date} ${order.startTime}`;
 
@@ -227,6 +339,17 @@ exports.main = withResponse(async (event, context) => {
       requestId
     });
   } catch (err) {
+    try {
+      await notifyRescheduleFailure(db, {
+        userId,
+        orderId,
+        oldDate: order.date || '',
+        oldStartTime: order.startTime || '',
+        errorCode: err && err.message ? err.message : 'reschedule_failed'
+      });
+    } catch (notifyErr) {
+      console.error('notify reschedule failed(update) error:', notifyErr);
+    }
     await logAudit(db, {
       actorId: userId,
       role: 'user',

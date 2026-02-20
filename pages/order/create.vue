@@ -49,18 +49,42 @@
         <text class="label">可预约时段</text>
         <view v-if="slotsLoading" class="hint">加载时段中...</view>
         <view v-else-if="slots.length === 0" class="hint">暂无可用时段，请先设置排班或切换日期</view>
-        <view v-else class="slots-grid">
-          <view
-            v-for="slot in slots"
-            :key="slot.startTime"
-            class="slot-item"
-            :class="slotClass(slot)"
-            @click="selectSlot(slot)"
-          >
-            <text class="slot-time">{{ slot.startTime }}-{{ slot.endTime }}</text>
-            <text class="slot-status">{{ formatSlotStatus(slot.status) }}</text>
+        <view v-else>
+          <view v-if="recommendedStartTime" class="recommend-box">
+            <view class="recommend-main">
+              <text class="recommend-title">智能推荐</text>
+              <text class="recommend-time">{{ recommendedStartTime }}-{{ recommendedEndTime }}</text>
+              <text class="recommend-reason">{{ recommendedReason }}</text>
+            </view>
+            <view class="recommend-action" @click="applyRecommendedSlot">一键选中</view>
+          </view>
+          <view class="slots-grid">
+            <view
+              v-for="slot in slots"
+              :key="slot.startTime"
+              class="slot-item"
+              :class="slotClass(slot)"
+              @click="selectSlot(slot)"
+            >
+              <text class="slot-time">{{ slot.startTime }}-{{ slot.endTime }}</text>
+              <text class="slot-status">{{ formatSlotStatus(slot.status) }}</text>
+            </view>
           </view>
         </view>
+      </view>
+
+      <view class="field">
+        <view class="remark-header">
+          <text class="label">预约备注（可选）</text>
+          <text v-if="fromAiAdvisor" class="remark-tag">来自AI顾问</text>
+        </view>
+        <textarea
+          v-model="remark"
+          class="remark-input"
+          maxlength="120"
+          placeholder="例：发质偏硬，避免漂染，想要层次感和好打理。"
+        />
+        <text class="remark-count">{{ remark.length }}/120</text>
       </view>
 
       <button
@@ -85,6 +109,7 @@
           <text class="modal-row">服务：{{ confirmData.service }}</text>
           <text class="modal-row">理发师：{{ confirmData.barber }}</text>
           <text class="modal-row">时间：{{ confirmData.time }}</text>
+          <text v-if="confirmData.remark" class="modal-row">备注：{{ confirmData.remark }}</text>
         </view>
         <view class="modal-actions">
           <button class="modal-btn ghost" @click="closeConfirm">再看看</button>
@@ -111,6 +136,25 @@ function toDateString(date) {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+function decodeQueryText(value) {
+  const raw = String(value || '');
+  if (!raw) return '';
+  try {
+    return decodeURIComponent(raw);
+  } catch (e) {
+    return raw;
+  }
+}
+
+function timeToMinutes(text) {
+  const matched = String(text || '').match(/^(\d{2}):(\d{2})$/);
+  if (!matched) return NaN;
+  const hour = Number(matched[1]);
+  const minute = Number(matched[2]);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return NaN;
+  return hour * 60 + minute;
 }
 
 export default {
@@ -145,11 +189,20 @@ export default {
         store: '',
         service: '',
         barber: '',
-        time: ''
+        time: '',
+        remark: ''
       },
       pendingPayload: null,
       // true: 使用管理员配置的理发师项目；false: 回退历史一一配对策略
-      usingAdminBarberServices: false
+      usingAdminBarberServices: false,
+      // 预约备注（可由 AI 顾问预填）
+      remark: '',
+      fromAiAdvisor: false,
+      presetServiceId: '',
+      // 智能推荐时段
+      recommendedStartTime: '',
+      recommendedEndTime: '',
+      recommendedReason: ''
     };
   },
   computed: {
@@ -173,9 +226,14 @@ export default {
     }
   },
   onLoad(options) {
-    // 若从门店详情带入 storeId，则先预选门店
+    // 支持从门店详情或 AI 顾问带入门店/服务/备注
     const presetStoreId = (options && options.storeId) || '';
-    this.loadStores(presetStoreId);
+    const presetServiceId = (options && options.serviceId) || '';
+    const aiRemark = decodeQueryText(options && options.aiRemark);
+    this.presetServiceId = String(presetServiceId || '').trim();
+    this.remark = String(aiRemark || '').slice(0, 120);
+    this.fromAiAdvisor = !!this.remark;
+    this.loadStores(presetStoreId, this.presetServiceId);
   },
   onShow() {
     this.minDate = toDateString(new Date());
@@ -194,7 +252,7 @@ export default {
       });
     },
     // 拉取门店列表并处理预选
-    async loadStores(presetStoreId) {
+    async loadStores(presetStoreId, presetServiceId = '') {
       try {
         const stores = await fetchStores();
         this.storeOptions = Array.isArray(stores) ? stores : [];
@@ -202,14 +260,14 @@ export default {
           const index = this.storeOptions.findIndex((item) => item._id === presetStoreId);
           if (index >= 0) {
             this.storeIndex = index;
-            await this.loadStoreRelated();
+            await this.loadStoreRelated(presetServiceId);
             return;
           }
         }
         // 若未传入门店，默认选择第一个门店
         if (this.storeOptions.length > 0) {
           this.storeIndex = 0;
-          await this.loadStoreRelated();
+          await this.loadStoreRelated(presetServiceId);
         }
       } catch (err) {
         uni.showToast({ title: err.message || '加载门店失败', icon: 'none' });
@@ -219,10 +277,10 @@ export default {
     async onStoreChange(e) {
       this.storeIndex = Number(e.detail.value || 0);
       this.currentStep = 1;
-      await this.loadStoreRelated();
+      await this.loadStoreRelated('');
     },
     // 拉取服务与理发师
-    async loadStoreRelated() {
+    async loadStoreRelated(presetServiceId = '') {
       this.serviceOptions = [];
       this.allBarbers = [];
       this.barberOptions = [];
@@ -232,6 +290,9 @@ export default {
       this.selectedStartTime = '';
       this.storeRules = null;
       this.usingAdminBarberServices = false;
+      this.recommendedStartTime = '';
+      this.recommendedEndTime = '';
+      this.recommendedReason = '';
       const store = this.storeOptions[this.storeIndex];
       if (!store || !store._id) return;
       try {
@@ -280,7 +341,12 @@ export default {
         }
         // 默认选中第一个服务，并按服务过滤理发师
         if (this.serviceOptions.length > 0) {
-          this.serviceIndex = 0;
+          const targetServiceId = String(presetServiceId || this.presetServiceId || '').trim();
+          const targetIndex = targetServiceId
+            ? this.serviceOptions.findIndex((item) => item && item._id === targetServiceId)
+            : -1;
+          this.serviceIndex = targetIndex >= 0 ? targetIndex : 0;
+          this.presetServiceId = '';
           this.currentStep = 2;
           this.rebuildBarberOptions();
         }
@@ -358,6 +424,9 @@ export default {
       this.slotsLoading = true;
       this.slots = [];
       this.selectedStartTime = '';
+      this.recommendedStartTime = '';
+      this.recommendedEndTime = '';
+      this.recommendedReason = '';
       try {
         // 按理发师 + 日期 + 服务查询可预约窗口
         const data = await fetchBarberSlots({
@@ -368,6 +437,7 @@ export default {
         });
         const list = Array.isArray(data) ? data : [];
         this.slots = this.applySlotExpiration(list);
+        this.refreshRecommendedSlot();
       } catch (err) {
         uni.showToast({ title: err.message || '加载时段失败', icon: 'none' });
       } finally {
@@ -395,13 +465,82 @@ export default {
         return slot;
       });
     },
+    refreshRecommendedSlot() {
+      const allSlots = Array.isArray(this.slots) ? this.slots : [];
+      const availableSlots = allSlots.filter((slot) => slot && slot.status === 'AVAILABLE');
+      if (availableSlots.length === 0) {
+        this.recommendedStartTime = '';
+        this.recommendedEndTime = '';
+        this.recommendedReason = '';
+        return;
+      }
+
+      const orderedSlots = [...allSlots].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+      const indexByStartTime = new Map(orderedSlots.map((slot, index) => [slot.startTime, index]));
+      const targetMinute = 14 * 60;
+      let best = null;
+
+      availableSlots.forEach((slot) => {
+        const slotMinute = timeToMinutes(slot.startTime);
+        const index = indexByStartTime.get(slot.startTime);
+        let blockedAround = 0;
+        let availableAround = 0;
+        [-2, -1, 1, 2].forEach((offset) => {
+          const near = orderedSlots[index + offset];
+          if (!near) return;
+          if (near.status === 'AVAILABLE') availableAround += 1;
+          if (near.status === 'BOOKED' || near.status === 'UNAVAILABLE') blockedAround += 1;
+        });
+        const centerPenalty = Number.isFinite(slotMinute) ? Math.abs(slotMinute - targetMinute) / 60 : 3;
+        const edgePenalty = Number.isFinite(slotMinute) && (slotMinute < 10 * 60 || slotMinute > 20 * 60) ? 0.8 : 0;
+        const score = blockedAround * 2.5 + centerPenalty + edgePenalty - availableAround * 0.8;
+
+        if (!best || score < best.score || (score === best.score && slotMinute < best.slotMinute)) {
+          best = {
+            slot,
+            score,
+            slotMinute,
+            availableAround
+          };
+        }
+      });
+
+      if (!best || !best.slot) {
+        this.recommendedStartTime = '';
+        this.recommendedEndTime = '';
+        this.recommendedReason = '';
+        return;
+      }
+
+      const activeSlotCount = allSlots.filter((slot) => slot && slot.status !== 'EXPIRED').length;
+      const busySlotCount = allSlots.filter((slot) => slot && (slot.status === 'BOOKED' || slot.status === 'UNAVAILABLE')).length;
+      const busyRate = activeSlotCount > 0 ? busySlotCount / activeSlotCount : 0;
+
+      this.recommendedStartTime = best.slot.startTime || '';
+      this.recommendedEndTime = best.slot.endTime || '';
+      if (availableSlots.length <= 2) {
+        this.recommendedReason = '可选时段较少，建议优先锁定该时段。';
+      } else if (busyRate >= 0.6) {
+        this.recommendedReason = '当日预约较紧张，推荐优先选择该时段避免冲突。';
+      } else if (best.availableAround >= 2) {
+        this.recommendedReason = '该时段前后空档更充足，改期与调整更灵活。';
+      } else {
+        this.recommendedReason = '综合时段分布与可预约性，推荐该时间。';
+      }
+    },
     // 根据状态设置样式
     slotClass(slot) {
       if (slot.status === 'BOOKED') return 'slot-booked';
       if (slot.status === 'EXPIRED') return 'slot-expired';
       if (slot.status === 'UNAVAILABLE') return 'slot-unavailable';
       if (slot.startTime === this.selectedStartTime) return 'slot-selected';
+      if (slot.status === 'AVAILABLE' && slot.startTime === this.recommendedStartTime) return 'slot-recommended';
       return 'slot-available';
+    },
+    applyRecommendedSlot() {
+      if (!this.recommendedStartTime) return;
+      this.selectedStartTime = this.recommendedStartTime;
+      uni.showToast({ title: '已选中推荐时段', icon: 'none' });
     },
     // 选择时段：过滤不可预约/过期/已预约
     selectSlot(slot) {
@@ -435,14 +574,16 @@ export default {
         store: store.name || '',
         service: service.name || '',
         barber: barber.name || barber.username || '',
-        time: `${this.date} ${timeText}`
+        time: `${this.date} ${timeText}`,
+        remark: String(this.remark || '').trim()
       };
       this.pendingPayload = {
         storeId: store._id,
         serviceId: service._id,
         barberId: barber._id,
         date: this.date,
-        startTime: this.selectedStartTime
+        startTime: this.selectedStartTime,
+        remark: String(this.remark || '').trim()
       };
       this.showConfirm = true;
     },
@@ -552,12 +693,45 @@ export default {
   margin-bottom: 12rpx;
 }
 
+.remark-header {
+  display: flex;
+  align-items: center;
+}
+
+.remark-tag {
+  margin-left: 10rpx;
+  font-size: 20rpx;
+  color: #175cd3;
+  background: rgba(23, 92, 211, 0.08);
+  border-radius: 18rpx;
+  padding: 4rpx 12rpx;
+}
+
 .picker-value {
   background: $uni-bg-color-grey;
   border-radius: $uni-border-radius-lg;
   padding: 20rpx 24rpx;
   font-size: $uni-font-size-base;
   color: $uni-text-color;
+}
+
+.remark-input {
+  width: 100%;
+  min-height: 150rpx;
+  background: $uni-bg-color-grey;
+  border-radius: $uni-border-radius-lg;
+  padding: 18rpx 20rpx;
+  box-sizing: border-box;
+  font-size: $uni-font-size-base;
+  color: $uni-text-color;
+}
+
+.remark-count {
+  display: block;
+  margin-top: 8rpx;
+  text-align: right;
+  font-size: 22rpx;
+  color: $uni-text-color-placeholder;
 }
 
 .hint {
@@ -569,6 +743,54 @@ export default {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16rpx;
+}
+
+.recommend-box {
+  margin-bottom: 16rpx;
+  padding: 18rpx 20rpx;
+  border-radius: $uni-border-radius-lg;
+  background: linear-gradient(135deg, rgba(24, 144, 255, 0.1), rgba(82, 196, 26, 0.08));
+  border: 2rpx solid rgba(24, 144, 255, 0.24);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+}
+
+.recommend-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.recommend-title {
+  font-size: 24rpx;
+  color: #175cd3;
+  font-weight: 600;
+}
+
+.recommend-time {
+  font-size: 30rpx;
+  color: $uni-text-color;
+  font-weight: 700;
+}
+
+.recommend-reason {
+  font-size: 22rpx;
+  color: $uni-text-color-grey;
+  line-height: 1.5;
+}
+
+.recommend-action {
+  flex-shrink: 0;
+  min-width: 140rpx;
+  text-align: center;
+  padding: 12rpx 16rpx;
+  border-radius: 30rpx;
+  font-size: 24rpx;
+  color: #ffffff;
+  background: $uni-color-primary;
 }
 
 .slot-item {
@@ -629,6 +851,11 @@ export default {
 .slot-selected {
   border-color: $uni-color-success;
   background: rgba(82, 196, 26, 0.12);
+}
+
+.slot-recommended {
+  border-color: rgba(24, 144, 255, 0.45);
+  background: rgba(24, 144, 255, 0.08);
 }
 
 .submit {

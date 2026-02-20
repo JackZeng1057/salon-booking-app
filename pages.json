@@ -36,6 +36,16 @@
       }
     },
     {
+      "path": "pages/user/agent/index",
+      "style": {
+        "navigationBarTitleText": "AI Advisor",
+        "navigationStyle": "custom",
+        "app-plus": {
+          "softinputMode": "adjustResize"
+        }
+      }
+    },
+    {
       "path": "pages/user/orders/index",
       "style": {
         "navigationBarTitleText": "Orders",
@@ -233,6 +243,12 @@
       {
         "pagePath": "pages/user/home/index",
         "text": "Home",
+        "iconPath": "static/logo.png",
+        "selectedIconPath": "static/logo.png"
+      },
+      {
+        "pagePath": "pages/user/agent/index",
+        "text": "AI顾问",
         "iconPath": "static/logo.png",
         "selectedIconPath": "static/logo.png"
       },

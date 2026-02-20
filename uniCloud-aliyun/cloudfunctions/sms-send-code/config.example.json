@@ -1,0 +1,13 @@
+{
+  "mode": "market",
+  "appCode": "your_sms_market_appcode",
+  "endpoint": "https://gyytz.market.alicloudapi.com/sms/smsSend",
+  "method": "POST",
+  "timeoutMs": 8000,
+  "smsSignId": "your_sms_sign_id",
+  "templateId": "your_sms_template_id",
+  "paramTemplate": "**code**:{code},**minute**:{minute}",
+  "contentTemplate": "【验证码】您的验证码是{code}，{minute}分钟内有效。",
+  "requireTemplateIds": true,
+  "fallbackToDemoOnProviderError": false
+}

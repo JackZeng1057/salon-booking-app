@@ -1,12 +1,49 @@
 const { withResponse, ApiError, requireRole } = require('sb-common');
 
+function normalizeAftersaleStatus(status) {
+  const raw = String(status || '').toUpperCase();
+  if (raw === 'OPEN' || raw === 'PROCESSING' || raw === 'RESOLVED' || raw === 'REJECTED') return raw;
+  return 'PROCESSING';
+}
+
+function buildAftersaleProgressMessage(status, reply) {
+  const replyText = String(reply || '').trim();
+  const map = {
+    OPEN: {
+      title: '售后状态更新：待处理',
+      content: '您的售后工单已进入待处理队列。'
+    },
+    PROCESSING: {
+      title: '售后状态更新：处理中',
+      content: '您的售后工单正在处理中，请耐心等待。'
+    },
+    RESOLVED: {
+      title: '售后状态更新：已解决',
+      content: '您的售后工单已处理完成。'
+    },
+    REJECTED: {
+      title: '售后状态更新：未通过',
+      content: '您的售后工单未通过，请查看处理说明。'
+    }
+  };
+  const fallback = map.PROCESSING;
+  const picked = map[status] || fallback;
+  if (replyText) {
+    return {
+      title: picked.title,
+      content: `${picked.content} 处理说明：${replyText}`
+    };
+  }
+  return picked;
+}
+
 // 门店处理售后：回复并更新状态
 exports.main = withResponse(async (event, context) => {
   const admin = await requireRole(['admin'], event, context);
 
   const id = (event && event.id) || '';
   const reply = (event && event.reply) || '';
-  const status = (event && event.status) || 'PROCESSING';
+  const status = normalizeAftersaleStatus((event && event.status) || 'PROCESSING');
 
   if (!id) {
     throw new ApiError(400, 'id required');
@@ -49,9 +86,8 @@ exports.main = withResponse(async (event, context) => {
         name: 'notifications-create',
         data: {
           userId: after.userId,
-          type: 'reschedule',
-          title: '售后进度更新',
-          content: reply || `您的售后申请状态已更新为：${status}`,
+          type: 'arrival_reminder',
+          ...buildAftersaleProgressMessage(status, reply),
           relatedId: id || after.orderId || '',
           relatedType: 'aftersale'
         }

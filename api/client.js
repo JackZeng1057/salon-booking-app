@@ -12,6 +12,9 @@ function stripRequestId(text) {
 function translateErrorMessage(message, code) {
   const pure = stripRequestId(message);
   const lower = pure.toLowerCase();
+  if (pure.includes('请求云函数超时')) {
+    return '云函数执行超时，请在 uniCloud 将 ai-service-advisor 超时时间调大到 20-30 秒后重试';
+  }
 
   const exactMap = {
     'No response': '服务无响应，请稍后重试',
@@ -47,6 +50,8 @@ function translateErrorMessage(message, code) {
     'phone already bound': '该手机号已被绑定',
     'invalid phone number': '手机号格式不正确',
     'store id required': '缺少门店ID',
+    'storeId required': '缺少门店ID',
+    'text or image required': '请先输入需求或上传图片',
     'store not found': '未找到门店信息',
     'userId required': '缺少理发师账号ID',
     'invalid action': '审核操作无效',
@@ -57,19 +62,28 @@ function translateErrorMessage(message, code) {
     'reviewId is required': '缺少评价ID',
     'review not found': '未找到评价记录',
     'status_not_allowed': '当前状态不允许此操作',
+    reschedule_window_expired: '距离开始不足5分钟，当前不可改期',
     schedule_not_set: '该日期未设置排班',
     schedule_invalid: '排班配置异常，请联系门店管理员',
     outside_schedule: '所选时段不在排班时间内',
     slot_conflict: '该时段已被占用，请重新选择',
+    booking_window_closed: '该时段距离开始不足5分钟，已停止预约',
     time_expired: '该时段已过期，请重新选择',
     not_overdue: '当前订单尚未超时',
     review_exists: '该订单已评价',
     'barber not found': '未找到理发师信息',
-    'create order failed': '创建订单失败，请稍后重试'
+    'create order failed': '创建订单失败，请稍后重试',
+    sms_market_appcode_missing: '短信服务未配置AppCode',
+    sms_market_endpoint_missing: '短信服务接口地址未配置',
+    sms_market_template_config_missing: '短信模板配置缺失，请检查smsSignId和templateId',
+    sms_market_send_failed: '短信通道返回失败，请检查模板变量配置',
+    qwen_request_failed: 'AI服务暂时不可用，请稍后再试',
+    qwen_empty_response: 'AI服务返回异常，请稍后再试',
+    qwen_invalid_json: 'AI结果解析失败，请稍后再试'
   };
   if (exactMap[pure]) return exactMap[pure];
 
-  if (/network|request:fail|failed to fetch|fetch failed|timeout|timed out|econn|enotfound|dns/i.test(lower)) {
+  if (/network|request:fail|failed to fetch|fetch failed|timeout|timed out|超时|econn|enotfound|dns/i.test(lower)) {
     return '网络连接失败，请检查网络';
   }
   if (/invalid credentials|password|username/i.test(lower) && code === 401) {
@@ -85,7 +99,7 @@ function translateErrorMessage(message, code) {
 }
 
 // 云函数调用封装：自动携带令牌并统一错误处理
-export async function callCloud(name, data = {}) {
+export async function callCloud(name, data = {}, options = {}) {
   const payload = { ...data };
   if (authStore.state.token) {
     payload.token = authStore.state.token;
@@ -95,7 +109,8 @@ export async function callCloud(name, data = {}) {
   try {
     res = await uniCloud.callFunction({
       name,
-      data: payload
+      data: payload,
+      timeout: Number(options.timeout || 15000)
     });
   } catch (e) {
     const requestId = (e && e.requestId) || extractRequestId(e && e.message);

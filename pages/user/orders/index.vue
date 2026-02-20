@@ -236,9 +236,12 @@ export default {
           this.orders = cached.list;
           this.lastSyncAt = cached.lastSyncAt || 0;
           this.hasMore = cached.list.length >= this.pageSize;
-          this.loading = false;
-          await this.syncIncremental();
-          return;
+          // 空缓存可能导致“全部订单”长期显示为空，需回源做一次全量校验
+          if (cached.list.length > 0) {
+            this.loading = false;
+            await this.syncIncremental();
+            return;
+          }
         }
       }
       this.loading = true;

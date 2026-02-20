@@ -19,11 +19,11 @@ exports.main = withResponse(async (event, context) => {
   const db = uniCloud.database();
   const userId = user._id || user.uid || user.userId;
 
-  // 自动取消已超时但仍为 BOOKED 的订单（按当前用户范围）
+  // 自动标记已超时但仍为 BOOKED 的订单为爽约（按当前用户范围）
   try {
-    await autoCancelOverdueBookedOrders(db, { userId, limit: 100 });
+    await autoCancelOverdueBookedOrders(db, { userId, limit: 100, graceMin: 20 });
   } catch (err) {
-    console.error('auto cancel overdue orders (mine) failed:', err);
+    console.error('auto no_show overdue orders (mine) failed:', err);
   }
 
   const where = { userId, deletedByUser: db.command.neq(true) };

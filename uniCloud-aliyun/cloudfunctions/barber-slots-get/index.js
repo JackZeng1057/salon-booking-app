@@ -119,6 +119,7 @@ exports.main = withResponse(async (event, context) => {
 
   // 仅返回需要的字段，避免无关数据泄露
   const now = Date.now();
+  const bookingCutoffMs = now + 5 * 60 * 1000;
   const today = getChinaDateString(now);
   const isPastDate = date < today;
 
@@ -146,7 +147,7 @@ exports.main = withResponse(async (event, context) => {
         status = 'EXPIRED';
       } else if (date === today) {
         const startMs = toChinaTimestamp(date, slot.startTime);
-        if (startMs && startMs <= now) {
+        if (startMs && startMs <= bookingCutoffMs) {
           status = 'EXPIRED';
         }
       }
@@ -181,7 +182,7 @@ exports.main = withResponse(async (event, context) => {
       status = 'EXPIRED';
     } else if (date === today) {
       const startMs = toChinaTimestamp(date, startTime);
-      if (startMs && startMs <= now) {
+      if (startMs && startMs <= bookingCutoffMs) {
         status = 'EXPIRED';
       }
     }
@@ -201,7 +202,7 @@ exports.main = withResponse(async (event, context) => {
     const endTime = minutesToTime(start + durationMin);
     const startMs = toChinaTimestamp(date, startTime);
 
-    if (isPastDate || (date === today && startMs && startMs <= now)) {
+    if (isPastDate || (date === today && startMs && startMs <= bookingCutoffMs)) {
       slots.push({ startTime, endTime, status: 'EXPIRED', serviceId });
       continue;
     }

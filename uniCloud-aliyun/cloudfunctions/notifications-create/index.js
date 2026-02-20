@@ -57,6 +57,7 @@ exports.main = withResponse(async (event, context) => {
     relatedId: relatedId || '',
     relatedType: relatedType || 'order',
     isRead: false,
+    isDeleted: false,
     createdAt: now
   };
 
@@ -79,6 +80,7 @@ async function createNotification(userId, type, title, content, relatedId = '', 
     relatedId,
     relatedType,
     isRead: false,
+    isDeleted: false,
     createdAt: now
   };
 

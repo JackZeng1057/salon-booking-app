@@ -35,7 +35,7 @@
         <view class="meta-row address-row">
           <text class="meta-icon">📍</text>
           <text class="meta address-text">{{ store.address }}</text>
-          <view v-if="store.location && store.location.lat && store.location.lng" class="nav-btn" @click="openNavigation">
+          <view v-if="store.address" class="nav-btn" @click="openNavigation">
             <text class="nav-icon">🧭</text>
             <text class="nav-text">导航</text>
           </view>
@@ -304,26 +304,71 @@ export default {
      * 打开导航
      */
     openNavigation() {
-      if (!this.store || !this.store.location) {
+      const address = this.getNavigationAddress();
+      if (!address) {
         uni.showToast({
-          title: '门店位置信息不完整',
+          title: '门店地址未设置',
           icon: 'none'
         });
         return;
       }
-      
-      const lat = this.store.location.lat;
-      const lng = this.store.location.lng;
-      const name = this.store.name || '目的地';
-      const address = this.store.address || '';
-      
-      uni.openLocation({
-        latitude: lat,
-        longitude: lng,
-        name: name,
-        address: address,
-        scale: 15
+
+      uni.showActionSheet({
+        itemList: ['高德地图', '百度地图'],
+        success: async (res) => {
+          const provider = res.tapIndex === 0 ? 'amap' : 'baidu';
+          await this.copyAddress(address);
+          const opened = this.openMapByAddress(provider, address);
+          if (!opened) {
+            uni.showToast({
+              title: '未安装地图应用，地址已复制',
+              icon: 'none'
+            });
+          }
+        }
       });
+    },
+    getNavigationAddress() {
+      const address = (this.store && this.store.address) ? String(this.store.address).trim() : '';
+      return address || '';
+    },
+    copyAddress(address) {
+      return new Promise((resolve) => {
+        uni.setClipboardData({
+          data: address,
+          success: () => resolve(true),
+          fail: () => resolve(false)
+        });
+      });
+    },
+    openMapByAddress(provider, address) {
+      const keyword = encodeURIComponent(address);
+      const appName = encodeURIComponent('salon-booking-app');
+      const urls = provider === 'amap'
+        ? {
+            scheme: `amapuri://route/plan/?sourceApplication=${appName}&dname=${keyword}&dev=0&t=0`,
+            fallback: `https://uri.amap.com/search?keyword=${keyword}&src=salon-booking-app&callnative=1`
+          }
+        : {
+            scheme: `baidumap://map/place/search?query=${keyword}&region=${encodeURIComponent('全国')}&src=salon-booking-app`,
+            fallback: `https://map.baidu.com/search/${keyword}`
+          };
+
+      if (typeof plus !== 'undefined' && plus.runtime && plus.runtime.openURL) {
+        plus.runtime.openURL(urls.scheme, () => {
+          if (urls.fallback) {
+            plus.runtime.openURL(urls.fallback);
+          }
+        });
+        return true;
+      }
+
+      if (typeof window !== 'undefined' && urls.fallback) {
+        window.open(urls.fallback, '_blank');
+        return true;
+      }
+
+      return false;
     },
     /**
      * 拨打电话

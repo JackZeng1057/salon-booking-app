@@ -57,7 +57,7 @@
               <text class="label">订单号</text>
               <text class="value">{{ order.orderNo || order._id }}</text>
             </view>
-            <view v-if="showActions(order.status) || canNoShow(order)" class="actions">
+            <view v-if="showActions(order.status) || canNoShow(order) || canCancel(order)" class="actions">
               <button
                 class="action-btn"
                 type="primary"
@@ -75,6 +75,16 @@
                 @click="handleFinish(order._id)"
               >
                 完成服务
+              </button>
+              <button
+                v-if="canCancel(order)"
+                class="action-btn"
+                type="warn"
+                :loading="isActionLoading(order._id, 'cancel')"
+                :disabled="isActionLoading(order._id, 'cancel')"
+                @click="handleCancel(order)"
+              >
+                取消订单
               </button>
               <button
                 v-if="canNoShow(order)"
@@ -114,7 +124,7 @@
 
 <script>
 // 门店订单页：核验开始、完结服务与爽约标记
-import { fetchStoreOrders, startService, finishService, markNoShow, deleteOrder } from '../../../api/order';
+import { fetchStoreOrders, startService, finishService, markNoShow, deleteOrder, cancelOrder } from '../../../api/order';
 import { callCloud } from '../../../api/client';
 import { formatOrderStatus } from '../../../utils/status';
 
@@ -296,11 +306,19 @@ export default {
       const s = this.normalizeStatus(status);
       return s === 'BOOKED' || s === 'ARRIVED' || s === 'IN_SERVICE';
     },
+    canCancel(order) {
+      if (!order) return false;
+      const s = this.normalizeStatus(order.status);
+      if (s !== 'BOOKED') return false;
+      const startMs = this.combineDateTime(order.date, order.startTime);
+      if (!startMs) return false;
+      return Date.now() <= startMs + 5 * 60 * 1000;
+    },
     // 判断是否允许标记爽约：超出阈值时间且仍是已预约
     canNoShow(order) {
       const s = this.normalizeStatus(order.status);
       if (s !== 'BOOKED') return false;
-      const thresholdMin = 15;
+      const thresholdMin = 20;
       const startMs = this.combineDateTime(order.date, order.startTime);
       if (!startMs) return false;
       return Date.now() - startMs > thresholdMin * 60 * 1000;
@@ -308,7 +326,7 @@ export default {
     // 将日期与时间拼成时间戳（用于计算超时阈值）
     combineDateTime(dateStr, timeStr) {
       if (!dateStr || !timeStr) return 0;
-      return new Date(`${dateStr} ${timeStr}:00`).getTime();
+      return new Date(`${dateStr}T${timeStr}:00+08:00`).getTime();
     },
     // 判断某个订单的某个动作是否正在执行
     isActionLoading(orderId, action) {
@@ -448,6 +466,43 @@ export default {
         uni.showToast({ title: err.message || '操作失败', icon: 'none' });
       } finally {
         this.setActionLoading(order._id, 'noshow', false);
+      }
+    },
+    async handleCancel(order) {
+      if (!order || this.isActionLoading(order._id, 'cancel')) return;
+      const modal = await uni.showModal({
+        title: '取消订单',
+        content: '确认取消该预约订单吗？',
+        confirmText: '确认取消',
+        confirmColor: '#fa5151'
+      });
+      if (!modal || !modal.confirm) return;
+
+      this.setActionLoading(order._id, 'cancel', true);
+      try {
+        const res = await cancelOrder({ orderId: order._id, reason: '门店取消' });
+        const latest = res && res.order;
+        if (latest) {
+          this.updateOrderInList(order._id, {
+            status: latest.status || 'CANCELLED',
+            cancelReason: latest.cancelReason || '',
+            updatedAt: latest.updatedAt
+          });
+        } else {
+          this.updateOrderInList(order._id, { status: 'CANCELLED' });
+        }
+        uni.showToast({ title: '已取消', icon: 'success' });
+      } catch (err) {
+        if (err && err.code === 422) {
+          const msg = err.message === 'cancel_window_expired'
+            ? '已超过可取消时限（开始后5分钟）'
+            : '当前状态不允许操作';
+          uni.showToast({ title: msg, icon: 'none' });
+          return;
+        }
+        uni.showToast({ title: err.message || '取消失败', icon: 'none' });
+      } finally {
+        this.setActionLoading(order._id, 'cancel', false);
       }
     }
   }

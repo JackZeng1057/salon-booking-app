@@ -1,18 +1,42 @@
 <script>
 	// 应用入口：负责初始化登录态与基础生命周期钩子
 	import { authStore } from './store/auth'
+	import { syncCriticalSystemNotifications } from './utils/system-notify'
+	const SYSTEM_NOTIFY_POLL_MS = 30000
 
 	export default {
+		data() {
+			return {
+				systemNotifyTimer: null
+			}
+		},
 		onLaunch: function() {
 			// 启动时恢复登录态，避免重复登录造成读操作升高
 			authStore.init()
+			syncCriticalSystemNotifications({ force: true })
 			console.log('App Launch')
 		},
 		onShow: function() {
+			syncCriticalSystemNotifications({ force: true })
+			this.startSystemNotifyPolling()
 			console.log('App Show')
 		},
 		onHide: function() {
+			this.stopSystemNotifyPolling()
 			console.log('App Hide')
+		},
+		methods: {
+			startSystemNotifyPolling() {
+				if (this.systemNotifyTimer) return
+				this.systemNotifyTimer = setInterval(() => {
+					syncCriticalSystemNotifications()
+				}, SYSTEM_NOTIFY_POLL_MS)
+			},
+			stopSystemNotifyPolling() {
+				if (!this.systemNotifyTimer) return
+				clearInterval(this.systemNotifyTimer)
+				this.systemNotifyTimer = null
+			}
 		}
 	}
 </script>

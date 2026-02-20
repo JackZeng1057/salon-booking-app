@@ -19,7 +19,8 @@ const SLOT_STATUS_TEXT = {
 const AFTERSALE_STATUS_TEXT = {
   OPEN: '待处理',
   PROCESSING: '处理中',
-  RESOLVED: '已解决'
+  RESOLVED: '已解决',
+  REJECTED: '未通过'
 };
 
 const AFTERSALE_TYPE_TEXT = {

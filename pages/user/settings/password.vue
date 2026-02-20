@@ -81,6 +81,7 @@
 import { me } from '../../../api/auth';
 import { authStore } from '../../../store/auth';
 import { callCloud } from '../../../api/client';
+import { syncCriticalSystemNotifications } from '../../../utils/system-notify';
 
 export default {
   data() {
@@ -160,6 +161,7 @@ export default {
         this.demoCode = '';
         this.newPassword = '';
         this.confirmPassword = '';
+        syncCriticalSystemNotifications({ force: true });
       } catch (err) {
         uni.showToast({ title: err.message || '更新密码失败', icon: 'none' });
       } finally {
@@ -309,4 +311,3 @@ export default {
   color: rgba(255, 255, 255, 0.82);
 }
 </style>
-

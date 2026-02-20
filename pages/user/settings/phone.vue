@@ -70,6 +70,7 @@
 import { me, bindPhone } from '../../../api/auth';
 import { authStore } from '../../../store/auth';
 import { callCloud } from '../../../api/client';
+import { syncCriticalSystemNotifications } from '../../../utils/system-notify';
 
 export default {
   data() {
@@ -149,6 +150,7 @@ export default {
         this.code = '';
         this.demoCode = '';
         await this.loadMe();
+        syncCriticalSystemNotifications({ force: true });
       } catch (err) {
         const msg = err.code === 409 ? '手机号已被其他账号绑定' : (err.message || '保存失败');
         uni.showToast({ title: msg, icon: 'none' });
@@ -313,4 +315,3 @@ export default {
   color: rgba(255, 255, 255, 0.82);
 }
 </style>
-

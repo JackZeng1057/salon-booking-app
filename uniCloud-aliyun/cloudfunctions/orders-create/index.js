@@ -45,6 +45,7 @@ exports.main = withResponse(async (event, context) => {
   const barberId = (event && event.barberId) || '';
   const date = (event && event.date) || '';
   const startTime = (event && event.startTime) || '';
+  const remark = String((event && event.remark) || '').trim().slice(0, 120);
 
   // 参数校验
   if (!storeId || !serviceId || !barberId || !date || !startTime) {
@@ -110,15 +111,15 @@ exports.main = withResponse(async (event, context) => {
   const endTime = minutesToTime(startMin + durationMin);
 
   const startMs = new Date(`${date}T${startTime}:00+08:00`).getTime();
-  if (startMs && startMs <= Date.now()) {
-    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'time_expired');
+  const now = Date.now();
+  // 预约窗口：未被预约的时段在开始前 5 分钟停止预约
+  if (startMs && startMs <= now + 5 * 60 * 1000) {
+    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'booking_window_closed');
   }
 
   // 先创建订单记录
   const orderNo = generateOrderNo();
   const verifyCode = generateVerifyCode();
-  const now = Date.now();
-
   const orderRes = await db.collection('orders').add({
     orderNo,
     userId: user._id || user.uid || user.userId,
@@ -134,6 +135,7 @@ exports.main = withResponse(async (event, context) => {
     endTime,
     status: 'BOOKED',
     verifyCode,
+    remark,
     createdAt: now,
     updatedAt: now
   });

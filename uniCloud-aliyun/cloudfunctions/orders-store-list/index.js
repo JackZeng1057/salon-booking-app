@@ -22,11 +22,11 @@ exports.main = withResponse(async (event, context) => {
   const db = uniCloud.database();
   const storeId = admin.storeId || '';
 
-  // 自动取消本店已超时且未处理的预约单
+  // 自动标记本店已超时且未处理的预约单为爽约
   try {
-    await autoCancelOverdueBookedOrders(db, { storeId, limit: 200 });
+    await autoCancelOverdueBookedOrders(db, { storeId, limit: 200, graceMin: 20 });
   } catch (err) {
-    console.error('auto cancel overdue orders (store) failed:', err);
+    console.error('auto no_show overdue orders (store) failed:', err);
   }
 
   // 仅查询本店指定日期订单
