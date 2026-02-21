@@ -157,7 +157,7 @@ export default {
 }
 
 .pricing-content {
-  padding: 118rpx 28rpx 32rpx;
+  padding: calc(118rpx + 20px) 28rpx 32rpx;
 }
 
 .hero-card {

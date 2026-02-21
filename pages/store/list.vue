@@ -295,7 +295,7 @@ export default {
 <style scoped lang="scss">
 .store-list-page {
   min-height: 100vh;
-  padding: 112rpx 20rpx 30rpx;
+  padding: calc(112rpx + 20px) 20rpx 30rpx;
   background: #f8fafc;
 }
 

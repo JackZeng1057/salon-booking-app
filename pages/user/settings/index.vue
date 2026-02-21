@@ -1,59 +1,99 @@
 <template>
-  <view class="page">
-    <app-nav />
+  <view class="settings-page">
+    <app-nav :showBack="false" :showTitle="true" title="设置" />
 
-    <view class="header">
-      <text class="title">账号设置</text>
-      <text class="subtitle">请选择要维护的账号信息</text>
+    <view class="settings-content">
+      <view class="group-card">
+        <view class="group-item" @click="goProfile">
+          <view class="item-left">
+            <view class="item-icon"><app-icon name="user" color="#64748B" :size="22" :stroke-width="2.1" /></view>
+            <text class="item-label">个人资料</text>
+          </view>
+          <view class="item-right">
+            <text class="item-value">{{ displayName || '-' }}</text>
+            <text class="item-arrow">›</text>
+          </view>
+        </view>
+
+        <view class="divider"></view>
+
+        <view class="group-item" @click="goPhone">
+          <view class="item-left">
+            <view class="item-icon"><app-icon name="phone" color="#64748B" :size="22" :stroke-width="2.1" /></view>
+            <text class="item-label">绑定手机号</text>
+          </view>
+          <view class="item-right">
+            <text class="item-value">{{ phoneMasked }}</text>
+            <text class="item-arrow">›</text>
+          </view>
+        </view>
+
+        <view class="divider"></view>
+
+        <view class="group-item" @click="goPassword">
+          <view class="item-left">
+            <view class="item-icon"><app-icon name="shield" color="#64748B" :size="22" :stroke-width="2.1" /></view>
+            <text class="item-label">修改密码</text>
+          </view>
+          <view class="item-right">
+            <text class="item-arrow">›</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="group-card">
+        <view class="group-item" @click="openFeedback">
+          <view class="item-left">
+            <view class="item-icon"><app-icon name="mailbox" color="#64748B" :size="22" :stroke-width="2.1" /></view>
+            <text class="item-label">意见反馈</text>
+          </view>
+          <view class="item-right">
+            <text class="item-arrow">›</text>
+          </view>
+        </view>
+
+        <view class="divider"></view>
+
+        <view class="group-item" @click="openAgreement">
+          <view class="item-left">
+            <view class="item-icon"><app-icon name="file" color="#64748B" :size="22" :stroke-width="2.1" /></view>
+            <text class="item-label">用户协议</text>
+          </view>
+          <view class="item-right">
+            <text class="item-arrow">›</text>
+          </view>
+        </view>
+
+        <view class="divider"></view>
+
+        <view class="group-item" @click="openAbout">
+          <view class="item-left">
+            <view class="item-icon"><app-icon name="sliders" color="#64748B" :size="22" :stroke-width="2.1" /></view>
+            <text class="item-label">关于我们</text>
+          </view>
+          <view class="item-right">
+            <text class="item-value">v2.0.1</text>
+            <text class="item-arrow">›</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="logout-btn" @click="handleLogout">退出登录</view>
     </view>
 
-    <view class="profile-card">
-      <image v-if="user.avatar" class="avatar" :src="user.avatar" mode="aspectFill" />
-      <view v-else class="avatar placeholder">{{ (displayName || 'U').slice(0, 1).toUpperCase() }}</view>
-      <view class="profile-info">
-        <text class="name">{{ displayName || '-' }}</text>
-        <text class="meta">{{ accountName || '-' }}</text>
-      </view>
-    </view>
-
-    <view class="menu-card">
-      <view class="menu-item" @click="goProfile">
-        <view class="menu-left">
-          <text class="menu-title">修改账号名/头像</text>
-          <text class="menu-desc">更新登录账号名与头像</text>
-        </view>
-        <text class="menu-arrow">›</text>
-      </view>
-      <view class="menu-item" @click="goPhone">
-        <view class="menu-left">
-          <text class="menu-title">绑定/修改手机号</text>
-          <text class="menu-desc">用于账号安全与找回密码</text>
-        </view>
-        <text class="menu-arrow">›</text>
-      </view>
-      <view class="menu-item" @click="goPassword">
-        <view class="menu-left">
-          <text class="menu-title">修改密码</text>
-          <text class="menu-desc">通过手机号验证码修改</text>
-        </view>
-        <text class="menu-arrow">›</text>
-      </view>
-      <view class="menu-item" @click="goReviews">
-        <view class="menu-left">
-          <text class="menu-title">我的评价</text>
-          <text class="menu-desc">查看并管理已发布评价</text>
-        </view>
-        <text class="menu-arrow">›</text>
-      </view>
-    </view>
+    <bottom-tab-bar current="settings" />
   </view>
 </template>
 
 <script>
 import { me } from '../../../api/auth';
 import { authStore } from '../../../store/auth';
+import BottomTabBar from '../../../components/bottom-tab-bar/bottom-tab-bar.vue';
 
 export default {
+  components: {
+    BottomTabBar
+  },
   data() {
     return {
       user: authStore.state.user || {}
@@ -63,22 +103,31 @@ export default {
     displayName() {
       return this.user.name || this.user.username || '';
     },
-    accountName() {
-      return this.user.username || '';
+    phoneMasked() {
+      const phone = String(this.user.phone || this.user.mobile || '');
+      if (!phone) return '未绑定';
+      return phone.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2');
     }
   },
+  onLoad() {
+    this.hideNativeTabBar();
+  },
   onShow() {
+    this.hideNativeTabBar();
     this.loadMe();
   },
   methods: {
+    hideNativeTabBar() {
+      try {
+        uni.hideTabBar({ animation: false });
+      } catch (e) {}
+    },
     async loadMe() {
       try {
         const data = await me();
         this.user = data || {};
         authStore.setUser(data || null);
-      } catch (err) {
-        uni.showToast({ title: err.message || '获取用户失败', icon: 'none' });
-      }
+      } catch (err) {}
     },
     goProfile() {
       uni.navigateTo({ url: '/pages/user/settings/profile' });
@@ -89,126 +138,108 @@ export default {
     goPassword() {
       uni.navigateTo({ url: '/pages/user/settings/password' });
     },
-    goReviews() {
-      uni.navigateTo({ url: '/pages/user/reviews/index' });
+    openFeedback() {
+      uni.showToast({ title: '意见反馈功能建设中', icon: 'none' });
+    },
+    openAgreement() {
+      uni.showToast({ title: '用户协议功能建设中', icon: 'none' });
+    },
+    openAbout() {
+      uni.showToast({ title: '关于我们功能建设中', icon: 'none' });
+    },
+    handleLogout() {
+      authStore.clear();
+      uni.reLaunch({ url: '/pages/auth/login' });
     }
   }
 };
 </script>
 
 <style scoped lang="scss">
-.page {
+.settings-page {
   min-height: 100vh;
-  padding: 120rpx 30rpx 30rpx;
-  background: $uni-bg-color-grey;
+  background: #f8fafc;
 }
 
-.header {
-  margin-bottom: 24rpx;
-}
-
-.title {
-  display: block;
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  line-height: 1.25;
-  padding-left: 6rpx;
-}
-
-.subtitle {
-  display: block;
-  margin-top: 12rpx;
-  color: $uni-text-color-grey;
-  font-size: $uni-font-size-base;
-  padding-left: 6rpx;
-  line-height: 1.5;
-}
-
-.profile-card {
-  background: linear-gradient(145deg, $uni-color-primary, $uni-color-primary-light);
-  border-radius: $uni-border-radius-lg;
-  box-shadow: $uni-shadow-base;
-  padding: 24rpx;
-  margin-bottom: 24rpx;
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
-}
-
-.avatar {
-  width: 92rpx;
-  height: 92rpx;
-  border-radius: 46rpx;
-  flex-shrink: 0;
-}
-
-.avatar.placeholder {
-  background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 40rpx;
-  font-weight: 700;
-}
-
-.profile-info {
+.settings-content {
+  padding: 112rpx 20rpx 188rpx;
+  margin-top: 20px;
   display: flex;
   flex-direction: column;
-  gap: 8rpx;
+  gap: 14rpx;
 }
 
-.name {
-  color: #ffffff;
-  font-size: 32rpx;
-  font-weight: 700;
-}
-
-.meta {
-  color: rgba(255, 255, 255, 0.82);
-  font-size: $uni-font-size-sm;
-}
-
-.menu-card {
+.group-card {
   background: #ffffff;
-  border-radius: $uni-border-radius-lg;
-  box-shadow: $uni-shadow-base;
+  border-radius: 20rpx;
+  border: 1rpx solid #e2e8f0;
+  overflow: hidden;
 }
 
-.menu-item {
-  min-height: 120rpx;
-  padding: 22rpx 24rpx;
+.group-item {
+  min-height: 94rpx;
+  padding: 0 16rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1rpx solid #f1f3f6;
 }
 
-.menu-item:last-child {
-  border-bottom: none;
-}
-
-.menu-left {
+.item-left {
   display: flex;
-  flex-direction: column;
-  gap: 8rpx;
+  align-items: center;
+  gap: 10rpx;
 }
 
-.menu-title {
-  color: $uni-text-color;
-  font-size: $uni-font-size-base;
+.item-icon {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 999rpx;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.item-label {
+  font-size: 25rpx;
+  color: #0f172a;
   font-weight: 600;
 }
 
-.menu-desc {
-  color: $uni-text-color-grey;
-  font-size: $uni-font-size-sm;
+.item-right {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
 }
 
-.menu-arrow {
-  color: $uni-text-color-placeholder;
-  font-size: 46rpx;
+.item-value {
+  font-size: 22rpx;
+  color: #94a3b8;
+}
+
+.item-arrow {
+  font-size: 40rpx;
   line-height: 1;
+  color: #cbd5e1;
+}
+
+.divider {
+  margin-left: 74rpx;
+  height: 1rpx;
+  background: #f1f5f9;
+}
+
+.logout-btn {
+  margin-top: 18rpx;
+  height: 84rpx;
+  border-radius: 18rpx;
+  border: 1rpx solid #fecaca;
+  background: #ffffff;
+  color: #ef4444;
+  font-size: 28rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

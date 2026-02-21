@@ -1,18 +1,17 @@
 <template>
-  <view class="page">
-    <!-- 自定义顶部导航（订单列表作为 Tab 页，不需要返回按钮） -->
-    <app-nav :showBack="false" />
-    <text class="title">我的订单</text>
+  <view class="orders-page">
+    <app-nav :showBack="false" :showTitle="true" title="我的预约" />
 
-    <view class="filter">
+    <view class="tabs-wrap">
       <view
         v-for="item in statusOptions"
         :key="item.value"
-        class="filter-item"
+        class="tab-item"
         :class="{ active: status === item.value }"
         @click="changeStatus(item.value)"
       >
-        {{ item.label }}
+        <text>{{ item.label }}</text>
+        <view v-if="status === item.value" class="tab-line"></view>
       </view>
     </view>
 
@@ -36,35 +35,49 @@
         >
           <view class="swipe-delete" @click.stop="confirmDelete(order)">删除</view>
         </view>
+
         <view class="swipe-content" :style="getSwipeStyle(order)" @click="goDetail(order._id)">
-          <view class="card">
-            <view class="card-header">
-              <text class="store">{{ order.storeName || order.storeId || '未知门店' }}</text>
-              <text class="status">{{ formatOrderStatus(order.status) }}</text>
+          <view class="order-card">
+            <view class="order-head">
+              <view class="store-line">
+                <app-icon name="store" color="#94A3B8" :size="20" :stroke-width="2.1" />
+                <text class="store-name">{{ order.storeName || order.storeId || '未知门店' }}</text>
+              </view>
+
+              <view class="status-pill" :class="getStatusClass(order.status)">
+                {{ formatOrderStatus(order.status) }}
+              </view>
             </view>
-            <view class="card-body">
-              <text class="service">{{ order.serviceName || order.serviceId || '未知服务' }}</text>
-              <text class="meta">{{ order.date }} {{ order.startTime }}-{{ order.endTime }}</text>
+
+            <view class="order-main">
+              <text class="service-name">{{ order.serviceName || order.serviceId || '未知服务' }}</text>
+              <text class="meta">预约时间：{{ order.date }} {{ order.startTime }}-{{ order.endTime }}</text>
               <text class="meta">理发师：{{ order.barberName || order.barberId || '未知' }}</text>
             </view>
-            <view class="card-footer">
-              <text class="order-no">订单号：{{ order.orderNo }}</text>
-              <text class="verify">核验码：{{ order.verifyCode }}</text>
+
+            <view class="order-foot">
+              <text class="foot-text">订单号：{{ order.orderNo }}</text>
+              <text class="foot-text">核验码：{{ order.verifyCode }}</text>
             </view>
           </view>
         </view>
       </view>
     </view>
+
+    <bottom-tab-bar current="orders" />
   </view>
 </template>
 
 <script>
-// 用户订单列表（标签页）：支持侧滑删除已完成/已取消订单
 import { fetchOrderList, deleteOrder } from '../../../api/order';
 import { getCache } from '../../../utils/cache';
 import { formatOrderStatus } from '../../../utils/status';
+import BottomTabBar from '../../../components/bottom-tab-bar/bottom-tab-bar.vue';
 
 export default {
+  components: {
+    BottomTabBar
+  },
   data() {
     return {
       loading: false,
@@ -81,33 +94,36 @@ export default {
       touchStartY: 0,
       statusOptions: [
         { label: '全部', value: '' },
-        { label: '已预约', value: 'BOOKED' },
-        { label: '已取消', value: 'CANCELLED' },
-        { label: '已到店', value: 'ARRIVED' },
+        { label: '待服务', value: 'BOOKED' },
         { label: '已完成', value: 'FINISHED' },
-        { label: '爽约', value: 'NO_SHOW' }
+        { label: '已取消', value: 'CANCELLED' }
       ]
     };
   },
   onLoad() {
+    this.hideNativeTabBar();
     this.loadOrders(true);
   },
   onShow() {
+    this.hideNativeTabBar();
     this.loadOrders(true);
   },
   onPullDownRefresh() {
-    // 下拉刷新
     this.page = 1;
     this.loadOrders(true).finally(() => {
       uni.stopPullDownRefresh();
     });
   },
   onReachBottom() {
-    // 触底加载下一页
     this.page += 1;
     this.loadOrders();
   },
   methods: {
+    hideNativeTabBar() {
+      try {
+        uni.hideTabBar({ animation: false });
+      } catch (e) {}
+    },
     formatOrderStatus,
     normalizeStatus(status) {
       const map = {
@@ -119,6 +135,19 @@ export default {
         爽约: 'NO_SHOW'
       };
       return map[status] || status;
+    },
+    getStatusClass(status) {
+      const normalized = this.normalizeStatus(status);
+      if (normalized === 'BOOKED' || normalized === 'ARRIVED' || normalized === 'IN_SERVICE') {
+        return 'is-pending';
+      }
+      if (normalized === 'FINISHED') {
+        return 'is-finished';
+      }
+      if (normalized === 'CANCELLED' || normalized === 'NO_SHOW') {
+        return 'is-cancelled';
+      }
+      return 'is-default';
     },
     canSwipeDelete(order) {
       const status = this.normalizeStatus(order && order.status);
@@ -216,11 +245,8 @@ export default {
           this.orders = this.mergeOrders(list);
         }
         this.lastSyncAt = (data && data.lastSyncAt) || this.lastSyncAt;
-      } catch (err) {
-        // 静默失败，避免打断页面
-      }
+      } catch (err) {}
     },
-    // 获取订单列表
     async loadOrders(reset = false) {
       if (!this.hasMore && !reset) return;
       if (reset) {
@@ -236,7 +262,6 @@ export default {
           this.orders = cached.list;
           this.lastSyncAt = cached.lastSyncAt || 0;
           this.hasMore = cached.list.length >= this.pageSize;
-          // 空缓存可能导致“全部订单”长期显示为空，需回源做一次全量校验
           if (cached.list.length > 0) {
             this.loading = false;
             await this.syncIncremental();
@@ -265,7 +290,6 @@ export default {
         this.loading = false;
       }
     },
-    // 切换状态筛选
     changeStatus(value) {
       if (this.status === value) return;
       this.status = value;
@@ -274,7 +298,6 @@ export default {
       this.lastSyncAt = 0;
       this.loadOrders(true);
     },
-    // 跳转到订单详情
     goDetail(id) {
       if (!id) return;
       uni.navigateTo({ url: `/pages/order/detail?id=${id}` });
@@ -284,58 +307,66 @@ export default {
 </script>
 
 <style scoped lang="scss">
-.page {
+.orders-page {
   min-height: 100vh;
-  /* 顶部整体再下移一小段，避免与悬浮返回按钮挤在一起 */
-  padding: 96rpx 30rpx 30rpx;
-  background-color: $uni-bg-color-grey;
+  padding: calc(100rpx + 20px) 20rpx 184rpx;
+  background: #f8fafc;
 }
 
-.title {
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  margin-bottom: 24rpx;
-  padding-left: 6rpx;
-}
-
-.filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-  margin-bottom: 20rpx;
-}
-
-
-.filter-item {
-  padding: 10rpx 18rpx;
-  border-radius: 999rpx;
+.tabs-wrap {
   background: #ffffff;
-  color: $uni-text-color-grey;
-  font-size: $uni-font-size-sm;
-  box-shadow: $uni-shadow-base;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin: 0 8rpx 14rpx;
 }
 
-.filter-item.active {
-  color: #ffffff;
-  background: $uni-color-primary;
+.tab-item {
+  position: relative;
+  flex: 1;
+  height: 74rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 23rpx;
+  font-weight: 600;
+}
+
+.tab-item.active {
+  color: #0f172a;
+}
+
+.tab-line {
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 8rpx;
+  height: 4rpx;
+  border-radius: 999rpx;
+  background: #0f172a;
 }
 
 .hint {
-  font-size: $uni-font-size-sm;
-  color: $uni-text-color-placeholder;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 24rpx;
+  padding: 100rpx 0;
 }
 
 .list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 10rpx;
+  padding: 0 8rpx;
 }
 
 .swipe-row {
   position: relative;
   overflow: hidden;
-  border-radius: $uni-border-radius-lg;
+  border-radius: 18rpx;
 }
 
 .swipe-actions {
@@ -346,10 +377,9 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ff4d4f;
-  border-radius: $uni-border-radius-lg;
+  background: #ef4444;
+  border-radius: 18rpx;
   visibility: hidden;
-  z-index: 1;
 }
 
 .swipe-row.swipe-open .swipe-actions {
@@ -363,68 +393,101 @@ export default {
   align-items: center;
   justify-content: center;
   color: #ffffff;
-  font-size: $uni-font-size-base;
+  font-size: 24rpx;
   font-weight: 600;
 }
 
 .swipe-content {
   transition: transform 0.2s ease;
-  position: relative;
-  z-index: 2;
 }
 
-.card {
+.order-card {
   background: #ffffff;
-  border-radius: $uni-border-radius-lg;
-  padding: 24rpx;
-  box-shadow: $uni-shadow-base;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 18rpx;
+  padding: 14rpx;
 }
 
-.card-header {
+.order-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12rpx;
+  gap: 10rpx;
+  padding-bottom: 10rpx;
+  border-bottom: 1rpx solid #f1f5f9;
 }
 
-.store {
-  font-size: $uni-font-size-base;
-  color: $uni-text-color;
-  font-weight: 600;
-}
-
-.status {
-  font-size: $uni-font-size-sm;
-  color: $uni-color-primary;
-}
-
-.card-body {
+.store-line {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 6rpx;
+  min-width: 0;
 }
 
-.service {
-  font-size: $uni-font-size-base;
-  color: $uni-text-color;
+.store-name {
+  font-size: 23rpx;
+  color: #334155;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-pill {
+  padding: 4rpx 12rpx;
+  border-radius: 999rpx;
+  font-size: 20rpx;
   font-weight: 600;
+  flex-shrink: 0;
+}
+
+.status-pill.is-pending {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.status-pill.is-finished {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.status-pill.is-cancelled {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.status-pill.is-default {
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.order-main {
+  margin-top: 10rpx;
+}
+
+.service-name {
+  display: block;
+  font-size: 28rpx;
+  color: #0f172a;
+  font-weight: 700;
 }
 
 .meta {
-  font-size: $uni-font-size-sm;
-  color: $uni-text-color-grey;
+  margin-top: 4rpx;
+  display: block;
+  font-size: 22rpx;
+  color: #64748b;
 }
 
-.card-footer {
-  margin-top: 12rpx;
+.order-foot {
+  margin-top: 10rpx;
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
+  gap: 3rpx;
 }
 
-.order-no,
-.verify {
-  font-size: $uni-font-size-sm;
-  color: $uni-text-color-placeholder;
+.foot-text {
+  font-size: 20rpx;
+  color: #94a3b8;
 }
 </style>
