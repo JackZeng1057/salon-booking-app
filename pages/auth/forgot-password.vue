@@ -66,7 +66,7 @@
 
           <!-- 演示模式提示 -->
           <view v-if="demoCode" class="demo-tip">
-            <text class="demo-icon">💡</text>
+            <app-icon class="demo-icon-svg" name="lightbulb" color="#faad14" :size="30" :stroke-width="2.1" />
             <view class="demo-content">
               <text class="demo-title">演示模式</text>
               <text class="demo-text">验证码：<text class="demo-code">{{ demoCode }}</text></text>
@@ -99,7 +99,7 @@
               placeholder-class="placeholder"
             />
             <view class="eye-icon" @click="showPassword = !showPassword">
-              {{ showPassword ? '👁️' : '👁️‍🗨️' }}
+              <app-icon :name="showPassword ? 'eye' : 'eye-off'" color="#94A3B8" :size="28" :stroke-width="2.1" />
             </view>
           </view>
 
@@ -486,7 +486,11 @@ export default {
     position: absolute;
     right: 24rpx;
     bottom: 22rpx;
-    font-size: 36rpx;
+    width: 40rpx;
+    height: 40rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
   }
 }
@@ -530,8 +534,7 @@ export default {
   border-radius: $uni-border-radius-lg;
   margin-bottom: 30rpx;
   
-  .demo-icon {
-    font-size: 32rpx;
+  .demo-icon-svg {
     flex-shrink: 0;
   }
   

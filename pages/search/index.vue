@@ -8,7 +8,7 @@
 
     <view class="search-bar">
       <view class="search-input-wrapper">
-        <text class="search-icon">🔍</text>
+        <app-icon class="search-icon-svg" name="search" color="#94A3B8" :size="28" :stroke-width="2.1" />
         <input
           class="search-input"
           v-model="keyword"
@@ -22,7 +22,7 @@
         <text v-if="keyword" class="clear-icon" @click="clearSearch">✕</text>
       </view>
       <view class="filter-btn" @click="toggleFilter">
-        <text class="filter-icon">⚙</text>
+        <app-icon class="filter-icon-svg" name="sliders" color="#475569" :size="24" :stroke-width="2.1" />
         <text>筛选</text>
       </view>
     </view>
@@ -141,7 +141,8 @@
           <view v-if="isRecommendMode" class="badge-recommend">推荐</view>
           <view class="badge-rating">★ {{ formatRating(store) }}</view>
           <view v-if="store.distance !== null && store.distance !== undefined" class="badge-distance">
-            📍 {{ formatDistance(store.distance) }}
+            <app-icon name="map-pin" color="#FFFFFF" :size="17" :stroke-width="2.2" />
+            <text>{{ formatDistance(store.distance) }}</text>
           </view>
         </view>
 
@@ -413,8 +414,7 @@ export default {
     padding: 16rpx 24rpx;
     box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.06);
 
-    .search-icon {
-      font-size: 28rpx;
+    .search-icon-svg {
       margin-right: 12rpx;
     }
 
@@ -441,8 +441,8 @@ export default {
     font-size: $uni-font-size-base;
     box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.06);
 
-    .filter-icon {
-      font-size: 20rpx;
+    .filter-icon-svg {
+      margin-right: 2rpx;
     }
   }
 }
@@ -659,6 +659,9 @@ export default {
       font-size: 22rpx;
       padding: 6rpx 12rpx;
       border-radius: 16rpx;
+      display: inline-flex;
+      align-items: center;
+      gap: 6rpx;
     }
   }
 

@@ -53,6 +53,13 @@
       }
     },
     {
+      "path": "pages/user/pricing/index",
+      "style": {
+        "navigationBarTitleText": "Pricing",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/user/settings/index",
       "style": {
         "navigationBarTitleText": "Settings",
@@ -236,27 +243,37 @@
     "navigationStyle": "custom"
   },
   "tabBar": {
-    "color": "#666666",
-    "selectedColor": "#111111",
+    "color": "#94A3B8",
+    "selectedColor": "#0F172A",
     "backgroundColor": "#FFFFFF",
+    "height": "58px",
+    "fontSize": "12px",
+    "iconWidth": "32px",
+    "spacing": "5px",
     "list": [
       {
         "pagePath": "pages/user/home/index",
-        "text": "Home",
-        "iconPath": "static/logo.png",
-        "selectedIconPath": "static/logo.png"
+        "text": "首页",
+        "iconPath": "static/tabbar/home_default.png",
+        "selectedIconPath": "static/tabbar/home_active.png"
       },
       {
         "pagePath": "pages/user/agent/index",
         "text": "AI顾问",
-        "iconPath": "static/logo.png",
-        "selectedIconPath": "static/logo.png"
+        "iconPath": "static/tabbar/sparkles_default.png",
+        "selectedIconPath": "static/tabbar/sparkles_active.png"
       },
       {
         "pagePath": "pages/user/orders/index",
-        "text": "Orders",
-        "iconPath": "static/logo.png",
-        "selectedIconPath": "static/logo.png"
+        "text": "预约",
+        "iconPath": "static/tabbar/calendar_default.png",
+        "selectedIconPath": "static/tabbar/calendar_active.png"
+      },
+      {
+        "pagePath": "pages/user/settings/index",
+        "text": "我的",
+        "iconPath": "static/tabbar/user_default.png",
+        "selectedIconPath": "static/tabbar/user_active.png"
       }
     ]
   },

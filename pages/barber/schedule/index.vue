@@ -4,7 +4,7 @@
     <app-nav :showBack="false" />
     <view class="page-actions">
       <view class="notify-btn" @click="goNotifications">
-        <text class="notify-icon">🔔</text>
+        <app-icon name="bell" color="#334155" :size="30" :stroke-width="2.1" />
         <text v-if="unreadCount > 0" class="notify-dot"></text>
       </view>
     </view>
@@ -333,7 +333,7 @@ export default {
     },
     // 跳转账号设置（手机号绑定）
     goAccountSettings() {
-      uni.navigateTo({
+      uni.switchTab({
         url: '/pages/user/settings/index',
         fail: () => {
           uni.showToast({

@@ -50,9 +50,9 @@
 
 	/* 页面基础样式 */
 	page {
-		background-color: #F5F7FA;
-		font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB', 'Microsoft Yahei', sans-serif;
-		color: #333333;
+		background-color: #f8fafc;
+		font-family: 'PingFang SC', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Segoe UI, Arial, Roboto, 'Microsoft Yahei', sans-serif;
+		color: #0f172a;
 		font-size: 28rpx;
 		line-height: 1.5;
 		/* 禁止页面出现左右滚动（常见于某些容器宽度溢出） */
@@ -61,7 +61,7 @@
 
 	/* 细腻动画与交互过渡 */
 	@keyframes fadeUp {
-		from { opacity: 0; transform: translateY(12rpx); }
+		from { opacity: 0; transform: translateY(14rpx); }
 		to { opacity: 1; transform: translateY(0); }
 	}
 
@@ -82,8 +82,8 @@
 	.store-card:active,
 	.service-item:active,
 	.barber-item:active {
-		transform: scale(0.98);
-		box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.12);
+		transform: scale(0.985);
+		box-shadow: 0 10rpx 28rpx rgba(15, 23, 42, 0.16);
 	}
 
 	button {

@@ -199,7 +199,7 @@ export default {
       }
     },
     goAccountSettings() {
-      uni.navigateTo({
+      uni.switchTab({
         url: '/pages/user/settings/index',
         fail: () => {
           uni.showToast({

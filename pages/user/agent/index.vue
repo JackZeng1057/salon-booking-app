@@ -114,7 +114,7 @@
       <view id="chat-bottom-anchor" class="chat-bottom-anchor"></view>
     </scroll-view>
 
-    <view class="composer-wrap">
+    <view class="composer-wrap" :style="{ bottom: composerBottom }">
       <scroll-view v-if="imageItems.length > 0" class="image-strip" scroll-x>
         <view class="image-row">
           <view v-for="(item, idx) in imageItems" :key="item.fileId" class="strip-item">
@@ -232,16 +232,22 @@
         </view>
       </view>
     </view>
+
+    <bottom-tab-bar v-if="!inputFocused && !historyVisible" current="agent" />
   </view>
 </template>
 
 <script>
 import { adviseServices } from '../../../api/agent';
 import { authStore } from '../../../store/auth';
+import BottomTabBar from '../../../components/bottom-tab-bar/bottom-tab-bar.vue';
 
 const SESSION_STORAGE_KEY = 'ai_agent_sessions_v1';
 
 export default {
+  components: {
+    BottomTabBar
+  },
   data() {
     return {
       statusBarHeight: 24,
@@ -278,7 +284,12 @@ export default {
     },
     contentBottomPadding() {
       if (this.inputFocused) return '20rpx';
-      return this.imageItems.length > 0 ? '280rpx' : '120rpx';
+      if (this.historyVisible) return '120rpx';
+      return this.imageItems.length > 0 ? '420rpx' : '260rpx';
+    },
+    composerBottom() {
+      if (this.inputFocused || this.historyVisible) return '0px';
+      return '124rpx';
     },
     todaySessions() {
       return this.sessions.filter((item) => this.isToday(item.updatedAt));
@@ -295,7 +306,11 @@ export default {
   onLoad() {
     this.initLayout();
     this.setSoftInputMode();
+    this.hideTabBarSafe();
     this.initSessions();
+  },
+  onShow() {
+    this.hideTabBarSafe();
   },
   onHide() {
     this.inputFocused = false;
@@ -345,7 +360,7 @@ export default {
     },
     showTabBarSafe() {
       try {
-        uni.showTabBar({ animation: false });
+        uni.hideTabBar({ animation: false });
       } catch (e) {}
     },
     initSessions() {

@@ -7,7 +7,7 @@
     <!-- 规则提示 -->
     <view class="rules-notice">
       <view class="rules-header">
-        <text class="rules-icon">💡</text>
+        <app-icon class="rules-icon-svg" name="lightbulb" color="#faad14" :size="24" :stroke-width="2.1" />
         <text class="rules-title">预约须知</text>
         <text class="rules-action" @click="openRules">查看</text>
       </view>
@@ -646,8 +646,7 @@ export default {
     align-items: center;
     margin-bottom: 12rpx;
     
-    .rules-icon {
-      font-size: 32rpx;
+    .rules-icon-svg {
       margin-right: 8rpx;
     }
     
