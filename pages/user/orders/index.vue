@@ -2,67 +2,86 @@
   <view class="orders-page">
     <app-nav :showBack="false" :showTitle="true" title="我的预约" />
 
-    <view class="tabs-wrap">
-      <view
-        v-for="item in statusOptions"
-        :key="item.value"
-        class="tab-item"
-        :class="{ active: status === item.value }"
-        @click="changeStatus(item.value)"
-      >
-        <text>{{ item.label }}</text>
-        <view v-if="status === item.value" class="tab-line"></view>
+    <view class="orders-top">
+      <view class="tabs-wrap">
+        <view
+          v-for="item in statusOptions"
+          :key="item.value"
+          class="tab-item"
+          :class="{ active: status === item.value }"
+          @click="changeStatus(item.value)"
+        >
+          <text>{{ item.label }}</text>
+          <view v-if="status === item.value" class="tab-line"></view>
+        </view>
       </view>
     </view>
 
-    <view v-if="loading" class="hint">加载中...</view>
-    <view v-else-if="orders.length === 0" class="hint">暂无订单</view>
+    <scroll-view class="orders-scroll" scroll-y @scrolltolower="onListScrollToLower" lower-threshold="120">
+      <view class="orders-scroll-content">
+        <view v-if="loading && orders.length === 0" class="hint">加载中...</view>
+        <view v-else-if="orders.length === 0" class="hint">暂无订单</view>
 
-    <view v-else class="list">
-      <view
-        v-for="order in orders"
-        :key="order._id"
-        class="swipe-row"
-        :class="{ 'swipe-open': getSwipeOffset(order._id) < 0 }"
-        @touchstart="onTouchStart($event, order)"
-        @touchmove="onTouchMove($event, order)"
-        @touchend="onTouchEnd($event, order)"
-      >
-        <view
-          v-if="canSwipeDelete(order) && getSwipeOffset(order._id) < 0"
-          class="swipe-actions"
-          :style="{ width: actionWidth + 'rpx' }"
-        >
-          <view class="swipe-delete" @click.stop="confirmDelete(order)">删除</view>
-        </view>
-
-        <view class="swipe-content" :style="getSwipeStyle(order)" @click="goDetail(order._id)">
-          <view class="order-card">
-            <view class="order-head">
-              <view class="store-line">
-                <app-icon name="store" color="#94A3B8" :size="20" :stroke-width="2.1" />
-                <text class="store-name">{{ order.storeName || order.storeId || '未知门店' }}</text>
-              </view>
-
-              <view class="status-pill" :class="getStatusClass(order.status)">
-                {{ formatOrderStatus(order.status) }}
-              </view>
+        <view v-else class="list">
+          <view
+            v-for="order in orders"
+            :key="order._id"
+            class="swipe-row"
+            :class="{ 'swipe-open': getSwipeOffset(order._id) < 0 }"
+            @touchstart="onTouchStart($event, order)"
+            @touchmove="onTouchMove($event, order)"
+            @touchend="onTouchEnd($event, order)"
+          >
+            <view
+              v-if="canSwipeDelete(order) && getSwipeOffset(order._id) < 0"
+              class="swipe-actions"
+              :style="{ width: actionWidth + 'rpx' }"
+            >
+              <view class="swipe-delete" @click.stop="confirmDelete(order)">删除</view>
             </view>
 
-            <view class="order-main">
-              <text class="service-name">{{ order.serviceName || order.serviceId || '未知服务' }}</text>
-              <text class="meta">预约时间：{{ order.date }} {{ order.startTime }}-{{ order.endTime }}</text>
-              <text class="meta">理发师：{{ order.barberName || order.barberId || '未知' }}</text>
-            </view>
+            <view class="swipe-content" :style="getSwipeStyle(order)" @click="goDetail(order._id)">
+              <view class="order-card">
+                <view class="order-head">
+                  <view class="store-line">
+                    <app-icon name="store" color="#94A3B8" :size="20" :stroke-width="2.1" />
+                    <text class="store-name">{{ order.storeName || order.storeId || '未知门店' }}</text>
+                  </view>
 
-            <view class="order-foot">
-              <text class="foot-text">订单号：{{ order.orderNo }}</text>
-              <text class="foot-text">核验码：{{ order.verifyCode }}</text>
+                  <view class="status-pill" :class="getStatusClass(order.status)">
+                    {{ formatOrderStatus(order.status) }}
+                  </view>
+                </view>
+
+                <view class="order-main">
+                  <text class="service-name">{{ order.serviceName || order.serviceId || '未知服务' }}</text>
+                  <text class="meta">预约时间：{{ order.date }} {{ order.startTime }}-{{ order.endTime }}</text>
+                  <text class="meta">理发师：{{ order.barberName || order.barberId || '未知' }}</text>
+                </view>
+
+                <view class="order-foot">
+                  <text class="foot-text">订单号：{{ order.orderNo }}</text>
+                  <text class="foot-text">核验码：{{ order.verifyCode }}</text>
+                </view>
+              </view>
             </view>
           </view>
         </view>
+        <view class="scroll-bottom-safe"></view>
       </view>
-    </view>
+    </scroll-view>
+
+    <app-modal
+      :visible="confirmDialog.visible"
+      :title="confirmDialog.title"
+      :confirm-text="confirmDialog.confirmText"
+      :confirm-type="confirmDialog.confirmType"
+      @close="handleConfirmDialogCancel"
+      @cancel="handleConfirmDialogCancel"
+      @confirm="handleConfirmDialogConfirm"
+    >
+      <view class="confirm-dialog-content">{{ confirmDialog.content }}</view>
+    </app-modal>
 
     <bottom-tab-bar current="orders" />
   </view>
@@ -92,9 +111,17 @@ export default {
       swipeOpenId: '',
       touchStartX: 0,
       touchStartY: 0,
+      confirmDialog: {
+        visible: false,
+        title: '',
+        content: '',
+        confirmText: '确定',
+        confirmType: 'primary'
+      },
+      confirmDialogResolver: null,
       statusOptions: [
         { label: '全部', value: '' },
-        { label: '待服务', value: 'BOOKED' },
+        { label: '已预约', value: 'BOOKED' },
         { label: '已完成', value: 'FINISHED' },
         { label: '已取消', value: 'CANCELLED' }
       ]
@@ -119,6 +146,11 @@ export default {
     this.loadOrders();
   },
   methods: {
+    onListScrollToLower() {
+      if (this.loading || !this.hasMore) return;
+      this.page += 1;
+      this.loadOrders();
+    },
     hideNativeTabBar() {
       try {
         uni.hideTabBar({ animation: false });
@@ -208,13 +240,13 @@ export default {
     },
     async confirmDelete(order) {
       if (!this.canSwipeDelete(order)) return;
-      const res = await uni.showModal({
+      const confirmed = await this.openConfirmDialog({
         title: '删除订单',
         content: '确定删除该订单吗？删除后可在后台数据中保留，但不会在列表显示。',
         confirmText: '删除',
-        confirmColor: '#fa5151'
+        confirmType: 'danger'
       });
-      if (!res || !res.confirm) return;
+      if (!confirmed) return;
       try {
         await deleteOrder({ orderId: order._id });
         this.orders = this.orders.filter((item) => item._id !== order._id);
@@ -301,6 +333,40 @@ export default {
     goDetail(id) {
       if (!id) return;
       uni.navigateTo({ url: `/pages/order/detail?id=${id}` });
+    },
+    openConfirmDialog(options = {}) {
+      if (this.confirmDialogResolver) {
+        this.confirmDialogResolver(false);
+        this.confirmDialogResolver = null;
+      }
+      const title = String(options.title || '').trim();
+      const content = String(options.content || '').trim();
+      const confirmText = String(options.confirmText || '确定').trim();
+      const confirmType = options.confirmType === 'danger' ? 'danger' : 'primary';
+      this.confirmDialog = {
+        visible: true,
+        title,
+        content,
+        confirmText,
+        confirmType
+      };
+      return new Promise((resolve) => {
+        this.confirmDialogResolver = resolve;
+      });
+    },
+    closeConfirmDialog(result) {
+      const resolver = this.confirmDialogResolver;
+      this.confirmDialogResolver = null;
+      this.confirmDialog.visible = false;
+      if (typeof resolver === 'function') {
+        resolver(!!result);
+      }
+    },
+    handleConfirmDialogCancel() {
+      this.closeConfirmDialog(false);
+    },
+    handleConfirmDialogConfirm() {
+      this.closeConfirmDialog(true);
     }
   }
 };
@@ -308,9 +374,30 @@ export default {
 
 <style scoped lang="scss">
 .orders-page {
-  min-height: 100vh;
-  padding: calc(100rpx + 20px) 20rpx 184rpx;
+  height: 100vh;
+  padding: calc(100rpx + 20px) 20rpx 0;
   background: #f8fafc;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.orders-top {
+  flex-shrink: 0;
+}
+
+.orders-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.orders-scroll-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.scroll-bottom-safe {
+  height: 184rpx;
 }
 
 .tabs-wrap {
@@ -489,5 +576,11 @@ export default {
 .foot-text {
   font-size: 20rpx;
   color: #94a3b8;
+}
+
+.confirm-dialog-content {
+  color: #334155;
+  font-size: 27rpx;
+  line-height: 1.6;
 }
 </style>

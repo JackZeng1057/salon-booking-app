@@ -1,15 +1,20 @@
 <template>
   <view class="page">
-    <app-nav />
-
-    <view class="header">
-      <text class="title">消息详情</text>
-      <text class="subtitle">{{ formatTime(detail.createdAt) }}</text>
+    <app-nav :showTitle="true" title="消息详情" />
+    <view class="hero-card">
+      <text class="hero-subtitle">{{ formatTime(detail.createdAt) }}</text>
     </view>
 
     <view class="card">
       <view class="top-row">
-        <text class="icon">{{ getNotificationIcon(detail.type) }}</text>
+        <view class="icon-wrap">
+          <app-icon
+            :name="getNotificationIconMeta(detail.type).name"
+            :color="getNotificationIconMeta(detail.type).color"
+            :size="56"
+            :stroke-width="2.2"
+          />
+        </view>
         <view class="main">
           <text class="msg-title">{{ detail.title || '系统通知' }}</text>
           <text class="msg-type">{{ formatType(detail.type) }}</text>
@@ -49,18 +54,18 @@ export default {
     }
   },
   methods: {
-    getNotificationIcon(type) {
+    getNotificationIconMeta(type) {
       const normalized = String(type || '').toLowerCase();
       const iconMap = {
-        booking_success: '✅',
-        reschedule: '🔄',
-        cancel: '❌',
-        no_show: '⚠️',
-        arrival_reminder: '🔔',
-        service_start: '🛡️',
-        service_finish: '✨'
+        booking_success: { name: 'calendar', color: '#f59e0b' },
+        reschedule: { name: 'refresh', color: '#2563eb' },
+        cancel: { name: 'x-circle', color: '#ef4444' },
+        no_show: { name: 'alert-triangle', color: '#f59e0b' },
+        arrival_reminder: { name: 'bell', color: '#14b8a6' },
+        service_start: { name: 'shield', color: '#0f172a' },
+        service_finish: { name: 'sparkles', color: '#8b5cf6' }
       };
-      return iconMap[normalized] || '📬';
+      return iconMap[normalized] || { name: 'mailbox', color: '#64748b' };
     },
     formatType(type) {
       const normalized = String(type || '').toLowerCase();
@@ -92,29 +97,24 @@ export default {
 <style scoped lang="scss">
 .page {
   min-height: 100vh;
-  padding: 120rpx 30rpx 30rpx;
-  background: $uni-bg-color-grey;
+  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  background: #f8fafc;
 }
 
-.header {
-  margin-bottom: 24rpx;
+.hero-card {
+  border-radius: 28rpx;
+  padding: 24rpx 26rpx;
+  background: #ffffff;
+  border: 1rpx solid #e2e8f0;
+  box-shadow: 0 8rpx 18rpx rgba(15, 23, 42, 0.06);
+  margin-bottom: 18rpx;
 }
 
-.title {
+.hero-subtitle {
   display: block;
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  line-height: 1.25;
-  padding-left: 6rpx;
-}
-
-.subtitle {
-  display: block;
-  margin-top: 12rpx;
-  color: $uni-text-color-grey;
-  font-size: $uni-font-size-sm;
-  padding-left: 6rpx;
+  color: #475569;
+  font-size: 24rpx;
+  line-height: 1.5;
 }
 
 .card {
@@ -131,8 +131,15 @@ export default {
   margin-bottom: 20rpx;
 }
 
-.icon {
-  font-size: 50rpx;
+.icon-wrap {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 48rpx;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .main {

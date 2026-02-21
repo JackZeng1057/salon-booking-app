@@ -1,10 +1,8 @@
 <template>
   <view class="page">
-    <app-nav />
-
-    <view class="header">
-      <text class="title">修改密码</text>
-      <text class="subtitle">通过绑定手机号验证码完成修改</text>
+    <app-nav :showTitle="true" title="修改密码" />
+    <view class="hero-card">
+      <text class="hero-subtitle">通过绑定手机号验证码完成修改</text>
     </view>
 
     <view class="card">
@@ -175,29 +173,23 @@ export default {
 <style scoped lang="scss">
 .page {
   min-height: 100vh;
-  padding: 120rpx 30rpx 30rpx;
-  background: $uni-bg-color-grey;
+  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  background: #f8fafc;
 }
 
-.header {
-  margin-bottom: 24rpx;
+.hero-card {
+  border-radius: 28rpx;
+  padding: 24rpx 26rpx;
+  background: linear-gradient(140deg, #0f172a, #1e293b);
+  box-shadow: 0 14rpx 30rpx rgba(15, 23, 42, 0.16);
+  margin-bottom: 18rpx;
 }
 
-.title {
+.hero-subtitle {
   display: block;
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  line-height: 1.25;
-  padding-left: 6rpx;
-}
-
-.subtitle {
-  display: block;
-  margin-top: 12rpx;
-  color: $uni-text-color-grey;
-  font-size: $uni-font-size-base;
-  padding-left: 6rpx;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 24rpx;
+  line-height: 1.5;
 }
 
 .card {

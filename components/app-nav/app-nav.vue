@@ -23,11 +23,17 @@
       <text v-if="showTitle" class="nav-title">{{ title }}</text>
     </view>
   </view>
+  <app-confirm-host />
 </template>
 
 <script>
+import AppConfirmHost from '../app-confirm-host/app-confirm-host.vue';
+
 export default {
   name: 'AppNav',
+  components: {
+    AppConfirmHost
+  },
   props: {
     // 标题（可选）
     title: {
@@ -148,4 +154,3 @@ export default {
   color: #111;
 }
 </style>
-

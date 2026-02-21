@@ -39,41 +39,28 @@
             <text class="item-arrow">›</text>
           </view>
         </view>
+
+        <view class="divider"></view>
+
+        <view class="group-item" @click="goReviews">
+          <view class="item-left">
+            <view class="item-icon"><app-icon name="file" color="#64748B" :size="22" :stroke-width="2.1" /></view>
+            <text class="item-label">我的评价</text>
+          </view>
+          <view class="item-right">
+            <text class="item-arrow">›</text>
+          </view>
+        </view>
       </view>
 
       <view class="group-card">
-        <view class="group-item" @click="openFeedback">
-          <view class="item-left">
-            <view class="item-icon"><app-icon name="mailbox" color="#64748B" :size="22" :stroke-width="2.1" /></view>
-            <text class="item-label">意见反馈</text>
-          </view>
-          <view class="item-right">
-            <text class="item-arrow">›</text>
-          </view>
-        </view>
-
-        <view class="divider"></view>
-
-        <view class="group-item" @click="openAgreement">
-          <view class="item-left">
-            <view class="item-icon"><app-icon name="file" color="#64748B" :size="22" :stroke-width="2.1" /></view>
-            <text class="item-label">用户协议</text>
-          </view>
-          <view class="item-right">
-            <text class="item-arrow">›</text>
-          </view>
-        </view>
-
-        <view class="divider"></view>
-
-        <view class="group-item" @click="openAbout">
+        <view class="group-item">
           <view class="item-left">
             <view class="item-icon"><app-icon name="sliders" color="#64748B" :size="22" :stroke-width="2.1" /></view>
-            <text class="item-label">关于我们</text>
+            <text class="item-label">版本</text>
           </view>
           <view class="item-right">
-            <text class="item-value">v2.0.1</text>
-            <text class="item-arrow">›</text>
+            <text class="item-value">v2.0</text>
           </view>
         </view>
       </view>
@@ -138,14 +125,8 @@ export default {
     goPassword() {
       uni.navigateTo({ url: '/pages/user/settings/password' });
     },
-    openFeedback() {
-      uni.showToast({ title: '意见反馈功能建设中', icon: 'none' });
-    },
-    openAgreement() {
-      uni.showToast({ title: '用户协议功能建设中', icon: 'none' });
-    },
-    openAbout() {
-      uni.showToast({ title: '关于我们功能建设中', icon: 'none' });
+    goReviews() {
+      uni.navigateTo({ url: '/pages/user/reviews/index' });
     },
     handleLogout() {
       authStore.clear();

@@ -13,11 +13,11 @@
 		onLaunch: function() {
 			// 启动时恢复登录态，避免重复登录造成读操作升高
 			authStore.init()
-			syncCriticalSystemNotifications({ force: true })
+			syncCriticalSystemNotifications({ force: true, skipGuides: true })
 			console.log('App Launch')
 		},
 		onShow: function() {
-			syncCriticalSystemNotifications({ force: true })
+			syncCriticalSystemNotifications({ force: true, skipGuides: true })
 			this.startSystemNotifyPolling()
 			console.log('App Show')
 		},
@@ -29,7 +29,7 @@
 			startSystemNotifyPolling() {
 				if (this.systemNotifyTimer) return
 				this.systemNotifyTimer = setInterval(() => {
-					syncCriticalSystemNotifications()
+					syncCriticalSystemNotifications({ skipGuides: true })
 				}, SYSTEM_NOTIFY_POLL_MS)
 			},
 			stopSystemNotifyPolling() {

@@ -179,6 +179,13 @@
       }
     },
     {
+      "path": "pages/admin/reviews/index",
+      "style": {
+        "navigationBarTitleText": "Store Reviews",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/admin/aftersales",
       "style": {
         "navigationBarTitleText": "Aftersales",
@@ -193,16 +200,16 @@
       }
     },
     {
-      "path": "pages/search/index",
+      "path": "pages/store/detail",
       "style": {
-        "navigationBarTitleText": "Search",
+        "navigationBarTitleText": "Store Detail",
         "navigationStyle": "custom"
       }
     },
     {
-      "path": "pages/store/detail",
+      "path": "pages/store/reviews",
       "style": {
-        "navigationBarTitleText": "Store Detail",
+        "navigationBarTitleText": "Store Reviews",
         "navigationStyle": "custom"
       }
     },

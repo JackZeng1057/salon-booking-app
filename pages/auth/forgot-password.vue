@@ -352,16 +352,20 @@ export default {
   
   .title {
     display: block;
-    font-size: 56rpx;
+    font-size: 48rpx;
     font-weight: 700;
     color: #ffffff;
     margin-bottom: 16rpx;
+    text-align: center;
   }
   
   .subtitle {
     display: block;
-    font-size: 28rpx;
+    margin-top: 8rpx;
+    font-size: 24rpx;
     color: rgba(255, 255, 255, 0.8);
+    line-height: 1.5;
+    text-align: center;
   }
 }
 

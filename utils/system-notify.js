@@ -1,16 +1,16 @@
 import { authStore } from '../store/auth';
 import { fetchNotifications } from '../api/notifications';
+import { openAppConfirm } from './app-confirm';
 
 const CHECK_COOLDOWN_MS = 45 * 1000;
 const STORAGE_KEY_PREFIX = 'systemNotifiedIds:';
+const GLOBAL_FINGERPRINT_STORAGE_KEY = 'systemNotifiedFingerprints';
+const PERMISSION_GUIDE_SHOWN_KEY = 'notificationPermissionGuideShown';
+const HEADS_UP_GUIDE_SHOWN_KEY = 'notificationHeadsUpGuideShown';
 const STORAGE_LIMIT = 500;
 const MAX_PUSH_PER_SYNC = 3;
 const IMPORTANT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const CRITICAL_CHANNEL_ID = 'salon_critical_v1';
-const PERMISSION_MODAL_KEY = 'notificationPermissionModalAt';
-const PERMISSION_MODAL_COOLDOWN_MS = 12 * 60 * 60 * 1000;
-const HEADS_UP_GUIDE_KEY = 'notificationHeadsUpGuideAt';
-const HEADS_UP_GUIDE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 let checking = false;
 let lastCheckedAt = 0;
@@ -55,6 +55,35 @@ function saveNotifiedIdList(userId, ids) {
   }
   const sliced = unique.slice(-STORAGE_LIMIT);
   uni.setStorageSync(getStorageKey(userId), sliced);
+}
+
+function loadGlobalFingerprintList() {
+  const raw = uni.getStorageSync(GLOBAL_FINGERPRINT_STORAGE_KEY);
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((text) => String(text || '').trim())
+    .filter(Boolean);
+}
+
+function saveGlobalFingerprintList(list) {
+  const values = Array.isArray(list) ? list : [];
+  const unique = [];
+  const seen = new Set();
+  for (let i = 0; i < values.length; i += 1) {
+    const item = String(values[i] || '').trim();
+    if (!item || seen.has(item)) continue;
+    seen.add(item);
+    unique.push(item);
+  }
+  uni.setStorageSync(GLOBAL_FINGERPRINT_STORAGE_KEY, unique.slice(-STORAGE_LIMIT));
+}
+
+function buildNotificationFingerprint(item) {
+  const type = String((item && item.type) || '').trim();
+  const title = String((item && item.title) || '').trim();
+  const content = String((item && item.content) || '').trim();
+  const relatedId = String((item && item.relatedId) || '').trim();
+  return `${type}|${relatedId}|${title}|${content}`;
 }
 
 function isNotificationPageActive() {
@@ -119,50 +148,71 @@ function getNotificationAuthStatus() {
   }
 }
 
-function canShowPermissionModal() {
-  const last = Number(uni.getStorageSync(PERMISSION_MODAL_KEY) || 0);
-  const now = Date.now();
-  return !last || now - last > PERMISSION_MODAL_COOLDOWN_MS;
+function hasShownPermissionGuide() {
+  return !!uni.getStorageSync(PERMISSION_GUIDE_SHOWN_KEY);
 }
 
-function markPermissionModalShown() {
-  uni.setStorageSync(PERMISSION_MODAL_KEY, Date.now());
+function markPermissionGuideShown() {
+  uni.setStorageSync(PERMISSION_GUIDE_SHOWN_KEY, 1);
 }
 
 function openNotificationSettings() {
+  if (typeof uni.openAppAuthorizeSetting === 'function') {
+    let done = false;
+    uni.openAppAuthorizeSetting({
+      success: () => {
+        done = true;
+      },
+      fail: () => {
+        if (!done) openNotificationSettingsByIntent();
+      }
+    });
+    setTimeout(() => {
+      if (!done) openNotificationSettingsByIntent();
+    }, 500);
+    return;
+  }
+  openNotificationSettingsByIntent();
+}
+
+function openNotificationSettingsByIntent() {
   // #ifdef APP-PLUS
   try {
     if (typeof plus !== 'undefined' && plus.os && plus.os.name === 'Android' && plus.android) {
       const main = plus.android.runtimeMainActivity();
       const Intent = plus.android.importClass('android.content.Intent');
       const Build = plus.android.importClass('android.os.Build');
+      const Uri = plus.android.importClass('android.net.Uri');
       const sdkInt = Number(Build.VERSION.SDK_INT || 0);
-      const intent = new Intent();
-      if (sdkInt >= 26) {
-        intent.setAction('android.settings.CHANNEL_NOTIFICATION_SETTINGS');
-        intent.putExtra('android.provider.extra.APP_PACKAGE', main.getPackageName());
-        intent.putExtra('android.provider.extra.CHANNEL_ID', CRITICAL_CHANNEL_ID);
-      } else {
-        intent.setAction('android.settings.APP_NOTIFICATION_SETTINGS');
-        intent.putExtra('app_package', main.getPackageName());
-        intent.putExtra('app_uid', main.getApplicationInfo().uid);
+      const pkg = main.getPackageName();
+      const appUid = main.getApplicationInfo().uid;
+
+      try {
+        const intent = new Intent();
+        if (sdkInt >= 26) {
+          intent.setAction('android.settings.CHANNEL_NOTIFICATION_SETTINGS');
+          intent.putExtra('android.provider.extra.APP_PACKAGE', pkg);
+          intent.putExtra('android.provider.extra.CHANNEL_ID', CRITICAL_CHANNEL_ID);
+        } else {
+          intent.setAction('android.settings.APP_NOTIFICATION_SETTINGS');
+          intent.putExtra('app_package', pkg);
+          intent.putExtra('app_uid', appUid);
+        }
+        main.startActivity(intent);
+        return;
+      } catch (innerErr) {
+        console.error('open notification channel settings failed:', innerErr);
       }
-      main.startActivity(intent);
-      return;
+
+      try {
+        const appIntent = new Intent('android.settings.APPLICATION_DETAILS_SETTINGS');
+        appIntent.setData(Uri.parse('package:' + pkg));
+        main.startActivity(appIntent);
+        return;
+      } catch (innerErr2) {
+        console.error('open application details settings failed:', innerErr2);
+      }
     }
-  } catch (err) {
-    console.error('open notification settings failed:', err);
-  }
-  // #endif
-  if (typeof uni.openAppAuthorizeSetting === 'function') {
-    uni.openAppAuthorizeSetting({
-      success: () => {},
-      fail: () => {}
-    });
-    return;
-  }
-  // #ifdef APP-PLUS
-  try {
     if (typeof plus !== 'undefined' && plus.runtime && plus.runtime.openURL) {
       plus.runtime.openURL('package:' + plus.runtime.appid);
     }
@@ -218,34 +268,32 @@ function requestAndroidNotificationPermission(onGranted, onDenied) {
   }
 }
 
-function promptEnableNotificationPermission() {
-  if (!canShowPermissionModal()) return;
-  markPermissionModalShown();
-  uni.showModal({
+async function promptEnableNotificationPermission(forceShow = false) {
+  if (!forceShow && hasShownPermissionGuide()) return;
+  // 先标记，避免异常情况下重复弹窗循环
+  markPermissionGuideShown();
+  const confirmed = await openAppConfirm({
     title: '开启通知权限',
     content: '请开启系统通知权限，才能接收预约变更、取消、爽约等重要提醒。',
-    confirmText: '去授权',
-    success: (res) => {
-      if (!res || !res.confirm) return;
-      requestAndroidNotificationPermission(
-        () => {
-          syncCriticalSystemNotifications({ force: true });
-        },
-        () => {
-          uni.showModal({
-            title: '未获取通知权限',
-            content: '系统未弹出授权框或权限仍未开启，是否前往系统设置手动开启通知权限？',
-            confirmText: '去设置',
-            success: (nextRes) => {
-              if (nextRes && nextRes.confirm) {
-                openNotificationSettings();
-              }
-            }
-          });
-        }
-      );
-    }
+    confirmText: '去授权'
   });
+  if (confirmed === null) return;
+  if (!confirmed) return;
+
+  requestAndroidNotificationPermission(
+    () => {
+      syncCriticalSystemNotifications({ force: true });
+    },
+    async () => {
+      const nextConfirmed = await openAppConfirm({
+        title: '未获取通知权限',
+        content: '系统未弹出授权框或权限仍未开启，是否前往系统设置手动开启通知权限？',
+        confirmText: '去设置'
+      });
+      if (!nextConfirmed) return;
+      openNotificationSettings();
+    }
+  );
 }
 
 function getChannelManager() {
@@ -279,31 +327,28 @@ function ensureCriticalPushChannel() {
   // #endif
 }
 
-function canShowHeadsUpGuide() {
-  const last = Number(uni.getStorageSync(HEADS_UP_GUIDE_KEY) || 0);
-  const now = Date.now();
-  return !last || now - last > HEADS_UP_GUIDE_COOLDOWN_MS;
+function hasShownHeadsUpGuide() {
+  return !!uni.getStorageSync(HEADS_UP_GUIDE_SHOWN_KEY);
 }
 
 function markHeadsUpGuideShown() {
-  uni.setStorageSync(HEADS_UP_GUIDE_KEY, Date.now());
+  uni.setStorageSync(HEADS_UP_GUIDE_SHOWN_KEY, 1);
 }
 
-function maybeShowHeadsUpGuide() {
+async function maybeShowHeadsUpGuide(forceShow = false) {
   // #ifdef APP-PLUS
   if (typeof plus === 'undefined' || !plus.os || plus.os.name !== 'Android') return;
-  if (!canShowHeadsUpGuide()) return;
+  if (!forceShow && hasShownHeadsUpGuide()) return;
   markHeadsUpGuideShown();
-  uni.showModal({
+  const confirmed = await openAppConfirm({
     title: '开启横幅提醒',
     content: '若仍无横幅/响铃，请在通知设置里开启“横幅(悬浮)通知、声音、震动、锁屏显示”。',
-    confirmText: '去开启',
-    success: (res) => {
-      if (res && res.confirm) {
-        openNotificationSettings();
-      }
-    }
+    confirmText: '去开启'
   });
+  if (confirmed === null) return;
+  if (confirmed) {
+    openNotificationSettings();
+  }
   // #endif
 }
 
@@ -343,15 +388,16 @@ function sendSystemNotification(item) {
   // #endif
 }
 
-function ensureNotificationPermission() {
+function ensureNotificationPermission(options = {}) {
   // #ifdef APP-PLUS
+  const forcePrompt = !!(options && options.forcePrompt);
   const authStatus = getNotificationAuthStatus();
   if (authStatus === 'authorized') {
     permissionChecked = true;
     return;
   }
   if (authStatus === 'denied') {
-    promptEnableNotificationPermission();
+    promptEnableNotificationPermission(forcePrompt);
     return;
   }
   if (permissionChecked || permissionRequesting) return;
@@ -360,12 +406,8 @@ function ensureNotificationPermission() {
     permissionChecked = true;
     return;
   }
-  requestAndroidNotificationPermission(
-    () => {},
-    () => {
-      promptEnableNotificationPermission();
-    }
-  );
+  // 未明确授权状态时，不自动发起系统权限请求，统一走用户主动确认流程
+  promptEnableNotificationPermission(forcePrompt);
   // #endif
 }
 
@@ -402,6 +444,8 @@ export async function syncCriticalSystemNotifications(options = {}) {
 
   const now = Date.now();
   const force = !!(options && options.force);
+  const forcePrompt = !!(options && options.forcePrompt);
+  const skipGuides = !!(options && options.skipGuides);
   if (checking) {
     if (force) pendingForceSync = true;
     return;
@@ -416,9 +460,13 @@ export async function syncCriticalSystemNotifications(options = {}) {
   checking = true;
   lastCheckedAt = now;
   try {
-    ensureNotificationPermission();
+    if (!skipGuides) {
+      ensureNotificationPermission({ forcePrompt });
+    }
     ensureCriticalPushChannel();
-    maybeShowHeadsUpGuide();
+    if (!skipGuides) {
+      maybeShowHeadsUpGuide(forcePrompt);
+    }
     bindSystemNotificationClick();
     const res = await fetchNotifications({
       unreadOnly: true,
@@ -431,6 +479,9 @@ export async function syncCriticalSystemNotifications(options = {}) {
     const oldIds = loadNotifiedIdList(userId);
     const notifiedSet = new Set(oldIds);
     const willPersist = [...oldIds];
+    const oldFingerprints = loadGlobalFingerprintList();
+    const fingerprintSet = new Set(oldFingerprints);
+    const willPersistFingerprints = [...oldFingerprints];
 
     let pushed = 0;
     for (let i = 0; i < list.length; i += 1) {
@@ -438,6 +489,9 @@ export async function syncCriticalSystemNotifications(options = {}) {
       const id = String(item._id || '').trim();
       if (!id) continue;
       if (notifiedSet.has(id)) continue;
+      const fingerprint = buildNotificationFingerprint(item);
+      if (!fingerprint) continue;
+      if (fingerprintSet.has(fingerprint)) continue;
       if (!isCriticalNotification(item, role)) continue;
       const createdAt = Number(item.createdAt || 0);
       if (createdAt > 0 && now - createdAt > IMPORTANT_WINDOW_MS) continue;
@@ -446,10 +500,13 @@ export async function syncCriticalSystemNotifications(options = {}) {
       sendSystemNotification(item);
       notifiedSet.add(id);
       willPersist.push(id);
+      fingerprintSet.add(fingerprint);
+      willPersistFingerprints.push(fingerprint);
       pushed += 1;
     }
 
     saveNotifiedIdList(userId, willPersist);
+    saveGlobalFingerprintList(willPersistFingerprints);
   } catch (err) {
     console.error('sync critical system notifications failed:', err);
   } finally {

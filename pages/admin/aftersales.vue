@@ -1,56 +1,64 @@
 <template>
-  <view class="page">
-    <!-- 自定义顶部导航占位：去掉原生白色导航栏，同时提供返回按钮 -->
-    <app-nav />
-    <text class="title">售后管理</text>
+  <view class="orders-page">
+    <app-nav :showTitle="true" title="售后管理" />
 
-    <view class="filter">
-      <view
-        v-for="item in statusOptions"
-        :key="item.value"
-        class="filter-item"
-        :class="{ active: status === item.value }"
-        @click="changeStatus(item.value)"
-      >
-        {{ item.label }}
+    <view class="orders-top">
+      <view class="tabs-wrap">
+        <view
+          v-for="item in statusOptions"
+          :key="item.value"
+          class="tab-item"
+          :class="{ active: status === item.value }"
+          @click="changeStatus(item.value)"
+        >
+          <text>{{ item.label }}</text>
+          <view v-if="status === item.value" class="tab-line"></view>
+        </view>
       </view>
     </view>
 
-    <view v-if="loading" class="hint">加载中...</view>
-    <view v-else-if="list.length === 0" class="hint">暂无售后</view>
+    <scroll-view class="orders-scroll" scroll-y>
+      <view class="orders-scroll-content">
+        <view v-if="loading" class="hint">加载中...</view>
+        <view v-else-if="list.length === 0" class="hint">暂无售后</view>
 
-    <view v-else class="list">
-      <view v-for="item in list" :key="item._id" class="card">
-        <view class="row">
-          <text class="label">类型</text>
-          <text class="tag">{{ formatAftersaleType(item.type) }}</text>
+        <view v-else class="list">
+          <view v-for="item in list" :key="item._id" class="after-card">
+            <view class="card-head">
+              <text class="service-name">{{ formatAftersaleType(item.type) }}</text>
+              <view class="status-pill" :class="getStatusClass(item.status)">
+                {{ formatAftersaleStatus(item.status) }}
+              </view>
+            </view>
+
+            <view class="card-main">
+              <view class="row">
+                <text class="label">描述</text>
+                <text class="value">{{ item.content || '无' }}</text>
+              </view>
+              <view class="row">
+                <text class="label">当前回复</text>
+                <text class="value">{{ item.reply || '未回复' }}</text>
+              </view>
+            </view>
+
+            <view v-if="!item.reply" class="card-foot">
+              <input
+                class="reply-input"
+                :value="item._reply"
+                :focus="item._focus"
+                placeholder="填写回复内容"
+                @input="onReplyInput($event, item)"
+                @click="ensureReplyFocus(item)"
+                @blur="item._focus = false"
+              />
+              <button class="action-btn" type="primary" @click="handleReply(item)">回复并处理</button>
+            </view>
+          </view>
         </view>
-        <view class="row">
-          <text class="label">状态</text>
-          <text class="tag status">{{ formatAftersaleStatus(item.status) }}</text>
-        </view>
-        <view class="row">
-          <text class="label">描述</text>
-          <text class="value">{{ item.content || '无' }}</text>
-        </view>
-        <view class="row">
-          <text class="label">回复</text>
-          <text class="value">{{ item.reply || '未回复' }}</text>
-        </view>
-        <view v-if="!item.reply" class="actions">
-          <input
-            class="input"
-            :value="item._reply"
-            :focus="item._focus"
-            placeholder="填写回复"
-            @input="onReplyInput($event, item)"
-            @click="ensureReplyFocus(item)"
-            @blur="item._focus = false"
-          />
-          <button class="action-btn" type="primary" @click="handleReply(item)">回复并处理</button>
-        </view>
+        <view class="scroll-bottom-safe"></view>
       </view>
-    </view>
+    </scroll-view>
   </view>
 </template>
 
@@ -82,6 +90,14 @@ export default {
   methods: {
     formatAftersaleStatus,
     formatAftersaleType,
+    getStatusClass(status) {
+      const map = {
+        待处理: 'is-open',
+        处理中: 'is-processing',
+        已解决: 'is-resolved'
+      };
+      return map[this.formatAftersaleStatus(status)] || 'is-default';
+    },
     async loadList() {
       this.loading = true;
       try {
@@ -128,117 +144,180 @@ export default {
 </script>
 
 <style scoped lang="scss">
-.page {
-  min-height: 100vh;
-  /* 顶部留白稍微加大一些，避免标题紧贴状态栏（与其他业务页保持一致） */
-  padding: 120rpx 30rpx 30rpx;
-  background-color: $uni-bg-color-grey;
+.orders-page {
+  height: 100vh;
+  padding: calc(100rpx + 20px) 20rpx 0;
+  background: #f8fafc;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.title {
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  margin-bottom: 24rpx;
-  padding-left: 6rpx;
+.orders-top {
+  flex-shrink: 0;
+}
+
+.orders-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.orders-scroll-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.scroll-bottom-safe {
+  height: 24rpx;
 }
 
 .hint {
-  font-size: $uni-font-size-sm;
-  color: $uni-text-color-placeholder;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 24rpx;
+  padding: 100rpx 0;
 }
 
-.filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-  margin-top: 8rpx;
-  margin-bottom: 20rpx;
-}
-
-
-.filter-item {
-  padding: 10rpx 18rpx;
-  border-radius: 999rpx;
+.tabs-wrap {
   background: #ffffff;
-  color: $uni-text-color-grey;
-  font-size: $uni-font-size-sm;
-  box-shadow: $uni-shadow-base;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin: 0 8rpx 14rpx;
 }
 
-.filter-item.active {
-  color: #ffffff;
-  background: $uni-color-primary;
+.tab-item {
+  position: relative;
+  flex: 1;
+  height: 74rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 23rpx;
+  font-weight: 600;
+}
+
+.tab-item.active {
+  color: #0f172a;
+}
+
+.tab-line {
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 8rpx;
+  height: 4rpx;
+  border-radius: 999rpx;
+  background: #0f172a;
 }
 
 .list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 10rpx;
+  padding: 0 8rpx;
 }
 
-.card {
+.after-card {
   background: #ffffff;
-  border-radius: $uni-border-radius-lg;
-  padding: 24rpx;
-  box-shadow: $uni-shadow-base;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 18rpx;
+  padding: 14rpx;
 }
 
-.row {
+.card-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12rpx;
+  gap: 10rpx;
+  padding-bottom: 10rpx;
+  border-bottom: 1rpx solid #f1f5f9;
 }
 
-.label {
-  color: $uni-text-color-grey;
-  font-size: $uni-font-size-sm;
+.service-name {
+  font-size: 28rpx;
+  color: #0f172a;
+  font-weight: 700;
 }
 
-.value {
-  color: $uni-text-color;
-  font-size: $uni-font-size-base;
-  text-align: right;
-}
-
-.tag {
-  padding: 6rpx 16rpx;
+.status-pill {
+  padding: 4rpx 12rpx;
   border-radius: 999rpx;
-  color: $uni-text-color;
-  font-size: $uni-font-size-sm;
+  font-size: 20rpx;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
-.tag.status {
-  background: #e8f0ff;
-  color: #2f54eb;
+.status-pill.is-open {
+  color: #b45309;
+  background: #fffbeb;
 }
 
-.actions {
+.status-pill.is-processing {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.status-pill.is-resolved {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.status-pill.is-default {
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.card-main {
+  margin-top: 10rpx;
+}
+
+.row + .row {
+  margin-top: 8rpx;
+}
+
+.row .label {
+  display: block;
+  font-size: 22rpx;
+  color: #64748b;
+}
+
+.row .value {
+  margin-top: 4rpx;
+  display: block;
+  font-size: 24rpx;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.card-foot {
+  margin-top: 12rpx;
   display: flex;
+  flex-direction: column;
   gap: 12rpx;
-  align-items: center;
 }
 
-.input {
-  flex: 1;
-  background: $uni-bg-color-grey;
-  border-radius: $uni-border-radius-lg;
-  padding: 22rpx 20rpx;
-  font-size: $uni-font-size-base;
-  min-height: 80rpx;
-  line-height: 80rpx;
+.reply-input {
+  width: 100%;
+  background: #f8fafc;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 14rpx;
+  padding: 0 18rpx;
+  height: 72rpx;
+  font-size: 24rpx;
+  color: #334155;
+  box-sizing: border-box;
 }
 
 .action-btn {
-  min-width: 180rpx;
+  width: 100%;
   height: 72rpx;
   line-height: 72rpx;
-  padding: 0 20rpx;
-  font-size: $uni-font-size-sm;
+  padding: 0;
+  font-size: 24rpx;
   border-radius: 36rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 </style>

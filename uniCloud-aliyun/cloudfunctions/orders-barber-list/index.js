@@ -37,10 +37,18 @@ exports.main = withResponse(async (event, context) => {
     .collection('orders')
     .where(where)
     .field({
+      orderNo: true,
+      storeId: true,
+      storeName: true,
+      serviceId: true,
+      serviceName: true,
+      barberId: true,
+      barberName: true,
       date: true,
       startTime: true,
       endTime: true,
       status: true,
+      verifyCode: true,
       updatedAt: true
     })
     .orderBy(lastSyncAt > 0 ? 'updatedAt' : 'startTime', lastSyncAt > 0 ? 'desc' : 'asc')

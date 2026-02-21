@@ -9,6 +9,18 @@ exports.main = withResponse(async (event, context) => {
   const content = (event && event.content) || '';
   const images = (event && event.images) || [];
 
+  function normalizeImages(input) {
+    if (!Array.isArray(input)) return [];
+    return input
+      .map((item) => String(item || '').trim())
+      .filter((item) => !!item);
+  }
+
+  function isSupportedImageRef(value) {
+    const text = String(value || '');
+    return text.startsWith('cloud://') || text.startsWith('http://') || text.startsWith('https://');
+  }
+
   if (!orderId) {
     throw new ApiError(400, 'orderId is required');
   }
@@ -78,7 +90,7 @@ exports.main = withResponse(async (event, context) => {
       barber: Number(barber)
     },
     content,
-    images: Array.isArray(images) ? images : [],
+    images: safeImages,
     helpful: 0,
     createdAt: now
   };
@@ -91,3 +103,8 @@ exports.main = withResponse(async (event, context) => {
 
   return { id: reviewId };
 });
+  const safeImages = normalizeImages(images);
+  const invalidImages = safeImages.filter((item) => !isSupportedImageRef(item));
+  if (invalidImages.length > 0) {
+    throw new ApiError(400, 'images must be cloud file id or http(s) url');
+  }

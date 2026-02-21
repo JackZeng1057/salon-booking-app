@@ -1,8 +1,9 @@
 <template>
   <view class="page">
-    <!-- 自定义顶部导航占位：去掉原生白色导航栏，同时提供返回按钮 -->
-    <app-nav />
-    <text class="title">创建预约</text>
+    <app-nav :showTitle="true" title="创建预约" />
+    <view class="hero-card">
+      <text class="hero-subtitle">确认门店服务和时段后提交预约</text>
+    </view>
     
     <!-- 规则提示 -->
     <view class="rules-notice">
@@ -40,9 +41,9 @@
 
       <view class="field">
         <text class="label">选择日期</text>
-        <picker mode="date" :value="date" :start="minDate" @change="onDateChange">
+        <modern-date-picker :value="date" :start="minDate" @change="onDateChange">
           <view class="picker-value">{{ date || '请选择日期' }}</view>
-        </picker>
+        </modern-date-picker>
       </view>
 
       <view class="field">
@@ -101,22 +102,50 @@
       </view>
     </view>
 
-    <view v-if="showConfirm" class="modal-mask" @click="closeConfirm">
-      <view class="modal-card" @click.stop>
-        <text class="modal-title">确认预约</text>
-        <view class="modal-content">
-          <text class="modal-row">门店：{{ confirmData.store }}</text>
-          <text class="modal-row">服务：{{ confirmData.service }}</text>
-          <text class="modal-row">理发师：{{ confirmData.barber }}</text>
-          <text class="modal-row">时间：{{ confirmData.time }}</text>
-          <text v-if="confirmData.remark" class="modal-row">备注：{{ confirmData.remark }}</text>
+    <app-modal
+      :visible="showConfirm"
+      title="确认预约信息"
+      subtitle="请确认以下预约信息无误后提交"
+      cancel-text="再看看"
+      confirm-text="确认预约"
+      @close="closeConfirm"
+      @cancel="closeConfirm"
+      @confirm="confirmSubmit"
+    >
+      <view class="confirm-summary">
+        <view class="confirm-row">
+          <text class="confirm-label">门店</text>
+          <text class="confirm-value">{{ confirmData.store }}</text>
         </view>
-        <view class="modal-actions">
-          <button class="modal-btn ghost" @click="closeConfirm">再看看</button>
-          <button class="modal-btn primary" @click="confirmSubmit">确认预约</button>
+        <view class="confirm-row">
+          <text class="confirm-label">服务</text>
+          <text class="confirm-value">{{ confirmData.service }}</text>
+        </view>
+        <view class="confirm-row">
+          <text class="confirm-label">理发师</text>
+          <text class="confirm-value">{{ confirmData.barber }}</text>
+        </view>
+        <view class="confirm-row">
+          <text class="confirm-label">时间</text>
+          <text class="confirm-value">{{ confirmData.time }}</text>
+        </view>
+        <view v-if="confirmData.remark" class="confirm-row">
+          <text class="confirm-label">备注</text>
+          <text class="confirm-value multiline">{{ confirmData.remark }}</text>
         </view>
       </view>
-    </view>
+    </app-modal>
+
+    <app-modal
+      :visible="showRulesModal"
+      title="预约规则"
+      :show-cancel="false"
+      confirm-text="我知道了"
+      @close="closeRulesModal"
+      @confirm="closeRulesModal"
+    >
+      <view class="rules-dialog-content">{{ displayRules }}</view>
+    </app-modal>
   </view>
 </template>
 
@@ -185,6 +214,7 @@ export default {
       currentStep: 1,
       // 确认弹窗
       showConfirm: false,
+      showRulesModal: false,
       confirmData: {
         store: '',
         service: '',
@@ -245,11 +275,10 @@ export default {
   methods: {
     formatSlotStatus,
     openRules() {
-      uni.showModal({
-        title: '预约规则',
-        content: this.displayRules,
-        showCancel: false
-      });
+      this.showRulesModal = true;
+    },
+    closeRulesModal() {
+      this.showRulesModal = false;
     },
     // 拉取门店列表并处理预选
     async loadStores(presetStoreId, presetServiceId = '') {
@@ -620,18 +649,23 @@ export default {
 <style scoped lang="scss">
 .page {
   min-height: 100vh;
-  /* 顶部留白稍微加大一些，避免标题紧贴状态栏（在前一次基础上再微调一点高度） */
-  padding: 120rpx 30rpx 30rpx;
-  background-color: $uni-bg-color-grey;
+  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  background: #f8fafc;
 }
 
+.hero-card {
+  border-radius: 28rpx;
+  padding: 24rpx 26rpx;
+  background: linear-gradient(140deg, #0f172a, #1e293b);
+  box-shadow: 0 14rpx 30rpx rgba(15, 23, 42, 0.16);
+  margin-bottom: 18rpx;
+}
 
-.title {
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  margin-bottom: 20rpx;
-  padding-left: 6rpx;
+.hero-subtitle {
+  display: block;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 24rpx;
+  line-height: 1.5;
 }
 
 .rules-notice {
@@ -874,72 +908,49 @@ export default {
   color: $uni-text-color;
 }
 
-.modal-mask {
-  position: fixed;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.35);
+.confirm-summary {
+  border-radius: 20rpx;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  border: 1rpx solid #e2e8f0;
+  padding: 10rpx 18rpx;
+}
+
+.confirm-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20rpx;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid #edf2f7;
 }
 
-.modal-card {
-  width: 80%;
-  background: #ffffff;
-  border-radius: 24rpx;
-  padding: 28rpx;
-  box-shadow: 0 16rpx 40rpx rgba(0, 0, 0, 0.18);
+.confirm-row:last-child {
+  border-bottom: 0;
 }
 
-.modal-title {
-  font-size: 34rpx;
-  font-weight: 700;
-  color: $uni-text-color;
-  margin-bottom: 16rpx;
+.confirm-label {
+  flex-shrink: 0;
+  color: #64748b;
+  font-size: 24rpx;
 }
 
-.modal-content {
-  background: $uni-bg-color-grey;
-  border-radius: 16rpx;
-  padding: 20rpx;
-  margin-bottom: 20rpx;
-}
-
-.modal-row {
-  display: block;
+.confirm-value {
+  text-align: right;
+  color: #0f172a;
   font-size: 26rpx;
-  color: $uni-text-color;
-  margin-bottom: 8rpx;
+  font-weight: 600;
 }
 
-.modal-actions {
-  display: flex;
-  gap: 16rpx;
+.confirm-value.multiline {
+  max-width: 380rpx;
+  text-align: left;
+  line-height: 1.45;
 }
 
-.modal-btn {
-  flex: 1;
-  height: 80rpx;
-  line-height: 80rpx;
-  border-radius: 40rpx;
-  font-size: $uni-font-size-base;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-btn.ghost {
-  background: #ffffff;
-  color: $uni-text-color-grey;
-  border: 2rpx solid $uni-border-color;
-}
-
-.modal-btn.primary {
-  background: $uni-color-primary;
-  color: #ffffff;
+.rules-dialog-content {
+  color: #334155;
+  font-size: 27rpx;
+  line-height: 1.7;
+  white-space: pre-wrap;
 }
 </style>

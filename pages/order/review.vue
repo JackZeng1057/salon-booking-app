@@ -1,85 +1,94 @@
 <template>
   <view class="page">
-    <!-- 自定义顶部导航占位：去掉原生白色导航栏，同时提供返回按钮 -->
-    <app-nav />
-    <text class="title">评价订单</text>
+    <app-nav :showTitle="true" title="评价订单" />
 
-    <view class="card">
-      <!-- 多维评分 -->
-      <view class="rating-section">
-        <text class="section-label">服务评分</text>
-        <view class="rating-row">
-          <view
-            v-for="n in 5"
-            :key="n"
-            class="star"
-            :class="{ active: serviceRating >= n }"
-            @click="serviceRating = n"
-          >★</view>
-          <text class="rating-text">{{ ratingText(serviceRating) }}</text>
-        </view>
+    <view class="review-top">
+      <view class="hero-card">
+        <text class="hero-subtitle">从服务、环境、体验维度进行评价</text>
       </view>
-
-      <view class="rating-section">
-        <text class="section-label">环境评分</text>
-        <view class="rating-row">
-          <view
-            v-for="n in 5"
-            :key="n"
-            class="star"
-            :class="{ active: environmentRating >= n }"
-            @click="environmentRating = n"
-          >★</view>
-          <text class="rating-text">{{ ratingText(environmentRating) }}</text>
-        </view>
-      </view>
-
-      <view class="rating-section">
-        <text class="section-label">技师评分</text>
-        <view class="rating-row">
-          <view
-            v-for="n in 5"
-            :key="n"
-            class="star"
-            :class="{ active: barberRating >= n }"
-            @click="barberRating = n"
-          >★</view>
-          <text class="rating-text">{{ ratingText(barberRating) }}</text>
-        </view>
-      </view>
-
-      <!-- 综合评分显示 -->
-      <view class="overall-rating">
-        <text class="overall-label">综合评分</text>
-        <text class="overall-score">{{ overallRating }}</text>
-        <text class="overall-star">★</text>
-      </view>
-
-      <!-- 评价内容 -->
-      <text class="label">评价内容</text>
-      <textarea 
-        class="textarea" 
-        v-model="content" 
-        placeholder="分享您的使用体验，帮助更多人做出选择~"
-        maxlength="500"
-      ></textarea>
-      <text class="char-count">{{ content.length }}/500</text>
-
-      <!-- 图片上传 -->
-      <text class="label">添加图片（可选）</text>
-      <view class="image-upload">
-        <view v-for="(img, idx) in images" :key="idx" class="image-item">
-          <image class="uploaded-img" :src="img" mode="aspectFill" />
-          <view class="delete-btn" @click="removeImage(idx)">✕</view>
-        </view>
-        <view v-if="images.length < 6" class="upload-btn" @click="chooseImage">
-          <text class="upload-icon">+</text>
-          <text class="upload-text">添加图片</text>
-        </view>
-      </view>
-
-      <button class="submit" type="primary" :loading="loading" @click="handleSubmit">提交评价</button>
     </view>
+
+    <scroll-view class="review-scroll" scroll-y>
+      <view class="review-scroll-content">
+        <view class="card">
+          <!-- 多维评分 -->
+          <view class="rating-section">
+            <text class="section-label">服务评分</text>
+            <view class="rating-row">
+              <view
+                v-for="n in 5"
+                :key="n"
+                class="star"
+                :class="{ active: serviceRating >= n }"
+                @click="serviceRating = n"
+              >★</view>
+              <text class="rating-text">{{ ratingText(serviceRating) }}</text>
+            </view>
+          </view>
+
+          <view class="rating-section">
+            <text class="section-label">环境评分</text>
+            <view class="rating-row">
+              <view
+                v-for="n in 5"
+                :key="n"
+                class="star"
+                :class="{ active: environmentRating >= n }"
+                @click="environmentRating = n"
+              >★</view>
+              <text class="rating-text">{{ ratingText(environmentRating) }}</text>
+            </view>
+          </view>
+
+          <view class="rating-section">
+            <text class="section-label">技师评分</text>
+            <view class="rating-row">
+              <view
+                v-for="n in 5"
+                :key="n"
+                class="star"
+                :class="{ active: barberRating >= n }"
+                @click="barberRating = n"
+              >★</view>
+              <text class="rating-text">{{ ratingText(barberRating) }}</text>
+            </view>
+          </view>
+
+          <!-- 综合评分显示 -->
+          <view class="overall-rating">
+            <text class="overall-label">综合评分</text>
+            <text class="overall-score">{{ overallRating }}</text>
+            <text class="overall-star">★</text>
+          </view>
+
+          <!-- 评价内容 -->
+          <text class="label">评价内容</text>
+          <textarea 
+            class="textarea" 
+            v-model="content" 
+            placeholder="分享您的使用体验，帮助更多人做出选择~"
+            maxlength="500"
+          ></textarea>
+          <text class="char-count">{{ content.length }}/500</text>
+
+          <!-- 图片上传 -->
+          <text class="label">添加图片（可选）</text>
+          <view class="image-upload">
+            <view v-for="(img, idx) in images" :key="idx" class="image-item">
+              <image class="uploaded-img" :src="img" mode="aspectFill" />
+              <view class="delete-btn" @click="removeImage(idx)">✕</view>
+            </view>
+            <view v-if="images.length < 6" class="upload-btn" @click="chooseImage">
+              <text class="upload-icon">+</text>
+              <text class="upload-text">添加图片</text>
+            </view>
+          </view>
+
+          <button class="submit" type="primary" :loading="loading" @click="handleSubmit">提交评价</button>
+        </view>
+        <view class="scroll-bottom-safe"></view>
+      </view>
+    </scroll-view>
   </view>
 </template>
 
@@ -142,6 +151,7 @@ export default {
 
       this.loading = true;
       try {
+        const uploadedImages = await this.uploadReviewImages();
         await createReview({
           orderId: this.orderId,
           rating: {
@@ -150,7 +160,7 @@ export default {
             barber: this.barberRating
           },
           content: this.content.trim(),
-          images: this.images
+          images: uploadedImages
         });
         uni.showToast({ title: '评价成功', icon: 'success' });
         setTimeout(() => {
@@ -165,6 +175,29 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    async uploadReviewImages() {
+      const source = Array.isArray(this.images) ? this.images : [];
+      if (source.length === 0) return [];
+      const uploaded = [];
+      for (let i = 0; i < source.length; i += 1) {
+        const item = String(source[i] || '').trim();
+        if (!item) continue;
+        if (item.startsWith('cloud://') || item.startsWith('http://') || item.startsWith('https://')) {
+          uploaded.push(item);
+          continue;
+        }
+        const extMatch = item.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
+        const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
+        const cloudPath = `reviews/${this.orderId}_${Date.now()}_${i}.${ext}`;
+        const res = await uniCloud.uploadFile({
+          cloudPath,
+          filePath: item
+        });
+        const fileId = (res && res.fileID) || '';
+        if (fileId) uploaded.push(fileId);
+      }
+      return uploaded;
     }
   }
 };
@@ -172,18 +205,45 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  /* 顶部留白稍微加大一些，避免标题紧贴状态栏（与其他业务页保持一致） */
-  padding: 120rpx 30rpx 30rpx;
-  background-color: $uni-bg-color-grey;
+  height: 100vh;
+  padding: calc(118rpx + 20px) 28rpx 0;
+  background: #f8fafc;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.title {
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  margin-bottom: 24rpx;
-  padding-left: 6rpx;
+.review-top {
+  flex-shrink: 0;
+}
+
+.review-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.review-scroll-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.scroll-bottom-safe {
+  height: 30rpx;
+}
+
+.hero-card {
+  border-radius: 28rpx;
+  padding: 24rpx 26rpx;
+  background: linear-gradient(140deg, #0f172a, #1e293b);
+  box-shadow: 0 14rpx 30rpx rgba(15, 23, 42, 0.16);
+  margin-bottom: 18rpx;
+}
+
+.hero-subtitle {
+  display: block;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 24rpx;
+  line-height: 1.5;
 }
 
 .card {
@@ -263,7 +323,7 @@ export default {
   }
   
   .overall-star {
-    font-size: 48rpx;
+    font-size: 42rpx;
     color: #FFD700;
     margin-left: 8rpx;
   }

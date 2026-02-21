@@ -212,16 +212,21 @@ export default {
   margin-bottom: 60rpx;
   
   .title {
-    font-size: 60rpx;
+    font-size: 48rpx;
     font-weight: bold;
     color: $uni-color-primary;
     display: block;
     margin-bottom: 16rpx;
+    text-align: center;
   }
   
   .subtitle {
-    font-size: $uni-font-size-base;
-    color: $uni-text-color-grey;
+    display: block;
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    color: #94a3b8;
+    line-height: 1.5;
+    text-align: center;
   }
 }
 

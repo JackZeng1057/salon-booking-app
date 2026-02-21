@@ -1,124 +1,156 @@
 <template>
-  <view class="page">
-    <!-- 自定义顶部导航占位：去掉原生白色导航栏，同时提供返回按钮 -->
-    <app-nav />
-    <text class="title">门店订单</text>
+  <view class="orders-page">
+    <app-nav :showTitle="true" title="门店订单" />
 
-    <view class="field">
-      <text class="label">日期</text>
-      <picker mode="date" :value="date" @change="onDateChange">
-        <view class="picker-value">{{ date }}</view>
-      </picker>
-    </view>
-
-    <view v-if="loading" class="hint">加载中...</view>
-    <view v-else-if="orders.length === 0" class="hint">暂无订单</view>
-
-    <view v-else class="list">
-      <view
-        v-for="order in orders"
-        :key="order._id"
-        class="swipe-row"
-        :class="{ 'swipe-open': getSwipeOffset(order._id) < 0 }"
-        @touchstart="onTouchStart($event, order)"
-        @touchmove="onTouchMove($event, order)"
-        @touchend="onTouchEnd($event, order)"
-      >
+    <view class="orders-top">
+      <view class="tabs-wrap">
         <view
-          v-if="canSwipeDelete(order) && getSwipeOffset(order._id) < 0"
-          class="swipe-actions"
-          :style="{ width: actionWidth + 'rpx' }"
+          v-for="item in statusOptions"
+          :key="item.value"
+          class="tab-item"
+          :class="{ active: activeTab === item.value }"
+          @click="activeTab = item.value"
         >
-          <view class="swipe-delete" @click.stop="confirmDelete(order)">删除</view>
+          <text>{{ item.label }}</text>
+          <view v-if="activeTab === item.value" class="tab-line"></view>
         </view>
-        <view class="swipe-content" :style="getSwipeStyle(order)">
-          <view class="card">
-            <view class="row">
-              <text class="label">时间</text>
-              <text class="value">{{ order.date }} {{ order.startTime }}-{{ order.endTime }}</text>
-            </view>
-            <view class="row">
-              <text class="label">服务</text>
-              <text class="value">{{ order.serviceName || order.serviceId || '未知服务' }}</text>
-            </view>
-            <view class="row">
-              <text class="label">理发师</text>
-              <text class="value">{{ order.barberName || order.barberId || '未知' }}</text>
-            </view>
-            <view class="row">
-              <text class="label">状态</text>
-              <text class="tag status">{{ formatOrderStatus(order.status) }}</text>
-            </view>
-            <view v-if="waitHint(order)" class="row">
-              <text class="label">等待提示</text>
-              <text class="value">{{ waitHint(order) }}</text>
-            </view>
-            <view class="row">
-              <text class="label">订单号</text>
-              <text class="value">{{ order.orderNo || order._id }}</text>
-            </view>
-            <view v-if="showActions(order.status) || canNoShow(order) || canCancel(order)" class="actions">
-              <button
-                class="action-btn"
-                type="primary"
-                :loading="isActionLoading(order._id, 'start')"
-                :disabled="!canStart(order.status) || isActionLoading(order._id, 'start')"
-                @click="openVerifyModal(order._id)"
-              >
-                开始服务
-              </button>
-              <button
-                class="action-btn"
-                type="default"
-                :loading="isActionLoading(order._id, 'finish')"
-                :disabled="!canFinish(order.status) || isActionLoading(order._id, 'finish')"
-                @click="handleFinish(order._id)"
-              >
-                完成服务
-              </button>
-              <button
-                v-if="canCancel(order)"
-                class="action-btn"
-                type="warn"
-                :loading="isActionLoading(order._id, 'cancel')"
-                :disabled="isActionLoading(order._id, 'cancel')"
-                @click="handleCancel(order)"
-              >
-                取消订单
-              </button>
-              <button
-                v-if="canNoShow(order)"
-                class="action-btn"
-                type="warn"
-                :loading="isActionLoading(order._id, 'noshow')"
-                :disabled="isActionLoading(order._id, 'noshow')"
-                @click="handleNoShow(order)"
-              >
-                标记爽约
-              </button>
-            </view>
-          </view>
-        </view>
+      </view>
+
+      <view class="field">
+        <text class="label">日期</text>
+        <modern-date-picker :value="date" @change="onDateChange">
+          <view class="picker-value">{{ date }}</view>
+        </modern-date-picker>
       </view>
     </view>
 
-    <view v-if="showVerifyModal" class="modal-mask" @click="closeVerifyModal">
-      <view class="modal-card" @click.stop>
-        <text class="modal-title">核验码</text>
+    <scroll-view class="orders-scroll" scroll-y>
+      <view class="orders-scroll-content">
+        <view v-if="loading" class="hint">加载中...</view>
+        <view v-else-if="filteredOrders.length === 0" class="hint">暂无订单</view>
+
+        <view v-else class="list">
+          <view
+            v-for="order in filteredOrders"
+            :key="order._id"
+            class="swipe-row"
+            :class="{ 'swipe-open': getSwipeOffset(order._id) < 0 }"
+            @touchstart="onTouchStart($event, order)"
+            @touchmove="onTouchMove($event, order)"
+            @touchend="onTouchEnd($event, order)"
+          >
+            <view
+              v-if="canSwipeDelete(order) && getSwipeOffset(order._id) < 0"
+              class="swipe-actions"
+              :style="{ width: actionWidth + 'rpx' }"
+            >
+              <view class="swipe-delete" @click.stop="confirmDelete(order)">删除</view>
+            </view>
+            <view class="swipe-content" :style="getSwipeStyle(order)">
+              <view class="order-card">
+                <view class="order-head">
+                  <view class="store-line">
+                    <app-icon name="store" color="#94A3B8" :size="20" :stroke-width="2.1" />
+                    <text class="store-name">{{ order.storeName || order.storeId || '门店订单' }}</text>
+                  </view>
+                  <view class="status-pill" :class="statusClass(order.status)">
+                    {{ formatOrderStatus(order.status) }}
+                  </view>
+                </view>
+                <view class="order-main">
+                  <text class="service-name">{{ order.serviceName || order.serviceId || '未知服务' }}</text>
+                  <text class="meta">预约时间：{{ order.date }} {{ order.startTime }}-{{ order.endTime }}</text>
+                  <text class="meta">理发师：{{ order.barberName || order.barberId || '未知' }}</text>
+                </view>
+                <view v-if="waitHint(order)" class="row">
+                  <text class="label">等待提示</text>
+                  <text class="value">{{ waitHint(order) }}</text>
+                </view>
+                <view class="order-foot">
+                  <text class="foot-text">订单号：{{ order.orderNo || order._id }}</text>
+                </view>
+                <view v-if="showActions(order.status) || canNoShow(order) || canCancel(order)" class="actions">
+                  <button
+                    class="action-btn"
+                    type="primary"
+                    :loading="isActionLoading(order._id, 'start')"
+                    :disabled="!canStart(order.status) || isActionLoading(order._id, 'start')"
+                    @click="openVerifyModal(order._id)"
+                  >
+                    开始服务
+                  </button>
+                  <button
+                    class="action-btn"
+                    type="default"
+                    :loading="isActionLoading(order._id, 'finish')"
+                    :disabled="!canFinish(order.status) || isActionLoading(order._id, 'finish')"
+                    @click="handleFinish(order._id)"
+                  >
+                    完成服务
+                  </button>
+                  <button
+                    v-if="canCancel(order)"
+                    class="action-btn"
+                    type="warn"
+                    :loading="isActionLoading(order._id, 'cancel')"
+                    :disabled="isActionLoading(order._id, 'cancel')"
+                    @click="handleCancel(order)"
+                  >
+                    取消订单
+                  </button>
+                  <button
+                    v-if="canNoShow(order)"
+                    class="action-btn"
+                    type="warn"
+                    :loading="isActionLoading(order._id, 'noshow')"
+                    :disabled="isActionLoading(order._id, 'noshow')"
+                    @click="handleNoShow(order)"
+                  >
+                    标记爽约
+                  </button>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+        <view class="scroll-bottom-safe"></view>
+      </view>
+    </scroll-view>
+
+    <app-modal
+      :visible="showVerifyModal"
+      title="输入核验码"
+      subtitle="请向顾客核对预约核验码后再开始服务"
+      confirm-text="核验并开始"
+      :confirm-disabled="!(verifyCodeInput || '').trim()"
+      @close="closeVerifyModal"
+      @cancel="closeVerifyModal"
+      @confirm="confirmVerifyStart"
+    >
+      <view class="verify-box">
         <input
-          class="modal-input"
+          class="verify-input"
           v-model="verifyCodeInput"
           type="text"
           inputmode="numeric"
           maxlength="6"
           placeholder="请输入6位核验码"
         />
-        <view class="modal-actions">
-          <button class="modal-btn ghost" @click="closeVerifyModal">取消</button>
-          <button class="modal-btn primary" @click="confirmVerifyStart">核验并开始</button>
-        </view>
+        <text class="verify-tip">核验成功后订单将进入服务中状态</text>
       </view>
-    </view>
+    </app-modal>
+
+    <app-modal
+      :visible="confirmDialog.visible"
+      :title="confirmDialog.title"
+      :confirm-text="confirmDialog.confirmText"
+      :confirm-type="confirmDialog.confirmType"
+      @close="handleConfirmDialogCancel"
+      @cancel="handleConfirmDialogCancel"
+      @confirm="handleConfirmDialogConfirm"
+    >
+      <view class="confirm-dialog-content">{{ confirmDialog.content }}</view>
+    </app-modal>
   </view>
 </template>
 
@@ -156,8 +188,36 @@ export default {
       verifyCodeInput: '',
       pendingStartOrderId: '',
       // 操作中状态，避免短时间重复点击
-      actionLoading: {}
+      actionLoading: {},
+      confirmDialog: {
+        visible: false,
+        title: '',
+        content: '',
+        confirmText: '确定',
+        confirmType: 'primary'
+      },
+      confirmDialogResolver: null,
+      activeTab: 'pending',
+      statusOptions: [
+        { label: '全部', value: 'all' },
+        { label: '待服务', value: 'pending' },
+        { label: '已完成', value: 'completed' },
+        { label: '已取消', value: 'cancelled' }
+      ]
     };
+  },
+  computed: {
+    filteredOrders() {
+      const mapStatus = (status) => {
+        const s = this.normalizeStatus(status);
+        if (s === 'BOOKED' || s === 'ARRIVED' || s === 'IN_SERVICE') return 'pending';
+        if (s === 'FINISHED') return 'completed';
+        if (s === 'CANCELLED' || s === 'NO_SHOW') return 'cancelled';
+        return 'pending';
+      };
+      if (this.activeTab === 'all') return this.orders || [];
+      return (this.orders || []).filter((item) => mapStatus(item.status) === this.activeTab);
+    }
   },
   onLoad() {
     this.loadOrders();
@@ -201,6 +261,12 @@ export default {
         爽约: 'NO_SHOW'
       };
       return map[status] || status;
+    },
+    statusClass(status) {
+      const s = this.normalizeStatus(status);
+      if (s === 'BOOKED' || s === 'ARRIVED' || s === 'IN_SERVICE') return 'is-pending';
+      if (s === 'FINISHED') return 'is-finished';
+      return 'is-cancelled';
     },
     // 仅已取消/已完成允许侧滑删除
     canSwipeDelete(order) {
@@ -265,13 +331,13 @@ export default {
     },
     async confirmDelete(order) {
       if (!this.canSwipeDelete(order)) return;
-      const res = await uni.showModal({
+      const confirmed = await this.openConfirmDialog({
         title: '删除订单',
         content: '确定删除该订单吗？删除后不会在订单列表显示。',
         confirmText: '删除',
-        confirmColor: '#fa5151'
+        confirmType: 'danger'
       });
-      if (!res || !res.confirm) return;
+      if (!confirmed) return;
       try {
         await deleteOrder({ orderId: order._id });
         this.orders = this.orders.filter((item) => item._id !== order._id);
@@ -470,13 +536,13 @@ export default {
     },
     async handleCancel(order) {
       if (!order || this.isActionLoading(order._id, 'cancel')) return;
-      const modal = await uni.showModal({
+      const confirmed = await this.openConfirmDialog({
         title: '取消订单',
         content: '确认取消该预约订单吗？',
         confirmText: '确认取消',
-        confirmColor: '#fa5151'
+        confirmType: 'danger'
       });
-      if (!modal || !modal.confirm) return;
+      if (!confirmed) return;
 
       this.setActionLoading(order._id, 'cancel', true);
       try {
@@ -504,24 +570,101 @@ export default {
       } finally {
         this.setActionLoading(order._id, 'cancel', false);
       }
+    },
+    openConfirmDialog(options = {}) {
+      if (this.confirmDialogResolver) {
+        this.confirmDialogResolver(false);
+        this.confirmDialogResolver = null;
+      }
+      this.confirmDialog = {
+        visible: true,
+        title: String(options.title || '').trim(),
+        content: String(options.content || '').trim(),
+        confirmText: String(options.confirmText || '确定').trim(),
+        confirmType: options.confirmType === 'danger' ? 'danger' : 'primary'
+      };
+      return new Promise((resolve) => {
+        this.confirmDialogResolver = resolve;
+      });
+    },
+    closeConfirmDialog(result) {
+      const resolver = this.confirmDialogResolver;
+      this.confirmDialogResolver = null;
+      this.confirmDialog.visible = false;
+      if (typeof resolver === 'function') resolver(!!result);
+    },
+    handleConfirmDialogCancel() {
+      this.closeConfirmDialog(false);
+    },
+    handleConfirmDialogConfirm() {
+      this.closeConfirmDialog(true);
     }
   }
 };
 </script>
 
 <style scoped lang="scss">
-.page {
-  min-height: 100vh;
-  padding: 108rpx 20rpx 26rpx;
+.orders-page {
+  height: 100vh;
+  padding: calc(100rpx + 20px) 20rpx 0;
   background: #f8fafc;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-.title {
-  font-size: 42rpx;
-  font-weight: 700;
+.orders-top {
+  flex-shrink: 0;
+}
+
+.orders-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.orders-scroll-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.scroll-bottom-safe {
+  height: 34rpx;
+}
+
+.tabs-wrap {
+  background: #ffffff;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin: 0 8rpx 14rpx;
+}
+
+.tab-item {
+  position: relative;
+  flex: 1;
+  height: 74rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 23rpx;
+  font-weight: 600;
+}
+
+.tab-item.active {
   color: #0f172a;
-  margin-bottom: 16rpx;
-  padding-left: 8rpx;
+}
+
+.tab-line {
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 8rpx;
+  height: 4rpx;
+  border-radius: 999rpx;
+  background: #0f172a;
 }
 
 .field {
@@ -546,14 +689,17 @@ export default {
 
 
 .hint {
-  font-size: $uni-font-size-sm;
-  color: $uni-text-color-placeholder;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 24rpx;
+  padding: 100rpx 0;
 }
 
 .list {
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
+  gap: 10rpx;
+  padding: 0 8rpx;
 }
 
 .swipe-row {
@@ -600,11 +746,86 @@ export default {
   visibility: visible;
 }
 
-.card {
+.order-card {
   background: #ffffff;
   border-radius: 18rpx;
   border: 1rpx solid #e2e8f0;
-  padding: 20rpx;
+  padding: 14rpx;
+}
+
+.order-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10rpx;
+  padding-bottom: 10rpx;
+  border-bottom: 1rpx solid #f1f5f9;
+}
+
+.store-line {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  min-width: 0;
+}
+
+.store-name {
+  font-size: 23rpx;
+  color: #334155;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-pill {
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+  font-weight: 600;
+}
+
+.status-pill.is-pending {
+  color: #047857;
+  background: #ecfdf5;
+}
+
+.status-pill.is-finished {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.status-pill.is-cancelled {
+  color: #be123c;
+  background: #fff1f2;
+}
+
+.order-main {
+  margin-top: 10rpx;
+}
+
+.service-name {
+  display: block;
+  font-size: 28rpx;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.meta {
+  margin-top: 4rpx;
+  display: block;
+  font-size: 22rpx;
+  color: #64748b;
+}
+
+.order-foot {
+  margin-top: 10rpx;
+}
+
+.foot-text {
+  display: block;
+  font-size: 20rpx;
+  color: #94a3b8;
 }
 
 .row {
@@ -616,20 +837,7 @@ export default {
 
 .value {
   color: $uni-text-color;
-  font-size: $uni-font-size-base;
-}
-
-.tag {
-  padding: 6rpx 16rpx;
-  border-radius: 999rpx;
-  background: $uni-bg-color-grey;
-  color: $uni-text-color;
-  font-size: $uni-font-size-sm;
-}
-
-.tag.status {
-  background: #f1f5f9;
-  color: #334155;
+  font-size: 24rpx;
 }
 
 .actions {
@@ -649,69 +857,36 @@ export default {
   justify-content: center;
 }
 
-.modal-mask {
-  position: fixed;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
+.verify-box {
+  border-radius: 20rpx;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  border: 1rpx solid #e2e8f0;
+  padding: 20rpx;
 }
 
-.modal-card {
-  width: 80%;
+.verify-input {
+  width: 100%;
+  border-radius: 14rpx;
+  border: 2rpx solid #dbe2ea;
   background: #ffffff;
-  border-radius: 24rpx;
-  padding: 28rpx;
-  box-shadow: 0 16rpx 40rpx rgba(0, 0, 0, 0.18);
-}
-
-.modal-title {
-  font-size: 34rpx;
-  font-weight: 700;
-  color: $uni-text-color;
-  margin-bottom: 16rpx;
-}
-
-.modal-input {
-  background: $uni-bg-color-grey;
-  border-radius: 16rpx;
-  padding: 24rpx 24rpx;
-  font-size: $uni-font-size-lg;
-  min-height: 88rpx;
+  padding: 0 20rpx;
+  height: 88rpx;
   line-height: 88rpx;
-  color: $uni-text-color;
-  margin-bottom: 20rpx;
+  font-size: 32rpx;
+  color: #0f172a;
+  letter-spacing: 4rpx;
 }
 
-.modal-actions {
-  display: flex;
-  gap: 16rpx;
+.verify-tip {
+  display: block;
+  margin-top: 12rpx;
+  color: #64748b;
+  font-size: 22rpx;
 }
 
-.modal-btn {
-  flex: 1;
-  height: 80rpx;
-  line-height: 80rpx;
-  border-radius: 40rpx;
-  font-size: $uni-font-size-base;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-btn.ghost {
-  background: #ffffff;
-  color: $uni-text-color-grey;
-  border: 2rpx solid $uni-border-color;
-}
-
-.modal-btn.primary {
-  background: $uni-color-primary;
-  color: #ffffff;
+.confirm-dialog-content {
+  color: #334155;
+  font-size: 27rpx;
+  line-height: 1.6;
 }
 </style>

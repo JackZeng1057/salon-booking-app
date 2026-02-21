@@ -1,8 +1,9 @@
 <template>
   <view class="page">
-    <!-- 自定义顶部导航占位：去掉原生白色导航栏，同时提供返回按钮 -->
-    <app-nav />
-    <text class="title">订单详情</text>
+    <app-nav :showTitle="true" title="订单详情" />
+    <view class="hero-card">
+      <text class="hero-subtitle">查看订单状态、明细与服务日志</text>
+    </view>
 
     <view v-if="loading" class="hint">加载中...</view>
     <view v-else-if="!detail" class="hint">订单不存在</view>
@@ -108,9 +109,9 @@
 
       <view v-if="showReschedule" class="panel">
         <text class="panel-title">选择新日期</text>
-        <picker mode="date" :value="rescheduleDate" @change="onRescheduleDateChange">
+        <modern-date-picker :value="rescheduleDate" @change="onRescheduleDateChange">
           <view class="panel-input">{{ rescheduleDate || '请选择日期' }}</view>
-        </picker>
+        </modern-date-picker>
         <text class="panel-title">可预约时段</text>
         <view v-if="slotsLoading" class="hint">加载中...</view>
         <view v-else-if="slots.length === 0" class="hint">暂无可用时段</view>
@@ -516,17 +517,23 @@ export default {
 <style scoped lang="scss">
 .page {
   min-height: 100vh;
-  /* 顶部留白稍微加大一些，避免标题紧贴状态栏（再微调一点高度） */
-  padding: 120rpx 30rpx 30rpx;
-  background-color: $uni-bg-color-grey;
+  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  background: #f8fafc;
 }
 
-.title {
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  margin-bottom: 24rpx;
-  padding-left: 6rpx;
+.hero-card {
+  border-radius: 28rpx;
+  padding: 24rpx 26rpx;
+  background: linear-gradient(140deg, #0f172a, #1e293b);
+  box-shadow: 0 14rpx 30rpx rgba(15, 23, 42, 0.16);
+  margin-bottom: 18rpx;
+}
+
+.hero-subtitle {
+  display: block;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 24rpx;
+  line-height: 1.5;
 }
 
 .hint {

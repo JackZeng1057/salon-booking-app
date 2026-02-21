@@ -1,7 +1,9 @@
 <template>
   <view class="page">
-    <app-nav />
-    <text class="title">理发师审核</text>
+    <app-nav :showTitle="true" title="理发师审核" />
+    <view class="hero-card">
+      <text class="hero-subtitle">统一审核理发师入驻申请并管理状态</text>
+    </view>
 
     <view v-if="loading" class="hint">加载中...</view>
     <view v-else-if="list.length === 0" class="hint">暂无申请</view>
@@ -36,6 +38,18 @@
         </view>
       </view>
     </view>
+
+    <app-modal
+      :visible="confirmDialog.visible"
+      :title="confirmDialog.title"
+      :confirm-text="confirmDialog.confirmText"
+      :confirm-type="confirmDialog.confirmType"
+      @close="handleConfirmDialogCancel"
+      @cancel="handleConfirmDialogCancel"
+      @confirm="handleConfirmDialogConfirm"
+    >
+      <view class="confirm-dialog-content">{{ confirmDialog.content }}</view>
+    </app-modal>
   </view>
 </template>
 
@@ -48,7 +62,15 @@ export default {
       loading: false,
       reviewing: false,
       list: [],
-      defaultAvatar: 'https://dummyimage.com/100x100/efefef/999&text=B'
+      defaultAvatar: 'https://dummyimage.com/100x100/efefef/999&text=B',
+      confirmDialog: {
+        visible: false,
+        title: '',
+        content: '',
+        confirmText: '确定',
+        confirmType: 'primary'
+      },
+      confirmDialogResolver: null
     };
   },
   onLoad() {
@@ -95,29 +117,57 @@ export default {
       const mm = String(d.getMinutes()).padStart(2, '0');
       return `${y}-${m}-${day} ${hh}:${mm}`;
     },
-    handleReview(item, action) {
+    async handleReview(item, action) {
       if (this.reviewing) return;
       const isApprove = action === 'APPROVE';
-      uni.showModal({
+      const confirmed = await this.openConfirmDialog({
         title: isApprove ? '确认通过' : '确认拒绝',
         content: isApprove ? '通过后该账号将成为理发师账号，是否继续？' : '拒绝后该账号保持普通用户，是否继续？',
-        success: async (res) => {
-          if (!res.confirm) return;
-          this.reviewing = true;
-          try {
-            await reviewBarberApplication({
-              userId: item._id,
-              action
-            });
-            uni.showToast({ title: isApprove ? '已通过' : '已拒绝', icon: 'success' });
-            this.loadList();
-          } catch (err) {
-            uni.showToast({ title: err.message || '操作失败', icon: 'none' });
-          } finally {
-            this.reviewing = false;
-          }
-        }
+        confirmText: isApprove ? '确认通过' : '确认拒绝',
+        confirmType: isApprove ? 'primary' : 'danger'
       });
+      if (!confirmed) return;
+      this.reviewing = true;
+      try {
+        await reviewBarberApplication({
+          userId: item._id,
+          action
+        });
+        uni.showToast({ title: isApprove ? '已通过' : '已拒绝', icon: 'success' });
+        this.loadList();
+      } catch (err) {
+        uni.showToast({ title: err.message || '操作失败', icon: 'none' });
+      } finally {
+        this.reviewing = false;
+      }
+    },
+    openConfirmDialog(options = {}) {
+      if (this.confirmDialogResolver) {
+        this.confirmDialogResolver(false);
+        this.confirmDialogResolver = null;
+      }
+      this.confirmDialog = {
+        visible: true,
+        title: String(options.title || '').trim(),
+        content: String(options.content || '').trim(),
+        confirmText: String(options.confirmText || '确定').trim(),
+        confirmType: options.confirmType === 'danger' ? 'danger' : 'primary'
+      };
+      return new Promise((resolve) => {
+        this.confirmDialogResolver = resolve;
+      });
+    },
+    closeConfirmDialog(result) {
+      const resolver = this.confirmDialogResolver;
+      this.confirmDialogResolver = null;
+      this.confirmDialog.visible = false;
+      if (typeof resolver === 'function') resolver(!!result);
+    },
+    handleConfirmDialogCancel() {
+      this.closeConfirmDialog(false);
+    },
+    handleConfirmDialogConfirm() {
+      this.closeConfirmDialog(true);
     }
   }
 };
@@ -126,16 +176,23 @@ export default {
 <style scoped lang="scss">
 .page {
   min-height: 100vh;
-  padding: 120rpx 30rpx 30rpx;
-  background-color: $uni-bg-color-grey;
+  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  background: #f8fafc;
 }
 
-.title {
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  margin-bottom: 24rpx;
-  padding-left: 6rpx;
+.hero-card {
+  border-radius: 28rpx;
+  padding: 24rpx 26rpx;
+  background: linear-gradient(140deg, #0f172a, #1e293b);
+  box-shadow: 0 14rpx 30rpx rgba(15, 23, 42, 0.16);
+  margin-bottom: 18rpx;
+}
+
+.hero-subtitle {
+  display: block;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 24rpx;
+  line-height: 1.5;
 }
 
 .hint {
@@ -250,5 +307,11 @@ export default {
   background: $uni-color-primary;
   color: #ffffff;
   border: none;
+}
+
+.confirm-dialog-content {
+  color: #334155;
+  font-size: 27rpx;
+  line-height: 1.6;
 }
 </style>

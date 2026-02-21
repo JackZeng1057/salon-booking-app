@@ -1,7 +1,9 @@
 <template>
   <view class="page">
-    <app-nav />
-    <text class="title">我的评价</text>
+    <app-nav :showTitle="true" title="我的评价" />
+    <view class="hero-card">
+      <text class="hero-subtitle">查看历史评价与评分，支持回访与管理</text>
+    </view>
 
     <view v-if="loading && reviews.length === 0" class="hint">加载中...</view>
     <view v-else-if="reviews.length === 0" class="hint">暂无评价记录</view>
@@ -59,6 +61,18 @@
         <text>{{ hasMore ? (loadingMore ? '加载中...' : '加载更多') : '没有更多了' }}</text>
       </view>
     </view>
+
+    <app-modal
+      :visible="confirmDialog.visible"
+      :title="confirmDialog.title"
+      :confirm-text="confirmDialog.confirmText"
+      :confirm-type="confirmDialog.confirmType"
+      @close="handleConfirmDialogCancel"
+      @cancel="handleConfirmDialogCancel"
+      @confirm="handleConfirmDialogConfirm"
+    >
+      <view class="confirm-dialog-content">{{ confirmDialog.content }}</view>
+    </app-modal>
   </view>
 </template>
 
@@ -74,7 +88,15 @@ export default {
       reviews: [],
       page: 1,
       pageSize: 10,
-      hasMore: true
+      hasMore: true,
+      confirmDialog: {
+        visible: false,
+        title: '',
+        content: '',
+        confirmText: '确定',
+        confirmType: 'primary'
+      },
+      confirmDialogResolver: null
     };
   },
   onShow() {
@@ -163,13 +185,13 @@ export default {
     },
     async confirmDelete(item) {
       if (!item || !item._id || this.deletingId) return;
-      const res = await uni.showModal({
+      const confirmed = await this.openConfirmDialog({
         title: '删除评价',
         content: '确认删除这条评价吗？删除后可重新评价该订单。',
         confirmText: '删除',
-        confirmColor: '#fa5151'
+        confirmType: 'danger'
       });
-      if (!res || !res.confirm) return;
+      if (!confirmed) return;
 
       this.deletingId = item._id;
       try {
@@ -181,6 +203,34 @@ export default {
       } finally {
         this.deletingId = '';
       }
+    },
+    openConfirmDialog(options = {}) {
+      if (this.confirmDialogResolver) {
+        this.confirmDialogResolver(false);
+        this.confirmDialogResolver = null;
+      }
+      this.confirmDialog = {
+        visible: true,
+        title: String(options.title || '').trim(),
+        content: String(options.content || '').trim(),
+        confirmText: String(options.confirmText || '确定').trim(),
+        confirmType: options.confirmType === 'danger' ? 'danger' : 'primary'
+      };
+      return new Promise((resolve) => {
+        this.confirmDialogResolver = resolve;
+      });
+    },
+    closeConfirmDialog(result) {
+      const resolver = this.confirmDialogResolver;
+      this.confirmDialogResolver = null;
+      this.confirmDialog.visible = false;
+      if (typeof resolver === 'function') resolver(!!result);
+    },
+    handleConfirmDialogCancel() {
+      this.closeConfirmDialog(false);
+    },
+    handleConfirmDialogConfirm() {
+      this.closeConfirmDialog(true);
     }
   }
 };
@@ -189,17 +239,23 @@ export default {
 <style scoped lang="scss">
 .page {
   min-height: 100vh;
-  padding: 96rpx 30rpx 30rpx;
-  background: $uni-bg-color-grey;
+  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  background: #f8fafc;
 }
 
-.title {
+.hero-card {
+  border-radius: 28rpx;
+  padding: 24rpx 26rpx;
+  background: linear-gradient(140deg, #0f172a, #1e293b);
+  box-shadow: 0 14rpx 30rpx rgba(15, 23, 42, 0.16);
+  margin-bottom: 18rpx;
+}
+
+.hero-subtitle {
   display: block;
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  margin-bottom: 24rpx;
-  padding-left: 6rpx;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 24rpx;
+  line-height: 1.5;
 }
 
 .hint {
@@ -248,6 +304,12 @@ export default {
 .meta-line {
   color: $uni-text-color-grey;
   font-size: $uni-font-size-sm;
+}
+
+.confirm-dialog-content {
+  color: #334155;
+  font-size: 27rpx;
+  line-height: 1.6;
 }
 
 .rating-row {

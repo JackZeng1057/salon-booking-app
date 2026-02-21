@@ -61,6 +61,7 @@ function translateErrorMessage(message, code) {
     'notificationId is required': '缺少通知ID',
     'reviewId is required': '缺少评价ID',
     'review not found': '未找到评价记录',
+    'images must be cloud file id or http(s) url': '评价图片格式无效，请升级到最新版本后重试',
     'status_not_allowed': '当前状态不允许此操作',
     reschedule_window_expired: '距离开始不足5分钟，当前不可改期',
     schedule_not_set: '该日期未设置排班',

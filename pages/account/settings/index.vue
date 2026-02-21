@@ -1,8 +1,8 @@
 <template>
   <view class="page">
-    <app-nav :showTitle="true" title="账号设置" />
+    <app-nav :showBack="!isBarberRole" :showTitle="true" title="账号设置" />
 
-    <view class="content">
+    <view class="content" :class="{ 'content--with-tab': isBarberRole }">
       <view class="summary-card">
         <text class="name">{{ displayName || '-' }}</text>
         <text class="meta">手机号：{{ phoneMasked }}</text>
@@ -24,12 +24,30 @@
           <text class="menu-arrow">›</text>
         </view>
       </view>
+
+      <view class="logout-btn" @click="handleLogout">退出登录</view>
+    </view>
+
+    <view v-if="isBarberRole" class="bottom-tab">
+      <view class="bar-item" @click="goBarberSchedule">
+        <app-icon name="calendar" color="#64748B" :size="25" size-unit="px" :stroke-width="2.25" />
+        <text>排班</text>
+      </view>
+      <view class="bar-item" @click="goBarberOrders">
+        <app-icon name="file" color="#64748B" :size="25" size-unit="px" :stroke-width="2.25" />
+        <text>订单</text>
+      </view>
+      <view class="bar-item active">
+        <app-icon name="user" color="#10B981" :size="25" size-unit="px" :stroke-width="2.25" />
+        <text>我的</text>
+      </view>
     </view>
   </view>
 </template>
 
 <script>
 import { me } from '../../../api/auth';
+import { authStore } from '../../../store/auth';
 
 export default {
   data() {
@@ -38,6 +56,10 @@ export default {
     };
   },
   computed: {
+    isBarberRole() {
+      const role = String((this.user && this.user.role) || authStore.state.role || '').toLowerCase();
+      return role === 'barber';
+    },
     displayName() {
       return this.user.name || this.user.username || '';
     },
@@ -64,6 +86,16 @@ export default {
     },
     goPassword() {
       uni.navigateTo({ url: '/pages/user/settings/password' });
+    },
+    goBarberSchedule() {
+      uni.redirectTo({ url: '/pages/barber/schedule/index' });
+    },
+    goBarberOrders() {
+      uni.redirectTo({ url: '/pages/barber/orders/index' });
+    },
+    handleLogout() {
+      authStore.clear();
+      uni.reLaunch({ url: '/pages/auth/login' });
     }
   }
 };
@@ -78,6 +110,10 @@ export default {
 .content {
   padding: 112rpx 20rpx 24rpx;
   margin-top: 20px;
+}
+
+.content--with-tab {
+  padding-bottom: 170rpx;
 }
 
 .summary-card {
@@ -131,5 +167,49 @@ export default {
   margin: 0 20rpx;
   height: 1rpx;
   background: #f1f5f9;
+}
+
+.logout-btn {
+  margin-top: 16rpx;
+  height: 84rpx;
+  border-radius: 18rpx;
+  border: 1rpx solid #fecaca;
+  background: #ffffff;
+  color: #ef4444;
+  font-size: 28rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bottom-tab {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 96rpx;
+  background: #ffffff;
+  border-top: 1rpx solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 21;
+}
+
+.bar-item {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+  color: #64748b;
+  font-size: 22rpx;
+}
+
+.bar-item.active {
+  color: #10b981;
 }
 </style>

@@ -1,72 +1,101 @@
 <template>
   <view class="page">
-    <!-- 自定义顶部导航占位：去掉原生白色导航栏，同时提供返回按钮 -->
     <app-nav :showBack="false" />
-    <view class="page-actions">
-      <view class="notify-btn" @click="goNotifications">
-        <app-icon name="bell" color="#334155" :size="30" :stroke-width="2.1" />
-        <text v-if="unreadCount > 0" class="notify-dot"></text>
-      </view>
-    </view>
-    <text class="title">排班设置</text>
 
-    <view class="form">
-      <view class="field">
-        <text class="label">选择日期</text>
-        <picker mode="date" :value="date" @change="onDateChange">
-          <view class="picker-value">{{ date || '请选择日期' }}</view>
-        </picker>
+    <view class="hero-card">
+      <view class="hero-head">
+        <view class="hero-user">
+          <view class="avatar">{{ barberInitial }}</view>
+          <view class="hero-text">
+            <text class="hero-name">{{ barberName }}</text>
+            <text class="hero-store">{{ storeName }}</text>
+          </view>
+        </view>
+        <view class="hero-actions">
+          <view class="notify-btn" @click="goNotifications">
+            <app-icon name="bell" color="#334155" :size="30" :stroke-width="2.1" />
+            <text v-if="unreadCount > 0" class="notify-dot"></text>
+          </view>
+        </view>
       </view>
-
-      <view class="field">
-        <text class="label">工作开始</text>
-        <view class="picker-value" @tap="openTimePicker('workStart')">{{ workStart || '请选择开始时间' }}</view>
-      </view>
-
-      <view class="field">
-        <text class="label">工作结束</text>
-        <view class="picker-value" @tap="openTimePicker('workEnd')">{{ workEnd || '请选择结束时间' }}</view>
-      </view>
-
-      <view class="field">
-        <text class="label">生成未来 7 天时段</text>
+      <view class="auto-row">
+        <view class="auto-left">
+          <app-icon name="calendar" color="#059669" :size="18" :stroke-width="2.1" />
+          <text class="auto-text">自动生成未来 7 天排班</text>
+        </view>
         <switch :checked="generateFuture" @change="onFutureChange" />
       </view>
+    </view>
 
-      <button class="submit" type="primary" :loading="loading" @click="handleSubmit">
-        保存排班并生成时段
-      </button>
+    <view class="date-strip">
+      <scroll-view class="day-scroll" scroll-x>
+        <view class="day-row">
+          <view
+            v-for="item in weekDays"
+            :key="item.date"
+            class="day-pill"
+            :class="{ active: item.date === date }"
+            @click="selectDate(item.date)"
+          >
+            <text class="day-week">{{ item.week }}</text>
+            <text class="day-day">{{ item.day }}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <view class="panel">
+      <view class="panel-head">
+        <text class="panel-title">{{ date }} 排班</text>
+        <view class="legend">
+          <view class="legend-item"><text class="dot dot-a"></text><text>可预约</text></view>
+          <view class="legend-item"><text class="dot dot-d"></text><text>休息</text></view>
+          <view class="legend-item"><text class="dot dot-b"></text><text>已约</text></view>
+        </view>
+      </view>
+
+      <view class="time-range">
+        <view class="time-chip" @tap="openTimePicker('workStart')">开始 {{ workStart }}</view>
+        <view class="time-chip" @tap="openTimePicker('workEnd')">结束 {{ workEnd }}</view>
+      </view>
+
+      <view class="slot-grid">
+        <view
+          v-for="slot in previewSlots"
+          :key="slot.time"
+          class="slot-item"
+          :class="[slotClass(slot.status), { 'slot-past': isPastSlot(slot) }]"
+          @click="togglePreviewSlot(slot)"
+        >
+          <text>{{ slot.time }}</text>
+          <view v-if="slot.status === 'AVAILABLE' && !isPastSlot(slot)" class="corner"></view>
+        </view>
+      </view>
 
       <view v-if="result" class="result">
         <text class="result-title">{{ Number(result.createdCount || 0) > 0 ? '生成成功' : '已设置排班' }}</text>
-        <text
-          v-if="result.generatedDates && result.generatedDates.length > 1"
-          class="result-tip"
-        >
-          已生成日期：{{ result.generatedDates[0] }} 至 {{ result.generatedDates[result.generatedDates.length - 1] }}
-        </text>
         <text class="result-tip">
           当前可预约 {{ Number(result.totalBookableCount || (Number(result.createdCount || 0) + Number(result.existedCount || 0))) }} 段
         </text>
-        <text v-if="summaryLoading" class="result-tip">正在统计可预约时间段...</text>
-        <view v-else class="summary-list">
-          <text
-            v-for="item in serviceSummaries"
-            :key="item.id"
-            class="summary-item"
-          >
-            {{ item.name }}：可预约 {{ item.count }} 段
-          </text>
-          <text v-if="serviceSummaries.length === 0" class="result-tip">暂无可预约时间段</text>
-        </view>
       </view>
+    </view>
 
-      <view class="logout-card">
-        <text class="logout-label">账号</text>
-        <view class="logout-actions">
-          <button class="logout-btn" type="default" @click="goAccountSettings">账号设置</button>
-          <button class="logout-btn" type="default" @click="handleLogout">退出登录</button>
-        </view>
+    <button class="submit submit-floating" type="primary" :loading="loading" @click="handleSubmit">
+      保存今日排班
+    </button>
+
+    <view class="bottom-tab">
+      <view class="bar-item active">
+        <app-icon name="calendar" color="#10B981" :size="25" size-unit="px" :stroke-width="2.25" />
+        <text>排班</text>
+      </view>
+      <view class="bar-item" @click="goOrders">
+        <app-icon name="file" color="#64748B" :size="25" size-unit="px" :stroke-width="2.25" />
+        <text>订单</text>
+      </view>
+      <view class="bar-item" @click="goAccountSettings">
+        <app-icon name="user" color="#64748B" :size="25" size-unit="px" :stroke-width="2.25" />
+        <text>我的</text>
       </view>
     </view>
 
@@ -97,10 +126,11 @@
 // - 保存排班并生成时段数据
 // - 保存后按服务统计“可预约时间段”用于快速自检
 import { setBarberSchedule, fetchBarberSlots } from '../../../api/barber';
-import { fetchStoreServices } from '../../../api/store';
+import { fetchStoreServices, fetchStoreDetail } from '../../../api/store';
 import { me } from '../../../api/auth';
 import { getUnreadCount } from '../../../api/notifications';
 import { authStore } from '../../../store/auth';
+import { syncCriticalSystemNotifications } from '../../../utils/system-notify';
 
 // 日期格式化为 YYYY-MM-DD（用于选择器回显与接口入参）
 function toDateString(date) {
@@ -131,6 +161,7 @@ function parseTimeToPickerValue(value) {
 export default {
   data() {
     return {
+      currentUser: authStore.state.user || {},
       // 默认日期为今天，避免空值导致接口校验失败
       date: toDateString(new Date()),
       // 默认起止时间，提供一个常用工作区间
@@ -151,13 +182,74 @@ export default {
       summaryLoading: false,
       // 各服务的可预约时段汇总
       serviceSummaries: [],
-      unreadCount: 0
+      unreadCount: 0,
+      previewSlots: []
     };
   },
+  computed: {
+    barberName() {
+      return this.currentUser.name || this.currentUser.username || '理发师';
+    },
+    barberInitial() {
+      return String(this.barberName || 'B').slice(0, 1).toUpperCase();
+    },
+    storeName() {
+      return this.currentUser.storeName || this.currentUser.storeId || '';
+    },
+    weekDays() {
+      const labels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+      return Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() + i);
+        return {
+          date: toDateString(d),
+          week: labels[d.getDay()],
+          day: d.getDate()
+        };
+      });
+    }
+  },
   onShow() {
+    setTimeout(() => {
+      syncCriticalSystemNotifications({ force: true });
+    }, 600);
+    this.loadCurrentUser();
     this.loadUnreadCount();
+    this.loadPreviewSlots();
   },
   methods: {
+    async resolveStoreName(user) {
+      if (!user) return;
+      const rawName = String(user.storeName || '').trim();
+      if (rawName) return;
+      const storeId = String(user.storeId || '').trim();
+      if (!storeId) return;
+      try {
+        const detail = await fetchStoreDetail(storeId, { noCache: true });
+        const name = (detail && detail.name) || (detail && detail.store && detail.store.name) || '';
+        if (!name) return;
+        const nextUser = { ...user, storeName: name };
+        this.currentUser = nextUser;
+        authStore.setUser(nextUser);
+      } catch (err) {}
+    },
+    async loadCurrentUser() {
+      try {
+        const latest = await me();
+        if (latest) {
+          // 保留已有门店名，避免接口短暂缺少 storeName 时页面闪回占位文案
+          const merged = { ...latest };
+          if (!merged.storeName && this.currentUser && this.currentUser.storeName) {
+            merged.storeName = this.currentUser.storeName;
+          }
+          this.currentUser = merged;
+          authStore.setUser(merged);
+          await this.resolveStoreName(merged);
+          return;
+        }
+      } catch (err) {}
+      await this.resolveStoreName(this.currentUser);
+    },
     async loadUnreadCount() {
       try {
         this.unreadCount = await getUnreadCount();
@@ -171,6 +263,12 @@ export default {
     // 日期选择变更
     onDateChange(e) {
       this.date = e.detail.value || '';
+      this.loadPreviewSlots();
+    },
+    selectDate(date) {
+      if (!date) return;
+      this.date = date;
+      this.loadPreviewSlots();
     },
     // time picker 默认索引（小时、分钟）
     timePickerValue(value) {
@@ -199,10 +297,90 @@ export default {
       const minute = MINUTE_OPTIONS[Number(value[1] || 0)] || '00';
       this[this.timePickerKey] = `${hour}:${minute}`;
       this.cancelTimePicker();
+      this.loadPreviewSlots();
     },
     // 是否生成未来 7 天
     onFutureChange(e) {
       this.generateFuture = !!(e && e.detail && e.detail.value);
+    },
+    toMinute(value) {
+      const m = String(value || '').match(/^(\d{2}):(\d{2})$/);
+      if (!m) return 0;
+      return Number(m[1]) * 60 + Number(m[2]);
+    },
+    isPastSlot(slot) {
+      if (!slot || !slot.time) return false;
+      const today = toDateString(new Date());
+      if (this.date !== today) return false;
+      const now = new Date();
+      const currentMinute = now.getHours() * 60 + now.getMinutes();
+      return this.toMinute(slot.time) <= currentMinute;
+    },
+    buildFallbackSlots() {
+      const start = this.toMinute(this.workStart);
+      const end = this.toMinute(this.workEnd);
+      const list = [];
+      for (let h = 9; h <= 21; h += 1) {
+        const t = `${String(h).padStart(2, '0')}:00`;
+        const minute = h * 60;
+        list.push({
+          time: t,
+          status: minute >= start && minute < end ? 'AVAILABLE' : 'DISABLED'
+        });
+      }
+      return list;
+    },
+    async loadPreviewSlots() {
+      const barberId = this.currentUser && (this.currentUser._id || this.currentUser.uid || this.currentUser.userId);
+      const storeId = this.currentUser && this.currentUser.storeId;
+      if (!barberId || !storeId || !this.date) {
+        this.previewSlots = this.buildFallbackSlots();
+        return;
+      }
+      try {
+        const services = await fetchStoreServices(storeId);
+        const firstService = Array.isArray(services) && services.length ? services[0] : null;
+        if (!firstService || !firstService._id) {
+          this.previewSlots = this.buildFallbackSlots();
+          return;
+        }
+        const slots = await fetchBarberSlots({
+          barberId,
+          date: this.date,
+          serviceId: firstService._id,
+          noCache: true
+        });
+        if (!Array.isArray(slots) || slots.length === 0) {
+          this.previewSlots = this.buildFallbackSlots();
+          return;
+        }
+        this.previewSlots = slots.map((item) => ({
+          time: item.startTime || '',
+          status: String(item.status || 'DISABLED').toUpperCase()
+        }));
+      } catch (err) {
+        this.previewSlots = this.buildFallbackSlots();
+      }
+    },
+    togglePreviewSlot(slot) {
+      if (!slot || slot.status === 'BOOKED' || this.isPastSlot(slot)) return;
+      const target = String(slot.time || '');
+      this.previewSlots = (this.previewSlots || []).map((item) => {
+        if (item.time !== target) return item;
+        return {
+          ...item,
+          status: item.status === 'AVAILABLE' ? 'DISABLED' : 'AVAILABLE'
+        };
+      });
+    },
+    slotClass(status) {
+      const s = String(status || '').toUpperCase();
+      if (s === 'AVAILABLE') return 'slot-available';
+      if (s === 'BOOKED') return 'slot-booked';
+      return 'slot-disabled';
+    },
+    goOrders() {
+      uni.navigateTo({ url: '/pages/barber/orders/index' });
     },
     // 提交保存排班：先校验 -> 调用云函数 -> 刷新统计
     async handleSubmit() {
@@ -350,15 +528,59 @@ export default {
 <style scoped lang="scss">
 .page {
   min-height: 100vh;
-  padding: 108rpx 20rpx 24rpx;
+  padding: 108rpx 20rpx 340rpx;
   background: #f8fafc;
 }
 
-.page-actions {
+.hero-card {
+  background: #ffffff;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 24rpx;
+  padding: 20rpx;
+  margin-bottom: 14rpx;
+}
+
+.hero-head {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 8rpx;
-  margin-bottom: 6rpx;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14rpx;
+}
+
+.hero-user {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 36rpx;
+  background: #0f172a;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.hero-name {
+  font-size: 26rpx;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.hero-store {
+  font-size: 21rpx;
+  color: #64748b;
 }
 
 .notify-btn {
@@ -387,23 +609,208 @@ export default {
   background: #ff4d4f;
 }
 
-.title {
-  font-size: 42rpx;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 16rpx;
-  padding-left: 8rpx;
-}
-
-.form {
-  background: #ffffff;
-  border-radius: 22rpx;
+.auto-row {
+  background: #f8fafc;
   border: 1rpx solid #e2e8f0;
-  padding: 22rpx;
+  border-radius: 16rpx;
+  padding: 14rpx 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.field {
-  margin-bottom: 24rpx;
+.auto-left {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.auto-text {
+  font-size: 22rpx;
+  color: #334155;
+  font-weight: 600;
+}
+
+.title {
+  display: none;
+}
+
+.date-strip {
+  margin-top: 12rpx;
+  background: #ffffff;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 22rpx;
+  padding: 14rpx 0;
+}
+
+.day-scroll {
+  white-space: nowrap;
+}
+
+.day-row {
+  display: inline-flex;
+  gap: 12rpx;
+  padding: 0 16rpx;
+}
+
+.day-pill {
+  width: 112rpx;
+  height: 124rpx;
+  border-radius: 20rpx;
+  border: 1rpx solid #e2e8f0;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+}
+
+.day-pill.active {
+  background: #0f172a;
+  border-color: #0f172a;
+}
+
+.day-week {
+  font-size: 22rpx;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.day-day {
+  font-size: 44rpx;
+  line-height: 1;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.day-pill.active .day-week,
+.day-pill.active .day-day {
+  color: #ffffff;
+}
+
+.panel {
+  margin-top: 14rpx;
+  background: #ffffff;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 22rpx;
+  padding: 18rpx;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.panel-title {
+  font-size: 38rpx;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.legend {
+  display: flex;
+  gap: 12rpx;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  font-size: 20rpx;
+  color: #334155;
+}
+
+.dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 8rpx;
+  border: 2rpx solid;
+}
+
+.dot-a {
+  border-color: #10b981;
+  background: #dcfce7;
+}
+
+.dot-d {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.dot-b {
+  border-color: #f59e0b;
+  background: #fef3c7;
+}
+
+.time-range {
+  display: flex;
+  gap: 10rpx;
+  margin-bottom: 12rpx;
+}
+
+.time-chip {
+  flex: 1;
+  height: 62rpx;
+  border-radius: 14rpx;
+  border: 1rpx solid #e2e8f0;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  color: #334155;
+}
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10rpx;
+}
+
+.slot-item {
+  position: relative;
+  height: 78rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.slot-available {
+  border: 2rpx solid #86efac;
+  background: #ffffff;
+  color: #047857;
+}
+
+.slot-disabled {
+  border: 2rpx solid #e2e8f0;
+  background: #f8fafc;
+  color: #cbd5e1;
+}
+
+.slot-booked {
+  border: 2rpx solid #fcd34d;
+  background: #fffbeb;
+  color: #c2410c;
+}
+
+.slot-past {
+  opacity: 0.55;
+}
+
+.corner {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 22rpx;
+  height: 22rpx;
+  background: #10b981;
+  border-bottom-left-radius: 14rpx;
 }
 
 .label {
@@ -423,14 +830,52 @@ export default {
 }
 
 .submit {
-  margin-top: 4rpx;
-  height: 80rpx;
-  line-height: 80rpx;
-  border-radius: 40rpx;
+  height: 92rpx;
+  line-height: 92rpx;
+  border-radius: 46rpx;
   font-size: $uni-font-size-base;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #0f172a;
+}
+
+.submit-floating {
+  position: fixed;
+  left: 20rpx;
+  right: 20rpx;
+  bottom: 136rpx;
+  z-index: 20;
+}
+
+.bottom-tab {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 96rpx;
+  background: #ffffff;
+  border-top: 1rpx solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 21;
+}
+
+.bar-item {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+  color: #64748b;
+  font-size: 22rpx;
+}
+
+.bar-item.active {
+  color: #10b981;
 }
 
 .result {
@@ -464,39 +909,6 @@ export default {
 
 .summary-item {
   color: $uni-text-color;
-}
-
-.logout-card {
-  margin-top: 24rpx;
-  background: #f8fafc;
-  border: 1rpx solid #e2e8f0;
-  border-radius: 16rpx;
-  padding: 18rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-}
-
-.logout-label {
-  color: $uni-text-color-grey;
-  font-size: $uni-font-size-sm;
-}
-
-.logout-btn {
-  flex: 1;
-  height: 78rpx;
-  line-height: 78rpx;
-  padding: 0 36rpx;
-  border-radius: 44rpx;
-  font-size: $uni-font-size-base;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.logout-actions {
-  display: flex;
-  gap: 12rpx;
 }
 
 .picker-mask {

@@ -42,15 +42,23 @@
             </view>
           </view>
 
-          <view class="stat-card" @click="openNavigation">
+          <view class="stat-card stat-card-nav" @click="openNavigation">
             <view class="stat-icon stat-icon-blue">
               <app-icon name="compass" color="#2563EB" :size="22" :stroke-width="2.1" />
             </view>
-            <view class="stat-main">
-              <text class="stat-label">距离您</text>
-              <text class="stat-value">{{ distance !== null ? formatDistance(distance) : '未知' }}</text>
-            </view>
+            <text class="stat-nav-title">导航</text>
           </view>
+        </view>
+
+        <view class="contact-card" :class="{ disabled: !getStorePhone() }" @click="callStore">
+          <view class="stat-icon stat-icon-violet">
+            <app-icon name="phone" color="#7C3AED" :size="22" :stroke-width="2.1" />
+          </view>
+          <view class="contact-main">
+            <text class="contact-label">联系电话</text>
+            <text class="contact-value">{{ getStorePhone() || '门店暂未设置电话' }}</text>
+          </view>
+          <text class="contact-action">{{ getStorePhone() ? '拨打' : '' }}</text>
         </view>
 
         <view class="section">
@@ -119,6 +127,7 @@
         <view class="section">
           <view class="review-head">
             <text class="section-title">用户评价</text>
+            <text class="review-more" @click="goStoreReviews">查看全部</text>
             <view class="review-filters">
               <text
                 v-for="filter in reviewFilters"
@@ -141,6 +150,16 @@
                 <text class="review-score">★ {{ (review.rating && review.rating.overall) || 5 }}</text>
               </view>
               <text class="review-content">{{ review.content || '用户未填写内容' }}</text>
+              <view v-if="getReviewImages(review).length > 0" class="review-images">
+                <image
+                  v-for="(img, idx) in getReviewImages(review)"
+                  :key="`${review._id || 'review'}_${idx}`"
+                  class="review-image"
+                  :src="img"
+                  mode="aspectFill"
+                  @click="previewReviewImage(review, idx)"
+                />
+              </view>
               <text class="review-time">{{ formatReviewTime(review.createdAt) }}</text>
             </view>
           </view>
@@ -156,7 +175,7 @@
 
 <script>
 import { fetchStoreDetail, fetchStoreServices, fetchStoreBarbers } from '../../api/store';
-import { callCloud } from '../../api/client';
+import { fetchStoreReviews, normalizeReviewImages, resolveReviewImageUrls } from '../../api/review';
 
 export default {
   data() {
@@ -247,7 +266,7 @@ export default {
           await this.copyAddress(address);
           const opened = this.openMapByAddress(provider, address);
           if (!opened) {
-            uni.showToast({ title: '未安装地图应用，地址已复制', icon: 'none' });
+            uni.showToast({ title: '未安装地图应用', icon: 'none' });
           }
         }
       });
@@ -256,10 +275,28 @@ export default {
       const address = this.store && this.store.address ? String(this.store.address).trim() : '';
       return address || '';
     },
+    getStorePhone() {
+      const phone = this.store && this.store.phone ? String(this.store.phone).trim() : '';
+      return phone || '';
+    },
+    callStore() {
+      const phone = this.getStorePhone();
+      if (!phone) {
+        uni.showToast({ title: '门店电话未设置', icon: 'none' });
+        return;
+      }
+      uni.makePhoneCall({
+        phoneNumber: phone,
+        fail: () => {
+          uni.showToast({ title: '拨号失败，请稍后重试', icon: 'none' });
+        }
+      });
+    },
     copyAddress(address) {
       return new Promise((resolve) => {
         uni.setClipboardData({
           data: address,
+          showToast: false,
           success: () => resolve(true),
           fail: () => resolve(false)
         });
@@ -317,13 +354,14 @@ export default {
     async loadReviews() {
       this.reviewsLoading = true;
       try {
-        const res = await callCloud('reviews-list', {
+        const res = await fetchStoreReviews({
           storeId: this.storeId,
           filterType: this.reviewFilter,
           page: 1,
           pageSize: 10
         });
-        this.reviews = (res && res.list) || [];
+        const list = (res && res.list) || [];
+        this.reviews = await resolveReviewImageUrls(list);
       } catch (err) {
         this.reviews = [];
       } finally {
@@ -333,6 +371,18 @@ export default {
     changeReviewFilter(filter) {
       this.reviewFilter = filter;
       this.loadReviews();
+    },
+    getReviewImages(review) {
+      return normalizeReviewImages(review);
+    },
+    previewReviewImage(review, index) {
+      const images = this.getReviewImages(review);
+      if (!images.length) return;
+      const safeIndex = Math.max(0, Math.min(Number(index || 0), images.length - 1));
+      uni.previewImage({
+        current: images[safeIndex],
+        urls: images
+      });
     },
     formatReviewTime(timestamp) {
       if (!timestamp) return '';
@@ -369,6 +419,11 @@ export default {
       if (!this.storeId) return;
       const serviceQuery = serviceId ? `&serviceId=${encodeURIComponent(serviceId)}` : '';
       uni.navigateTo({ url: `/pages/order/create?storeId=${this.storeId}${serviceQuery}` });
+    },
+    goStoreReviews() {
+      if (!this.storeId) return;
+      const name = encodeURIComponent((this.store && this.store.name) || '');
+      uni.navigateTo({ url: `/pages/store/reviews?id=${this.storeId}&name=${name}` });
     }
   }
 };
@@ -505,6 +560,10 @@ export default {
   background: #eff6ff;
 }
 
+.stat-icon-violet {
+  background: #f5f3ff;
+}
+
 .stat-main {
   min-width: 0;
   display: flex;
@@ -520,6 +579,59 @@ export default {
 .stat-value {
   font-size: 22rpx;
   color: #0f172a;
+  font-weight: 700;
+}
+
+.stat-card-nav {
+  justify-content: flex-start;
+}
+
+.stat-nav-title {
+  font-size: 28rpx;
+  color: #0f172a;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+}
+
+.contact-card {
+  margin-top: 10rpx;
+  background: #ffffff;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 20rpx;
+  padding: 14rpx;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.contact-card.disabled {
+  opacity: 0.62;
+}
+
+.contact-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3rpx;
+}
+
+.contact-label {
+  font-size: 20rpx;
+  color: #94a3b8;
+}
+
+.contact-value {
+  font-size: 24rpx;
+  color: #0f172a;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.contact-action {
+  font-size: 24rpx;
+  color: #2563eb;
   font-weight: 700;
 }
 
@@ -694,6 +806,13 @@ export default {
   margin-bottom: 12rpx;
 }
 
+.review-more {
+  margin-left: auto;
+  font-size: 22rpx;
+  color: #475569;
+  padding: 2rpx 0;
+}
+
 .review-filters {
   display: flex;
   gap: 6rpx;
@@ -750,6 +869,20 @@ export default {
   font-size: 22rpx;
   color: #475569;
   line-height: 1.45;
+}
+
+.review-images {
+  margin-top: 10rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+
+.review-image {
+  width: 148rpx;
+  height: 148rpx;
+  border-radius: 12rpx;
+  background: #f1f5f9;
 }
 
 .review-time {

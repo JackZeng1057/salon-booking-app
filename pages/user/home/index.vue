@@ -3,103 +3,111 @@
     <app-nav :showBack="false" />
 
     <view class="home-content">
-      <view class="header-row">
-        <view class="header-copy">
-          <text class="greeting-text">{{ greetingText }}，{{ displayName }}</text>
-          <text class="headline-text">开启今日造型</text>
-        </view>
-
-        <view class="header-actions">
-          <view class="notify-btn" @click="goNotifications">
-            <app-icon name="bell" color="#334155" :size="34" :stroke-width="2.1" />
-            <text v-if="unreadCount > 0" class="notify-dot"></text>
+      <view class="home-top">
+        <view class="header-row">
+          <view class="header-copy">
+            <text class="greeting-text">{{ greetingText }}，{{ displayName }}</text>
+            <text class="headline-text">开启今日造型</text>
           </view>
 
-          <view class="avatar-wrap" @click="goSettings">
-            <image
-              v-if="currentUser.avatar"
-              class="avatar-image"
-              :src="currentUser.avatar"
-              mode="aspectFill"
-            />
-            <view v-else class="avatar-image avatar-fallback">{{ displayName.slice(0, 1).toUpperCase() }}</view>
-          </view>
-        </view>
-      </view>
-
-      <view class="search-bar" @click="goSearch">
-        <app-icon class="search-icon-svg" name="search" color="#94A3B8" :size="31" :stroke-width="2.1" />
-        <text class="search-text">搜索门店、发型师、服务...</text>
-      </view>
-
-      <view class="promo-card" @click="goStores">
-        <image class="promo-bg" :src="bannerCover" mode="aspectFill" />
-        <view class="promo-overlay"></view>
-        <view class="promo-content">
-          <text class="promo-kicker">Season Offer</text>
-          <text class="promo-title">夏日清爽特惠</text>
-          <text class="promo-subtitle">精选护理项目限时 8.5 折</text>
-          <view class="promo-cta">立即查看</view>
-        </view>
-      </view>
-
-      <view class="quick-actions">
-        <view
-          v-for="item in quickActions"
-          :key="item.key"
-          class="quick-item"
-          @click="handleQuickAction(item.key)"
-          hover-class="quick-item-hover"
-        >
-          <view class="quick-icon" :style="{ background: item.bg }">
-            <app-icon :name="item.iconName" color="#334155" :size="36" :stroke-width="2.15" />
-          </view>
-          <text class="quick-label">{{ item.label }}</text>
-        </view>
-      </view>
-
-      <view class="section-header">
-        <text class="section-title">附近推荐</text>
-        <text class="section-more" @click="goStores">更多</text>
-      </view>
-
-      <view v-if="storeLoading" class="state-card">
-        <text class="state-text">正在加载门店...</text>
-      </view>
-      <view v-else-if="recommendedStores.length === 0" class="state-card">
-        <text class="state-text">暂无可展示门店</text>
-      </view>
-      <view v-else class="store-list">
-        <view
-          v-for="store in recommendedStores"
-          :key="store._id"
-          class="store-card"
-          @click="goStoreDetail(store._id)"
-        >
-          <view class="store-cover-wrap">
-            <image class="store-cover" :src="getStoreCover(store)" mode="aspectFill" />
-            <view v-if="store.distance !== null && store.distance !== undefined" class="store-distance">
-              <app-icon name="map-pin" color="#FFFFFF" :size="19" :stroke-width="2.2" />
-              <text>{{ formatDistance(store.distance) }}</text>
-            </view>
-          </view>
-
-          <view class="store-info">
-            <view class="store-name-row">
-              <text class="store-name">{{ store.name || '未命名门店' }}</text>
-              <text class="store-rating">★ {{ formatStoreRating(store) }}</text>
+          <view class="header-actions">
+            <view class="notify-btn" @click="goNotifications">
+              <app-icon name="bell" color="#334155" :size="34" :stroke-width="2.1" />
+              <text v-if="unreadCount > 0" class="notify-dot"></text>
             </view>
 
-            <text class="store-address">{{ store.address || '地址信息待完善' }}</text>
-
-            <view class="store-meta-row">
-              <text class="store-meta-pill">{{ formatPrice(store) }}</text>
-              <text class="store-meta-pill">{{ formatReviewCount(store) }}</text>
-              <text class="store-meta-pill">{{ getBusinessStatusText(store) }}</text>
+            <view class="avatar-wrap" @click="goSettings">
+              <image
+                v-if="currentUser.avatar"
+                class="avatar-image"
+                :src="currentUser.avatar"
+                mode="aspectFill"
+              />
+              <view v-else class="avatar-image avatar-fallback">{{ displayName.slice(0, 1).toUpperCase() }}</view>
             </view>
           </view>
         </view>
+
+        <view class="search-bar" @click="goSearch">
+          <app-icon class="search-icon-svg" name="search" color="#94A3B8" :size="31" :stroke-width="2.1" />
+          <text class="search-text">搜索门店、发型师、服务...</text>
+        </view>
       </view>
+
+      <scroll-view class="home-scroll" scroll-y>
+        <view class="home-scroll-content">
+          <view class="promo-card" @click="goStores">
+            <image class="promo-bg" :src="bannerCover" mode="aspectFill" />
+            <view class="promo-overlay"></view>
+            <view class="promo-content">
+              <text class="promo-kicker">Season Offer</text>
+              <text class="promo-title">夏日清爽特惠</text>
+              <text class="promo-subtitle">精选护理项目限时 8.5 折</text>
+              <view class="promo-cta">立即查看</view>
+            </view>
+          </view>
+
+          <view class="quick-actions">
+            <view
+              v-for="item in quickActions"
+              :key="item.key"
+              class="quick-item"
+              @click="handleQuickAction(item.key)"
+              hover-class="quick-item-hover"
+            >
+              <view class="quick-icon" :style="{ background: item.bg }">
+                <app-icon :name="item.iconName" color="#334155" :size="36" :stroke-width="2.15" />
+              </view>
+              <text class="quick-label">{{ item.label }}</text>
+            </view>
+          </view>
+
+          <view class="section-header">
+            <text class="section-title">附近推荐</text>
+            <text class="section-more" @click="goStores">更多</text>
+          </view>
+
+          <view v-if="storeLoading" class="state-card">
+            <text class="state-text">正在加载门店...</text>
+          </view>
+          <view v-else-if="recommendedStores.length === 0" class="state-card">
+            <text class="state-text">暂无可展示门店</text>
+          </view>
+          <view v-else class="store-list">
+            <view
+              v-for="store in recommendedStores"
+              :key="store._id"
+              class="store-card"
+              @click="goStoreDetail(store._id)"
+            >
+              <view class="store-cover-wrap">
+                <image class="store-cover" :src="getStoreCover(store)" mode="aspectFill" />
+                <view v-if="store.distance !== null && store.distance !== undefined" class="store-distance">
+                  <app-icon name="map-pin" color="#FFFFFF" :size="19" :stroke-width="2.2" />
+                  <text>{{ formatDistance(store.distance) }}</text>
+                </view>
+              </view>
+
+              <view class="store-info">
+                <view class="store-name-row">
+                  <text class="store-name">{{ store.name || '未命名门店' }}</text>
+                  <text class="store-rating">★ {{ formatStoreRating(store) }}</text>
+                </view>
+
+                <text class="store-address">{{ store.address || '地址信息待完善' }}</text>
+
+                <view class="store-meta-row">
+                  <text class="store-meta-pill">{{ formatPrice(store) }}</text>
+                  <text class="store-meta-pill">{{ formatReviewCount(store) }}</text>
+                  <text class="store-meta-pill">{{ getBusinessStatusText(store) }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <view class="scroll-bottom-safe"></view>
+        </view>
+      </scroll-view>
     </view>
 
     <bottom-tab-bar current="home" />
@@ -110,6 +118,7 @@
 import { authStore } from '../../../store/auth';
 import { getUnreadCount } from '../../../api/notifications';
 import { fetchStores } from '../../../api/store';
+import { syncCriticalSystemNotifications } from '../../../utils/system-notify';
 import BottomTabBar from '../../../components/bottom-tab-bar/bottom-tab-bar.vue';
 
 export default {
@@ -153,6 +162,9 @@ export default {
   },
   onShow() {
     this.hideNativeTabBar();
+    setTimeout(() => {
+      syncCriticalSystemNotifications({ force: true });
+    }, 600);
     this.refreshHome();
   },
   onPullDownRefresh() {
@@ -266,7 +278,7 @@ export default {
       return (store && store.cover) || this.defaultStoreCover;
     },
     goSearch() {
-      uni.navigateTo({ url: '/pages/search/index' });
+      uni.navigateTo({ url: '/pages/store/list' });
     },
     goStores() {
       uni.navigateTo({ url: '/pages/store/list' });
@@ -287,15 +299,39 @@ export default {
 
 <style scoped lang="scss">
 .home-page {
-  min-height: 100vh;
-  padding: 98rpx 28rpx 168rpx;
+  height: 100vh;
+  padding: 98rpx 28rpx 0;
   background: #f8fafc;
+  overflow: hidden;
 }
 
 .home-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-top {
   display: flex;
   flex-direction: column;
   gap: 24rpx;
+  margin-bottom: 24rpx;
+  flex-shrink: 0;
+}
+
+.home-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.home-scroll-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.scroll-bottom-safe {
+  height: 168rpx;
 }
 
 .header-row {

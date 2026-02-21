@@ -1,11 +1,22 @@
 <template>
   <view class="page">
-    <!-- 自定义顶部导航占位：去掉原生白色导航栏，同时提供返回按钮 -->
-    <app-nav />
-    <view class="title-row">
-      <view class="title-wrap">
-        <text class="title">消息通知</text>
-        <view v-if="unreadCount > 0" class="unread-badge">{{ unreadCount }}</view>
+    <app-nav :showTitle="true" title="消息通知" />
+    <view class="filter-row">
+      <view class="filter-tabs">
+        <view
+          class="filter-tab"
+          :class="{ active: !unreadOnly }"
+          @click="unreadOnly = false; loadNotifications(true)"
+        >
+          全部
+        </view>
+        <view
+          class="filter-tab"
+          :class="{ active: unreadOnly }"
+          @click="unreadOnly = true; loadNotifications(true)"
+        >
+          未读
+        </view>
       </view>
       <view
         v-if="notifications.length > 0"
@@ -14,24 +25,6 @@
         @click="markAllRead"
       >
         {{ markAllLoading ? '处理中...' : '全部消息已读' }}
-      </view>
-    </view>
-
-    <!-- 筛选标签 -->
-    <view class="filter-tabs">
-      <view 
-        class="filter-tab"
-        :class="{ active: !unreadOnly }"
-        @click="unreadOnly = false; loadNotifications(true)"
-      >
-        全部
-      </view>
-      <view 
-        class="filter-tab"
-        :class="{ active: unreadOnly }"
-        @click="unreadOnly = true; loadNotifications(true)"
-      >
-        未读
       </view>
     </view>
 
@@ -71,7 +64,14 @@
             :class="{ unread: !notif.isRead }"
             @click="handleNotificationClick(notif)"
           >
-            <view class="notif-icon">{{ getNotificationIcon(notif.type) }}</view>
+            <view class="notif-icon">
+              <app-icon
+                :name="getNotificationIconMeta(notif.type).name"
+                :color="getNotificationIconMeta(notif.type).color"
+                :size="52"
+                :stroke-width="2.2"
+              />
+            </view>
             <view class="notif-content">
               <view class="notif-header">
                 <text class="notif-title">{{ notif.title }}</text>
@@ -90,6 +90,18 @@
         <text>{{ loadingMore ? '加载中...' : '加载更多' }}</text>
       </view>
     </view>
+
+    <app-modal
+      :visible="confirmDialog.visible"
+      :title="confirmDialog.title"
+      :confirm-text="confirmDialog.confirmText"
+      :confirm-type="confirmDialog.confirmType"
+      @close="handleConfirmDialogCancel"
+      @cancel="handleConfirmDialogCancel"
+      @confirm="handleConfirmDialogConfirm"
+    >
+      <view class="confirm-dialog-content">{{ confirmDialog.content }}</view>
+    </app-modal>
   </view>
 </template>
 
@@ -113,7 +125,15 @@ export default {
       loadingMore: false,
       page: 1,
       pageSize: 20,
-      hasMore: true
+      hasMore: true,
+      confirmDialog: {
+        visible: false,
+        title: '',
+        content: '',
+        confirmText: '确定',
+        confirmType: 'primary'
+      },
+      confirmDialogResolver: null
     };
   },
   onLoad() {
@@ -224,13 +244,13 @@ export default {
     },
     async confirmDelete(notif) {
       if (!notif || !notif._id) return;
-      const modalRes = await uni.showModal({
+      const confirmed = await this.openConfirmDialog({
         title: '删除消息',
         content: '确定删除该消息吗？删除后无法恢复。',
         confirmText: '删除',
-        confirmColor: '#fa5151'
+        confirmType: 'danger'
       });
-      if (!modalRes || !modalRes.confirm) return;
+      if (!confirmed) return;
       try {
         await deleteNotification({ notificationId: notif._id });
         this.notifications = this.notifications.filter((item) => item._id !== notif._id);
@@ -297,19 +317,19 @@ export default {
         url: `/pages/user/notifications/detail?payload=${payload}`
       });
     },
-    // 获取通知图标
-    getNotificationIcon(type) {
+    // 获取通知图标（SVG）
+    getNotificationIconMeta(type) {
       const normalized = String(type || '').toLowerCase();
       const iconMap = {
-        booking_success: '✅',
-        reschedule: '🔄',
-        cancel: '❌',
-        no_show: '⚠️',
-        arrival_reminder: '🔔',
-        service_start: '🛡️',
-        service_finish: '✨'
+        booking_success: { name: 'calendar', color: '#f59e0b' },
+        reschedule: { name: 'refresh', color: '#2563eb' },
+        cancel: { name: 'x-circle', color: '#ef4444' },
+        no_show: { name: 'alert-triangle', color: '#f59e0b' },
+        arrival_reminder: { name: 'bell', color: '#14b8a6' },
+        service_start: { name: 'shield', color: '#0f172a' },
+        service_finish: { name: 'sparkles', color: '#8b5cf6' }
       };
-      return iconMap[normalized] || '📬';
+      return iconMap[normalized] || { name: 'mailbox', color: '#64748b' };
     },
     // 格式化时间
     formatTime(timestamp) {
@@ -344,6 +364,36 @@ export default {
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
+    },
+    openConfirmDialog(options = {}) {
+      if (this.confirmDialogResolver) {
+        this.confirmDialogResolver(false);
+        this.confirmDialogResolver = null;
+      }
+      this.confirmDialog = {
+        visible: true,
+        title: String(options.title || '').trim(),
+        content: String(options.content || '').trim(),
+        confirmText: String(options.confirmText || '确定').trim(),
+        confirmType: options.confirmType === 'danger' ? 'danger' : 'primary'
+      };
+      return new Promise((resolve) => {
+        this.confirmDialogResolver = resolve;
+      });
+    },
+    closeConfirmDialog(result) {
+      const resolver = this.confirmDialogResolver;
+      this.confirmDialogResolver = null;
+      this.confirmDialog.visible = false;
+      if (typeof resolver === 'function') {
+        resolver(!!result);
+      }
+    },
+    handleConfirmDialogCancel() {
+      this.closeConfirmDialog(false);
+    },
+    handleConfirmDialogConfirm() {
+      this.closeConfirmDialog(true);
     }
   }
 };
@@ -352,40 +402,16 @@ export default {
 <style scoped lang="scss">
 .page {
   min-height: 100vh;
-  /* 与其他页面统一：顶部额外留白，避免返回按钮与标题重叠 */
-  padding: 132rpx 30rpx 30rpx;
-  background-color: $uni-bg-color-grey;
+  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  background: #f8fafc;
 }
 
-.title-row {
+.filter-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-left: 6rpx;
-  margin-bottom: 24rpx;
-}
-
-.title-wrap {
-  display: flex;
-  align-items: center;
   gap: 12rpx;
-}
-
-.title {
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  line-height: 1.25;
-}
-
-.unread-badge {
-  background: linear-gradient(135deg, #ff4d4f, #ff7875);
-  color: #ffffff;
-  font-size: 20rpx;
-  padding: 4rpx 12rpx;
-  border-radius: 20rpx;
-  min-width: 40rpx;
-  text-align: center;
+  margin-bottom: 16rpx;
 }
 
 .mark-all-btn {
@@ -401,8 +427,9 @@ export default {
   align-items: center;
   justify-content: center;
   white-space: nowrap;
+  margin-left: 0;
+  margin-bottom: 0;
   flex-shrink: 0;
-  margin-left: 16rpx;
 }
 
 .mark-all-btn.disabled {
@@ -412,8 +439,8 @@ export default {
 .filter-tabs {
   display: flex;
   background: transparent;
-  padding: 0 0 8rpx;
-  margin-bottom: 16rpx;
+  padding: 0;
+  margin-bottom: 0;
   gap: 16rpx;
   
   .filter-tab {
@@ -538,7 +565,13 @@ export default {
   }
   
   .notif-icon {
-    font-size: 56rpx;
+    width: 96rpx;
+    height: 96rpx;
+    border-radius: 48rpx;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin-right: 20rpx;
     flex-shrink: 0;
   }
@@ -585,7 +618,7 @@ export default {
   }
   
   .notif-arrow {
-    font-size: 48rpx;
+    font-size: 42rpx;
     color: $uni-text-color-placeholder;
     margin-left: 12rpx;
     flex-shrink: 0;
@@ -597,5 +630,11 @@ export default {
   padding: 32rpx;
   font-size: 28rpx;
   color: $uni-text-color-grey;
+}
+
+.confirm-dialog-content {
+  color: #334155;
+  font-size: 27rpx;
+  line-height: 1.6;
 }
 </style>

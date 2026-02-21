@@ -22,7 +22,10 @@
         </view>
       </scroll-view>
 
-      <view class="pricing-list">
+      <view v-if="loading" class="hint">加载中...</view>
+      <view v-else-if="filteredServices.length === 0" class="hint">暂无价目数据</view>
+
+      <view v-else class="pricing-list">
         <view v-for="item in filteredServices" :key="item.id" class="service-card">
           <view class="service-main">
             <text class="service-name">{{ item.name }}</text>
@@ -45,9 +48,21 @@
 </template>
 
 <script>
+import { fetchStores, fetchStoreServices } from '../../../api/store';
+
+function inferCategory(serviceName = '') {
+  const name = String(serviceName || '').toLowerCase();
+  if (/剪|cut|trim/.test(name)) return 'haircut';
+  if (/染|color/.test(name)) return 'color';
+  if (/烫|perm/.test(name)) return 'perm';
+  if (/护|养|头皮|care|spa/.test(name)) return 'care';
+  return 'all';
+}
+
 export default {
   data() {
     return {
+      loading: false,
       activeCategory: 'all',
       categories: [
         { key: 'all', label: '全部' },
@@ -56,81 +71,11 @@ export default {
         { key: 'perm', label: '烫发' },
         { key: 'care', label: '护理' }
       ],
-      services: [
-        {
-          id: 'svc-1',
-          category: 'haircut',
-          name: '精致剪发',
-          desc: '针对脸型与发质设计，含基础造型建议',
-          duration: 60,
-          price: 88,
-          tags: ['热门', '新客推荐']
-        },
-        {
-          id: 'svc-2',
-          category: 'haircut',
-          name: '总监剪发',
-          desc: '总监级别设计，适合需要明显风格变化',
-          duration: 75,
-          price: 158,
-          tags: ['总监', '造型定制']
-        },
-        {
-          id: 'svc-3',
-          category: 'color',
-          name: '单色染发',
-          desc: '通勤与日常友好，颜色自然不夸张',
-          duration: 150,
-          price: 288,
-          tags: ['显白', '质感']
-        },
-        {
-          id: 'svc-4',
-          category: 'color',
-          name: '高光挑染',
-          desc: '提升层次感，适合中长发和卷发造型',
-          duration: 180,
-          price: 398,
-          tags: ['层次感', '潮流']
-        },
-        {
-          id: 'svc-5',
-          category: 'perm',
-          name: '纹理烫',
-          desc: '提升蓬松度，打造自然空气感',
-          duration: 180,
-          price: 368,
-          tags: ['男生推荐', '蓬松']
-        },
-        {
-          id: 'svc-6',
-          category: 'perm',
-          name: '韩系烫发',
-          desc: '适合中长发，打造轻盈弧度和轮廓感',
-          duration: 210,
-          price: 468,
-          tags: ['韩系', '中长发']
-        },
-        {
-          id: 'svc-7',
-          category: 'care',
-          name: '头皮净化护理',
-          desc: '深层清洁头皮，缓解油脂和闷痒问题',
-          duration: 45,
-          price: 128,
-          tags: ['头皮护理', '舒缓']
-        },
-        {
-          id: 'svc-8',
-          category: 'care',
-          name: '发丝修护护理',
-          desc: '改善干枯毛躁，提升光泽度和顺滑度',
-          duration: 60,
-          price: 168,
-          tags: ['修护', '烫染后建议']
-        }
-      ]
+      services: []
     };
+  },
+  onShow() {
+    this.loadPricing();
   },
   computed: {
     filteredServices() {
@@ -139,11 +84,43 @@ export default {
     }
   },
   methods: {
+    async loadPricing() {
+      this.loading = true;
+      try {
+        const stores = await fetchStores({ page: 1, pageSize: 50, noCache: true });
+        const listByStore = await Promise.all(
+          (Array.isArray(stores) ? stores : []).map(async (store) => {
+            const storeId = (store && store._id) || '';
+            if (!storeId) return [];
+            const rows = await fetchStoreServices(storeId, { noCache: true });
+            const storeName = (store && store.name) || '门店';
+            return (Array.isArray(rows) ? rows : []).map((svc) => ({
+              id: svc._id || '',
+              storeId,
+              category: inferCategory(svc.name),
+              name: svc.name || '未命名服务',
+              desc: svc.description || '服务详情请到门店咨询',
+              duration: Number(svc.duration || 0),
+              price: Number(svc.price || 0),
+              tags: [storeName]
+            }));
+          })
+        );
+        const merged = listByStore.flat();
+        this.services = merged
+          .filter((item) => item.id && item.storeId)
+          .sort((a, b) => a.price - b.price);
+      } catch (err) {
+        this.services = [];
+        uni.showToast({ title: err.message || '加载价目失败', icon: 'none' });
+      } finally {
+        this.loading = false;
+      }
+    },
     goCreateOrder(item) {
-      const serviceName = encodeURIComponent((item && item.name) || '');
-      const price = Number((item && item.price) || 0);
+      if (!item || !item.storeId || !item.id) return;
       uni.navigateTo({
-        url: `/pages/order/create?serviceName=${serviceName}&price=${price}`
+        url: `/pages/order/create?storeId=${item.storeId}&serviceId=${item.id}`
       });
     }
   }
@@ -217,6 +194,14 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 14rpx;
+}
+
+.hint {
+  margin-top: 20rpx;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 24rpx;
+  padding: 36rpx 0;
 }
 
 .service-card {

@@ -7,6 +7,7 @@
         <view>
           <text class="hero-kicker">管理员工作台</text>
           <text class="hero-title">门店管理</text>
+          <text class="hero-store">{{ storeName }}</text>
         </view>
         <view class="notify-btn" @click="goNotifications">
           <app-icon name="bell" color="#FFFFFF" :size="28" :stroke-width="2.1" />
@@ -14,8 +15,8 @@
         </view>
       </view>
       <view class="hero-stats">
-        <text class="hero-label">待处理事项</text>
-        <text class="hero-value">{{ pendingBarberCount }}</text>
+        <text class="hero-label">今日待处理订单</text>
+        <text class="hero-value">{{ todayPendingOrderCount }}</text>
       </view>
     </view>
 
@@ -52,6 +53,11 @@
         <view class="divider"></view>
         <view class="menu-item" @click="goBarberServices">
           <text class="menu-label">理发师项目设置</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="divider"></view>
+        <view class="menu-item" @click="goStoreReviews">
+          <text class="menu-label">门店评价</text>
           <text class="menu-arrow">›</text>
         </view>
       </view>
@@ -93,20 +99,64 @@
 import { authStore } from '../../../store/auth';
 import { getUnreadCount } from '../../../api/notifications';
 import { fetchBarberApplications } from '../../../api/barberApproval';
+import { me } from '../../../api/auth';
+import { fetchStoreDetail } from '../../../api/store';
+import { callCloud } from '../../../api/client';
+import { syncCriticalSystemNotifications } from '../../../utils/system-notify';
+
+function toDateString(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 export default {
   data() {
     return {
       unreadCount: 0,
-      pendingBarberCount: 0
+      pendingBarberCount: 0,
+      todayPendingOrderCount: 0,
+      storeName: '当前门店'
     };
   },
   onShow() {
+    setTimeout(() => {
+      syncCriticalSystemNotifications({ force: true });
+    }, 600);
+    this.loadStoreName();
     this.loadUnreadCount();
     this.loadPendingBarberCount();
+    this.loadTodayPendingOrderCount();
   },
   // 管理员管理页最小入口
   methods: {
+    async loadStoreName() {
+      try {
+        let user = authStore.state.user || {};
+        if (!user.storeId) {
+          const latest = await me();
+          if (latest) {
+            user = latest;
+            authStore.setUser(latest);
+          }
+        }
+        const storeId = user && user.storeId;
+        const storeName = user && user.storeName;
+        if (storeName) {
+          this.storeName = storeName;
+          return;
+        }
+        if (!storeId) {
+          this.storeName = '当前门店';
+          return;
+        }
+        const detail = await fetchStoreDetail(storeId, { noCache: true });
+        this.storeName = (detail && detail.name) || (detail && detail.store && detail.store.name) || storeId;
+      } catch (err) {
+        this.storeName = '当前门店';
+      }
+    },
     async loadUnreadCount() {
       try {
         this.unreadCount = await getUnreadCount();
@@ -120,6 +170,39 @@ export default {
         this.pendingBarberCount = Number((data && data.pendingCount) || 0);
       } catch (err) {
         this.pendingBarberCount = 0;
+      }
+    },
+    normalizeOrderStatus(status) {
+      const map = {
+        已预约: 'BOOKED',
+        已到店: 'ARRIVED',
+        服务中: 'IN_SERVICE',
+        已完成: 'FINISHED',
+        已取消: 'CANCELLED',
+        爽约: 'NO_SHOW'
+      };
+      return map[status] || String(status || '').toUpperCase();
+    },
+    isPendingOrderStatus(status) {
+      const normalized = this.normalizeOrderStatus(status);
+      return normalized === 'BOOKED' || normalized === 'ARRIVED' || normalized === 'IN_SERVICE';
+    },
+    async loadTodayPendingOrderCount() {
+      const date = toDateString(new Date());
+      const pageSize = 100;
+      let page = 1;
+      let count = 0;
+      try {
+        while (true) {
+          const data = await callCloud('orders-store-list', { date, page, pageSize });
+          const list = Array.isArray(data && data.list) ? data.list : [];
+          count += list.filter((item) => this.isPendingOrderStatus(item && item.status)).length;
+          if (list.length < pageSize) break;
+          page += 1;
+        }
+        this.todayPendingOrderCount = count;
+      } catch (err) {
+        this.todayPendingOrderCount = 0;
       }
     },
     goNotifications() {
@@ -167,6 +250,17 @@ export default {
     goBarberServices() {
       uni.navigateTo({
         url: '/pages/admin/barber-services/index',
+        fail: () => {
+          uni.showToast({
+            title: '页面未生效，请重新编译',
+            icon: 'none'
+          });
+        }
+      });
+    },
+    goStoreReviews() {
+      uni.navigateTo({
+        url: '/pages/admin/reviews/index',
         fail: () => {
           uni.showToast({
             title: '页面未生效，请重新编译',
@@ -229,6 +323,13 @@ export default {
   margin-top: 8rpx;
   font-size: 38rpx;
   font-weight: 700;
+}
+
+.hero-store {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .hero-stats {

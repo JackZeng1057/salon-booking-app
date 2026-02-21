@@ -1,8 +1,9 @@
 <template>
   <view class="page">
-    <app-nav />
-    <text class="title">理发师项目设置</text>
-    <text class="subtitle">为门店理发师配置可承接的服务项目</text>
+    <app-nav :showTitle="true" title="理发师项目设置" />
+    <view class="hero-card">
+      <text class="hero-subtitle">为门店理发师配置可承接的服务项目</text>
+    </view>
 
     <view v-if="loading" class="hint">加载中...</view>
     <view v-else-if="services.length === 0" class="hint">当前门店暂无服务项目，请先到门店设置里新增服务</view>
@@ -176,25 +177,23 @@ export default {
 <style scoped lang="scss">
 .page {
   min-height: 100vh;
-  padding: 120rpx 30rpx 30rpx;
-  background-color: $uni-bg-color-grey;
+  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  background: #f8fafc;
 }
 
-.title {
-  display: block;
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  margin-bottom: 10rpx;
-  padding-left: 6rpx;
+.hero-card {
+  border-radius: 28rpx;
+  padding: 24rpx 26rpx;
+  background: linear-gradient(140deg, #0f172a, #1e293b);
+  box-shadow: 0 14rpx 30rpx rgba(15, 23, 42, 0.16);
+  margin-bottom: 18rpx;
 }
 
-.subtitle {
+.hero-subtitle {
   display: block;
-  font-size: $uni-font-size-sm;
-  color: $uni-text-color-grey;
-  margin-bottom: 22rpx;
-  padding-left: 6rpx;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.5;
 }
 
 .hint {

@@ -3,9 +3,6 @@
     <view class="top-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="top-inner">
         <view class="nav-left">
-          <view class="nav-btn" @click="goBack">
-            <text class="nav-icon">‹</text>
-          </view>
           <view class="nav-brand">
             <view class="nav-brand-logo-wrap">
               <view class="nav-brand-logo">AI</view>
@@ -573,17 +570,6 @@ export default {
         this.scrollToBottom();
       });
     },
-    goBack() {
-      this.upsertCurrentSession();
-      try {
-        const pages = getCurrentPages();
-        if (pages && pages.length > 1) {
-          uni.navigateBack({ delta: 1 });
-          return;
-        }
-      } catch (e) {}
-      uni.switchTab({ url: '/pages/user/home/index' });
-    },
     usePrompt(text) {
       this.queryText = String(text || '').trim();
     },
@@ -791,23 +777,7 @@ export default {
   align-items: center;
 }
 
-.nav-btn {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 32rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nav-icon {
-  font-size: 50rpx;
-  color: #111827;
-  transform: translateY(-3rpx);
-}
-
 .nav-brand {
-  margin-left: 4rpx;
   display: flex;
   align-items: center;
 }
