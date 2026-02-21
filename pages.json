@@ -88,6 +88,13 @@
       }
     },
     {
+      "path": "pages/account/settings/index",
+      "style": {
+        "navigationBarTitleText": "Account Settings",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/user/reviews/index",
       "style": {
         "navigationBarTitleText": "My Reviews",

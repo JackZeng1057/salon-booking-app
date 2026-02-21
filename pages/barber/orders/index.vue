@@ -199,8 +199,8 @@ export default {
       }
     },
     goAccountSettings() {
-      uni.switchTab({
-        url: '/pages/user/settings/index',
+      uni.navigateTo({
+        url: '/pages/account/settings/index',
         fail: () => {
           uni.showToast({
             title: '页面未生效，请重新编译',
@@ -216,17 +216,16 @@ export default {
 <style scoped lang="scss">
 .page {
   min-height: 100vh;
-  /* 顶部整体再下移一小段，避免标题与返回按钮太靠近 */
-  padding: 96rpx 30rpx 30rpx;
-  background-color: $uni-bg-color-grey;
+  padding: 108rpx 20rpx 26rpx;
+  background: #f8fafc;
 }
 
 .title {
-  font-size: 48rpx;
+  font-size: 42rpx;
   font-weight: 700;
-  color: $uni-color-primary;
-  margin-bottom: 24rpx;
-  padding-left: 6rpx;
+  color: #0f172a;
+  margin-bottom: 16rpx;
+  padding-left: 8rpx;
 }
 
 .field {
@@ -242,8 +241,9 @@ export default {
 
 .picker-value {
   background: #ffffff;
-  border-radius: $uni-border-radius-lg;
-  padding: 20rpx 24rpx;
+  border-radius: 14rpx;
+  border: 1rpx solid #e2e8f0;
+  padding: 18rpx 20rpx;
   font-size: $uni-font-size-base;
   color: $uni-text-color;
 }
@@ -257,14 +257,14 @@ export default {
 .list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 12rpx;
 }
 
 .card {
   background: #ffffff;
-  border-radius: $uni-border-radius-lg;
-  padding: 24rpx;
-  box-shadow: $uni-shadow-base;
+  border-radius: 18rpx;
+  border: 1rpx solid #e2e8f0;
+  padding: 20rpx;
 }
 
 .row {
@@ -282,18 +282,23 @@ export default {
 .actions {
   display: flex;
   gap: 16rpx;
+  margin-top: 10rpx;
 }
 
 .action-btn {
   flex: 1;
+  height: 72rpx;
+  line-height: 72rpx;
+  border-radius: 36rpx;
+  font-size: 24rpx;
 }
 
 .account-card {
   margin-top: 20rpx;
   background: #ffffff;
-  border-radius: $uni-border-radius-lg;
-  padding: 24rpx;
-  box-shadow: $uni-shadow-base;
+  border-radius: 18rpx;
+  border: 1rpx solid #e2e8f0;
+  padding: 20rpx;
 }
 
 .account-btn {

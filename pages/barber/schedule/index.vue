@@ -333,8 +333,8 @@ export default {
     },
     // 跳转账号设置（手机号绑定）
     goAccountSettings() {
-      uni.switchTab({
-        url: '/pages/user/settings/index',
+      uni.navigateTo({
+        url: '/pages/account/settings/index',
         fail: () => {
           uni.showToast({
             title: '页面未生效，请重新编译',
@@ -350,9 +350,8 @@ export default {
 <style scoped lang="scss">
 .page {
   min-height: 100vh;
-  /* 顶部留白再多一点，避免“排班设置”标题与返回按钮重叠感 */
-  padding: 96rpx 30rpx 30rpx;
-  background-color: $uni-bg-color-grey;
+  padding: 108rpx 20rpx 24rpx;
+  background: #f8fafc;
 }
 
 .page-actions {
@@ -389,18 +388,18 @@ export default {
 }
 
 .title {
-  font-size: 48rpx;
+  font-size: 42rpx;
   font-weight: 700;
-  color: $uni-color-primary;
-  margin-bottom: 24rpx;
-  padding-left: 6rpx;
+  color: #0f172a;
+  margin-bottom: 16rpx;
+  padding-left: 8rpx;
 }
 
 .form {
   background: #ffffff;
-  border-radius: $uni-border-radius-lg;
-  padding: 28rpx;
-  box-shadow: $uni-shadow-base;
+  border-radius: 22rpx;
+  border: 1rpx solid #e2e8f0;
+  padding: 22rpx;
 }
 
 .field {
@@ -415,18 +414,19 @@ export default {
 }
 
 .picker-value {
-  background: $uni-bg-color-grey;
-  border-radius: $uni-border-radius-lg;
-  padding: 20rpx 24rpx;
+  background: #f8fafc;
+  border-radius: 14rpx;
+  border: 1rpx solid #e2e8f0;
+  padding: 18rpx 20rpx;
   font-size: $uni-font-size-base;
-  color: $uni-text-color;
+  color: #0f172a;
 }
 
 .submit {
-  margin-top: 12rpx;
-  height: 88rpx;
-  line-height: 88rpx;
-  border-radius: 44rpx;
+  margin-top: 4rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  border-radius: 40rpx;
   font-size: $uni-font-size-base;
   display: flex;
   align-items: center;
@@ -435,6 +435,10 @@ export default {
 
 .result {
   margin-top: 24rpx;
+  padding: 18rpx;
+  border-radius: 16rpx;
+  background: #ecfdf5;
+  border: 1rpx solid #a7f3d0;
   display: flex;
   flex-direction: column;
   gap: 8rpx;
@@ -444,11 +448,11 @@ export default {
 
 .result-title {
   font-weight: 700;
-  color: $uni-text-color;
+  color: #065f46;
 }
 
 .result-tip {
-  color: $uni-text-color-grey;
+  color: #047857;
   font-size: $uni-font-size-sm;
 }
 
@@ -464,10 +468,10 @@ export default {
 
 .logout-card {
   margin-top: 24rpx;
-  background: #ffffff;
-  border-radius: $uni-border-radius-lg;
-  padding: 24rpx;
-  box-shadow: $uni-shadow-base;
+  background: #f8fafc;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 16rpx;
+  padding: 18rpx;
   display: flex;
   flex-direction: column;
   gap: 16rpx;
@@ -480,8 +484,8 @@ export default {
 
 .logout-btn {
   flex: 1;
-  height: 88rpx;
-  line-height: 88rpx;
+  height: 78rpx;
+  line-height: 78rpx;
   padding: 0 36rpx;
   border-radius: 44rpx;
   font-size: $uni-font-size-base;

@@ -1,11 +1,9 @@
 <template>
-  <view class="page">
-    <!-- 自定义顶部导航占位：去掉原生白色导航栏，同时提供返回按钮 -->
-    <app-nav />
-    <text class="title">核验到店</text>
+  <view class="verify-page">
+    <app-nav :showTitle="true" title="核验" />
 
-    <view class="card">
-      <text class="label">核验码</text>
+    <view class="input-card">
+      <text class="label">输入核验码</text>
       <input
         class="input"
         :value="verifyCode"
@@ -23,7 +21,7 @@
       <button class="submit" type="primary" :loading="loading" @click="handleVerify">核验</button>
     </view>
 
-    <view v-if="order" class="card">
+    <view v-if="order" class="result-card">
       <view class="row">
         <text class="label">订单号</text>
         <text class="value">{{ order.orderNo }}</text>
@@ -71,7 +69,7 @@ export default {
       const val = (e && e.detail && e.detail.value) || '';
       this.verifyCode = val.replace(/\D+/g, '').slice(0, 6);
     },
-    // 核验到店
+    // 核验订单
     async handleVerify() {
       if (!this.verifyCode.trim()) {
         uni.showToast({ title: '请输入核验码', icon: 'none' });
@@ -97,53 +95,44 @@ export default {
 </script>
 
 <style scoped lang="scss">
-.page {
+.verify-page {
   min-height: 100vh;
-  /* 顶部留白稍微加大一些，避免标题紧贴状态栏（与其他业务页保持一致） */
-  padding: 120rpx 30rpx 30rpx;
-  background-color: $uni-bg-color-grey;
+  padding: 112rpx 20rpx 30rpx;
+  background: #f8fafc;
 }
 
-.title {
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  margin-bottom: 24rpx;
-  padding-left: 6rpx;
-}
-
-.card {
+.input-card,
+.result-card {
+  margin-top: 26rpx;
   background: #ffffff;
-  border-radius: $uni-border-radius-lg;
-  padding: 28rpx;
-  box-shadow: $uni-shadow-base;
-  margin-bottom: 20rpx;
+  border-radius: 20rpx;
+  padding: 24rpx;
 }
 
 .label {
   display: block;
-  font-size: $uni-font-size-sm;
-  color: $uni-text-color-grey;
+  font-size: 22rpx;
+  color: #64748b;
   margin-bottom: 12rpx;
 }
 
 .input {
-  background: $uni-bg-color-grey;
-  border-radius: $uni-border-radius-lg;
-  padding: 26rpx 24rpx;
-  font-size: $uni-font-size-lg;
-  color: $uni-text-color;
+  background: #f8fafc;
+  border-radius: 14rpx;
+  padding: 24rpx 20rpx;
+  font-size: 34rpx;
+  color: #0f172a;
   margin-bottom: 16rpx;
-  min-height: 88rpx;
-  line-height: 88rpx;
+  min-height: 84rpx;
+  line-height: 84rpx;
 }
 
 .submit {
   margin-top: 8rpx;
-  height: 88rpx;
-  line-height: 88rpx;
-  border-radius: 44rpx;
-  font-size: $uni-font-size-base;
+  height: 80rpx;
+  line-height: 80rpx;
+  border-radius: 40rpx;
+  font-size: 26rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -157,7 +146,7 @@ export default {
 }
 
 .value {
-  color: $uni-text-color;
-  font-size: $uni-font-size-base;
+  color: #0f172a;
+  font-size: 25rpx;
 }
 </style>

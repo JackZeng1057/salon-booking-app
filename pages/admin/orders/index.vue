@@ -512,17 +512,16 @@ export default {
 <style scoped lang="scss">
 .page {
   min-height: 100vh;
-  /* 顶部留白稍微加大一些，避免标题紧贴状态栏（在前一次基础上再微调一点高度） */
-  padding: 120rpx 30rpx 30rpx;
-  background-color: $uni-bg-color-grey;
+  padding: 108rpx 20rpx 26rpx;
+  background: #f8fafc;
 }
 
 .title {
-  font-size: 48rpx;
+  font-size: 42rpx;
   font-weight: 700;
-  color: $uni-color-primary;
-  margin-bottom: 24rpx;
-  padding-left: 6rpx;
+  color: #0f172a;
+  margin-bottom: 16rpx;
+  padding-left: 8rpx;
 }
 
 .field {
@@ -538,8 +537,9 @@ export default {
 
 .picker-value {
   background: #ffffff;
-  border-radius: $uni-border-radius-lg;
-  padding: 20rpx 24rpx;
+  border-radius: 14rpx;
+  border: 1rpx solid #e2e8f0;
+  padding: 18rpx 20rpx;
   font-size: $uni-font-size-base;
   color: $uni-text-color;
 }
@@ -553,7 +553,7 @@ export default {
 .list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 12rpx;
 }
 
 .swipe-row {
@@ -570,8 +570,8 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ff4d4f;
-  border-radius: $uni-border-radius-lg;
+  background: #ef4444;
+  border-radius: 18rpx;
   opacity: 0;
   transition: opacity 0.15s ease;
   visibility: hidden;
@@ -602,9 +602,9 @@ export default {
 
 .card {
   background: #ffffff;
-  border-radius: $uni-border-radius-lg;
-  padding: 24rpx;
-  box-shadow: $uni-shadow-base;
+  border-radius: 18rpx;
+  border: 1rpx solid #e2e8f0;
+  padding: 20rpx;
 }
 
 .row {
@@ -628,8 +628,8 @@ export default {
 }
 
 .tag.status {
-  background: #e8f0ff;
-  color: #2f54eb;
+  background: #f1f5f9;
+  color: #334155;
 }
 
 .actions {
@@ -640,10 +640,10 @@ export default {
 
 .action-btn {
   flex: 1 1 30%;
-  height: 88rpx;
-  line-height: 88rpx;
-  border-radius: 44rpx;
-  font-size: $uni-font-size-base;
+  height: 72rpx;
+  line-height: 72rpx;
+  border-radius: 36rpx;
+  font-size: 24rpx;
   display: flex;
   align-items: center;
   justify-content: center;

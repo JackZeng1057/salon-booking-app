@@ -230,17 +230,16 @@ export default {
 <style scoped lang="scss">
 .page {
 	min-height: 100vh;
-	/* 顶部留白稍微加大一些，避免标题紧贴状态栏（在前一次基础上再微调一点高度） */
-	padding: 120rpx 30rpx 30rpx;
-	background-color: $uni-bg-color-grey;
+	padding: 108rpx 20rpx 26rpx;
+	background: #f8fafc;
 }
 
 .title {
-	font-size: 48rpx;
+	font-size: 42rpx;
 	font-weight: 700;
-	color: $uni-color-primary;
-	margin-bottom: 24rpx;
-	padding-left: 6rpx;
+	color: #0f172a;
+	margin-bottom: 16rpx;
+	padding-left: 8rpx;
 }
 
 .field {
@@ -256,8 +255,9 @@ export default {
 
 .picker-value {
 	background: #ffffff;
-	border-radius: $uni-border-radius-lg;
-	padding: 20rpx 24rpx;
+	border-radius: 14rpx;
+	border: 1rpx solid #e2e8f0;
+	padding: 18rpx 20rpx;
 	font-size: $uni-font-size-base;
 	color: $uni-text-color;
 }
@@ -270,17 +270,17 @@ export default {
 
 .mode-tab {
 	padding: 10rpx 24rpx;
-	border-radius: 30rpx;
+	border-radius: 999rpx;
 	font-size: $uni-font-size-sm;
-	color: $uni-text-color-grey;
+	color: #64748b;
 	background: #ffffff;
-	border: 2rpx solid $uni-border-color;
+	border: 1rpx solid #e2e8f0;
 }
 
 .mode-tab.active {
 	color: #ffffff;
-	background: $uni-color-primary;
-	border-color: $uni-color-primary;
+	background: #0f172a;
+	border-color: #0f172a;
 }
 
 .range-tip {
@@ -297,9 +297,9 @@ export default {
 
 .card {
 	background: #ffffff;
-	border-radius: $uni-border-radius-lg;
-	padding: 24rpx;
-	box-shadow: $uni-shadow-base;
+	border-radius: 22rpx;
+	border: 1rpx solid #e2e8f0;
+	padding: 20rpx;
 }
 
 .grid {
@@ -310,9 +310,9 @@ export default {
 }
 
 .grid-item {
-	background: $uni-bg-color-grey;
-	border-radius: $uni-border-radius-lg;
-	padding: 20rpx;
+	background: #f8fafc;
+	border-radius: 14rpx;
+	padding: 16rpx;
 	display: flex;
 	flex-direction: column;
 	gap: 8rpx;
@@ -337,7 +337,7 @@ export default {
 }
 
 .kpi-item {
-	background: rgba(31, 42, 68, 0.06);
+	background: #f1f5f9;
 	border-radius: 14rpx;
 	padding: 16rpx;
 	display: flex;

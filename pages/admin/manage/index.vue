@@ -1,53 +1,88 @@
 <template>
-  <view class="page">
-    <!-- 自定义顶部导航占位：去掉原生白色导航栏，同时提供返回按钮 -->
+  <view class="admin-page">
     <app-nav :showBack="false" />
-    <view class="page-actions">
-      <view class="notify-btn" @click="goNotifications">
-        <app-icon name="bell" color="#334155" :size="30" :stroke-width="2.1" />
-        <text v-if="unreadCount > 0" class="notify-dot"></text>
+
+    <view class="hero">
+      <view class="hero-top">
+        <view>
+          <text class="hero-kicker">管理员工作台</text>
+          <text class="hero-title">门店管理</text>
+        </view>
+        <view class="notify-btn" @click="goNotifications">
+          <app-icon name="bell" color="#FFFFFF" :size="28" :stroke-width="2.1" />
+          <text v-if="unreadCount > 0" class="notify-dot"></text>
+        </view>
+      </view>
+      <view class="hero-stats">
+        <text class="hero-label">待处理事项</text>
+        <text class="hero-value">{{ pendingBarberCount }}</text>
       </view>
     </view>
-    <text class="title">店家管理</text>
 
-    <view class="card">
-      <text class="label">门店订单</text>
-      <button class="btn" type="primary" @click="goOrders">查看订单</button>
+    <view class="quick-grid">
+        <view class="quick-item" @click="goVerify">
+          <view class="quick-icon dark">
+            <app-icon name="shield" color="#FFFFFF" :size="24" :stroke-width="2.1" />
+          </view>
+          <text class="quick-text">核验</text>
+        </view>
+        <view class="quick-item" @click="goDashboard">
+          <view class="quick-icon light">
+            <app-icon name="lightbulb" color="#0F172A" :size="24" :stroke-width="2.1" />
+          </view>
+          <text class="quick-text">数据看板</text>
+        </view>
     </view>
 
-    <view class="card">
-      <text class="label">运营看板</text>
-      <button class="btn" type="primary" @click="goDashboard">查看看板</button>
-    </view>
-
-    <view class="card">
-      <text class="label">售后管理</text>
-      <button class="btn" type="primary" @click="goAftersales">处理售后</button>
-    </view>
-
-    <view class="card">
-      <text class="label">门店信息设置</text>
-      <button class="btn" type="primary" @click="goStoreSettings">编辑门店资料</button>
-    </view>
-
-    <view class="card">
-      <view class="label-row">
-        <text class="label">理发师审核</text>
-        <text v-if="pendingBarberCount > 0" class="count-tag">{{ pendingBarberCount }}</text>
+    <view class="section">
+      <text class="section-title">门店管理</text>
+      <view class="menu-card">
+        <view class="menu-item" @click="goStoreSettings">
+          <text class="menu-label">门店信息设置</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="divider"></view>
+        <view class="menu-item" @click="goBarberApprovals">
+          <view class="menu-row">
+            <text class="menu-label">理发师审核</text>
+            <text v-if="pendingBarberCount > 0" class="count-tag">{{ pendingBarberCount }}</text>
+          </view>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="divider"></view>
+        <view class="menu-item" @click="goBarberServices">
+          <text class="menu-label">理发师项目设置</text>
+          <text class="menu-arrow">›</text>
+        </view>
       </view>
-      <button class="btn" type="primary" @click="goBarberApprovals">审核申请</button>
     </view>
 
-    <view class="card">
-      <text class="label">理发师项目设置</text>
-      <button class="btn" type="primary" @click="goBarberServices">配置项目</button>
+    <view class="section">
+      <text class="section-title">订单处理</text>
+      <view class="menu-card">
+        <view class="menu-item" @click="goOrders">
+          <text class="menu-label">订单列表</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="divider"></view>
+        <view class="menu-item" @click="goAftersales">
+          <text class="menu-label">售后管理</text>
+          <text class="menu-arrow">›</text>
+        </view>
+      </view>
     </view>
 
-    <view class="card logout-card">
-      <text class="label">账号</text>
-      <view class="account-actions">
-        <button class="btn" type="default" @click="goAccountSettings">账号设置</button>
-        <button class="btn" type="default" @click="handleLogout">退出登录</button>
+    <view class="section">
+      <view class="menu-card">
+        <view class="menu-item" @click="goAccountSettings">
+          <text class="menu-label">账号设置</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="divider"></view>
+        <view class="menu-item danger" @click="handleLogout">
+          <text class="menu-label danger-text">退出登录</text>
+          <text class="menu-arrow">›</text>
+        </view>
       </view>
     </view>
   </view>
@@ -89,6 +124,9 @@ export default {
     },
     goNotifications() {
       uni.navigateTo({ url: '/pages/user/notifications/index' });
+    },
+    goVerify() {
+      uni.navigateTo({ url: '/pages/admin/verify' });
     },
     // 跳转门店订单
     goOrders() {
@@ -139,8 +177,8 @@ export default {
     },
     // 跳转账号设置（手机号绑定）
     goAccountSettings() {
-      uni.switchTab({
-        url: '/pages/user/settings/index',
+      uni.navigateTo({
+        url: '/pages/account/settings/index',
         fail: () => {
           uni.showToast({
             title: '页面未生效，请重新编译',
@@ -159,26 +197,65 @@ export default {
 </script>
 
 <style scoped lang="scss">
-.page {
+.admin-page {
   min-height: 100vh;
-  /* 顶部留白再下调一点，避免“店家管理”与返回按钮挤在一起 */
-  padding: 96rpx 30rpx 30rpx;
-  background-color: $uni-bg-color-grey;
+  padding: 108rpx 20rpx 30rpx;
+  background: #f8fafc;
 }
 
-.page-actions {
+.hero {
+  background: #0f172a;
+  border-radius: 30rpx;
+  padding: 26rpx;
+  color: #ffffff;
+  box-shadow: 0 18rpx 36rpx rgba(15, 23, 42, 0.26);
+}
+
+.hero-top {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.hero-kicker {
+  display: block;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 22rpx;
+}
+
+.hero-title {
+  display: block;
   margin-top: 8rpx;
-  margin-bottom: 6rpx;
+  font-size: 38rpx;
+  font-weight: 700;
+}
+
+.hero-stats {
+  border-top: 1rpx solid rgba(255, 255, 255, 0.14);
+  padding-top: 14rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.hero-label {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.hero-value {
+  font-size: 44rpx;
+  line-height: 1;
+  font-weight: 800;
 }
 
 .notify-btn {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 36rpx;
-  background: #ffffff;
-  box-shadow: 0 6rpx 16rpx rgba(15, 23, 42, 0.12);
+  width: 66rpx;
+  height: 66rpx;
+  border-radius: 33rpx;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1rpx solid rgba(255, 255, 255, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -191,46 +268,104 @@ export default {
 
 .notify-dot {
   position: absolute;
-  top: 12rpx;
-  right: 12rpx;
+  top: 10rpx;
+  right: 10rpx;
   width: 14rpx;
   height: 14rpx;
   border-radius: 7rpx;
   background: #ff4d4f;
 }
 
-.title {
-  font-size: 48rpx;
-  font-weight: 700;
-  color: $uni-color-primary;
-  margin-bottom: 24rpx;
-  padding-left: 6rpx;
+.quick-grid {
+  margin-top: 16rpx;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12rpx;
 }
 
-.card {
+.quick-item {
   background: #ffffff;
-  border-radius: $uni-border-radius-lg;
-  padding: 28rpx;
-  box-shadow: $uni-shadow-base;
-  margin-bottom: 20rpx;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 22rpx;
+  padding: 24rpx 20rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
 }
 
-.label {
+.quick-icon {
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 38rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick-icon.dark {
+  background: #0f172a;
+}
+
+.quick-icon.light {
+  background: #f1f5f9;
+}
+
+.quick-text {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.section {
+  margin-top: 18rpx;
+}
+
+.section-title {
   display: block;
-  font-size: $uni-font-size-sm;
-  color: $uni-text-color-grey;
-  margin-bottom: 12rpx;
+  font-size: 24rpx;
+  color: #0f172a;
+  font-weight: 700;
+  margin: 0 8rpx 12rpx;
 }
 
-.label-row {
+.menu-card {
+  background: #ffffff;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 22rpx;
+  overflow: hidden;
+}
+
+.menu-item {
+  min-height: 90rpx;
+  padding: 0 20rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12rpx;
 }
 
-.label-row .label {
-  margin-bottom: 0;
+.menu-row {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.menu-label {
+  font-size: 25rpx;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.menu-arrow {
+  font-size: 36rpx;
+  color: #cbd5e1;
+}
+
+.divider {
+  margin-left: 20rpx;
+  margin-right: 20rpx;
+  height: 1rpx;
+  background: #f1f5f9;
 }
 
 .count-tag {
@@ -243,24 +378,11 @@ export default {
   justify-content: center;
   background: #ff4d4f;
   color: #ffffff;
-  font-size: 24rpx;
-  font-weight: 600;
+  font-size: 21rpx;
+  font-weight: 700;
 }
 
-.btn {
-  width: 100%;
-  height: 88rpx;
-  line-height: 88rpx;
-  border-radius: 44rpx;
-  font-size: $uni-font-size-base;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.account-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
+.danger-text {
+  color: #ef4444;
 }
 </style>
