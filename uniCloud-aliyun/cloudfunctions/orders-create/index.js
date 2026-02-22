@@ -129,7 +129,7 @@ exports.main = withResponse(async (event, context) => {
     serviceId,
     storeName: (store && store.name) || '',
     serviceName: service.name || '',
-    barberName: barber.name || barber.username || '',
+    barberName: barber.username || barber.name || '',
     price: Number(service.price || 0),
     date,
     startTime,

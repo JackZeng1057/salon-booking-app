@@ -154,7 +154,8 @@ exports.main = withResponse(async (event, context) => {
     finalRole = 'user';
     pendingRole = 'barber';
     approvalStatus = 'PENDING';
-    displayName = `${store.name || safeStoreName}_${username}`;
+    // 理发师昵称统一与账号名保持一致，避免“账号名可改但师傅名不同步”
+    displayName = username;
   }
 
   // admin 限制同一门店只能有一个管理员
@@ -181,7 +182,7 @@ exports.main = withResponse(async (event, context) => {
     storeId: storeId || '',
     pendingRole,
     approvalStatus,
-    // 统一昵称策略：admin=门店名；barber=门店名_理发师名；user=用户名
+    // 统一昵称策略：admin=门店名；barber/user=用户名
     name: displayName,
     avatar: '',
     // 保存创建时间戳

@@ -1,13 +1,5 @@
 <template>
-  <view class="gate-page">
-    <!-- 自定义顶部导航占位：去掉原生白色导航栏（此页通常不需要返回按钮） -->
-    <app-nav />
-    <view class="content">
-      <!-- 简单的加载动效 -->
-      <view class="spinner"></view>
-      <text class="loading-text">{{ statusText }}</text>
-    </view>
-  </view>
+  <view class="gate-page"></view>
 </template>
 
 <script>
@@ -18,13 +10,8 @@ import { me } from '../../api/auth';
 import { authStore } from '../../store/auth';
 
 export default {
-  data() {
-    return {
-      statusText: '正在验证登录状态...' // 验证会话中...
-    };
-  },
   onLoad() {
-    // 页面加载即检查登录态
+    // 作为纯路由网关页：不展示加载 UI，进入即分发
     this.bootstrap();
   },
   methods: {
@@ -35,35 +22,19 @@ export default {
      * 3. 根据角色跳转
      */
     async bootstrap() {
-      // 检查令牌
       if (!authStore.state.token) {
-        // 无令牌，直接去登录
-        this.statusText = '即将跳转登录...';
-        setTimeout(() => {
-           uni.reLaunch({ url: '/pages/auth/login' });
-        }, 300); // 稍微延迟一点避免闪屏太快
+        uni.reLaunch({ url: '/pages/auth/login' });
         return;
       }
 
       try {
-        this.statusText = '正在获取用户信息...';
         const user = await me();
         authStore.setUser(user);
-        
-        this.statusText = `欢迎回来, ${user.nickname || user.username}`;
-        
-        // 延迟跳转体验更好
-        setTimeout(() => {
-            this.redirectByRole(user.role);
-        }, 500);
-        
+        this.redirectByRole(user && user.role);
       } catch (err) {
         console.error('Bootstrap error', err);
         authStore.clear();
-        this.statusText = '会话已过期，请重新登录';
-        setTimeout(() => {
-           uni.reLaunch({ url: '/pages/auth/login' });
-        }, 1000);
+        uni.reLaunch({ url: '/pages/auth/login' });
       }
     },
     
@@ -87,35 +58,6 @@ export default {
 <style scoped lang="scss">
 .gate-page {
   height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   background-color: #ffffff;
-}
-
-.content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.spinner {
-  width: 60rpx;
-  height: 60rpx;
-  border: 6rpx solid $uni-bg-color-grey;
-  border-top: 6rpx solid $uni-color-primary; /* 使用主题色 */
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 30rpx;
-}
-
-.loading-text {
-  color: $uni-text-color-grey;
-  font-size: $uni-font-size-base;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
 }
 </style>

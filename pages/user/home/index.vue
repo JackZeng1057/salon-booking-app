@@ -118,7 +118,7 @@
 import { authStore } from '../../../store/auth';
 import { getUnreadCount } from '../../../api/notifications';
 import { fetchStores } from '../../../api/store';
-import { syncCriticalSystemNotifications } from '../../../utils/system-notify';
+import { syncCriticalSystemNotifications, maybePromptNotificationPermissionOnFirstLogin } from '../../../utils/system-notify';
 import BottomTabBar from '../../../components/bottom-tab-bar/bottom-tab-bar.vue';
 
 /**
@@ -177,6 +177,9 @@ export default {
   },
   onShow() {
     this.hideNativeTabBar();
+    setTimeout(() => {
+      maybePromptNotificationPermissionOnFirstLogin();
+    }, 350);
     setTimeout(() => {
       syncCriticalSystemNotifications({ force: true });
     }, 600);
@@ -320,6 +323,7 @@ export default {
     },
     // 跳转消息中心
     goNotifications() {
+      syncCriticalSystemNotifications({ force: true });
       uni.navigateTo({ url: '/pages/user/notifications/index' });
     },
     // 跳转“我的”设置页

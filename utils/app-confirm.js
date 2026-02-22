@@ -8,9 +8,6 @@
 let seed = 0;
 // 以 confirmId 为键缓存 Promise 的 resolve，用于在用户点击后回填结果
 const resolverMap = Object.create(null);
-// Host 异常时的兜底超时，避免调用方 Promise 永久挂起
-const OPEN_TIMEOUT_MS = 1200;
-
 // 生成本次确认弹窗的唯一标识
 function nextId() {
   seed += 1;
@@ -22,12 +19,6 @@ export function openAppConfirm(options = {}) {
   const id = nextId();
   return new Promise((resolve) => {
     resolverMap[id] = resolve;
-    // 兜底：若 Host 未正确挂载/未回调，超时后自动结束本次确认
-    setTimeout(() => {
-      if (typeof resolverMap[id] !== 'function') return;
-      delete resolverMap[id];
-      resolve(null);
-    }, OPEN_TIMEOUT_MS);
     // 下一个事件循环触发，避免与当前渲染周期冲突
     setTimeout(() => {
       uni.$emit('app:confirm:open', {

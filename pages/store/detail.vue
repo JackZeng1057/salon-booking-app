@@ -51,7 +51,7 @@
           </view>
         </view>
 
-        <view class="contact-card" :class="{ disabled: !getStorePhone() }" @click="callStore">
+        <view class="contact-card" :class="{ disabled: !getStorePhone() }" @tap="callStore" @click="callStore">
           <view class="stat-icon stat-icon-violet">
             <app-icon name="phone" color="#7C3AED" :size="22" :stroke-width="2.1" />
           </view>
@@ -59,7 +59,7 @@
             <text class="contact-label">联系电话</text>
             <text class="contact-value">{{ getStorePhone() || '门店暂未设置电话' }}</text>
           </view>
-          <text class="contact-action">{{ getStorePhone() ? '拨打' : '' }}</text>
+          <text class="contact-action" @tap.stop="callStore" @click.stop="callStore">{{ getStorePhone() ? '拨打' : '' }}</text>
         </view>
 
         <view class="section">
@@ -97,9 +97,18 @@
               class="barber-card"
               @click="goCreateOrder('')"
             >
-              <image class="barber-avatar" :src="barber.avatar || defaultAvatar" mode="aspectFill" />
+              <image
+                v-if="barber.avatar"
+                class="barber-avatar"
+                :src="barber.avatar"
+                mode="aspectFill"
+                @error="onBarberAvatarError(barber._id)"
+              />
+              <view v-else class="barber-avatar barber-avatar-fallback" :style="getBarberAvatarStyle(barber)">
+                <text class="barber-avatar-text">{{ getBarberAvatarInitial(barber) }}</text>
+              </view>
               <view class="barber-main">
-                <text class="barber-name">{{ barber.name || barber.username || '理发师' }}</text>
+                <text class="barber-name">{{ barber.username || barber.name || '理发师' }}</text>
                 <text class="barber-desc">{{ barber.intro || '擅长剪发/烫染，提供个性化造型建议。' }}</text>
               </view>
               <view class="barber-action">预约</view>
@@ -218,9 +227,7 @@ export default {
       userLng: null,
       // 兜底封面与头像
       defaultCover:
-        'https://images.unsplash.com/photo-1521590832169-dcb6f5465cbf?auto=format&fit=crop&q=80&w=800',
-      defaultAvatar:
-        'https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&q=80&w=200'
+        'https://images.unsplash.com/photo-1521590832169-dcb6f5465cbf?auto=format&fit=crop&q=80&w=800'
     };
   },
   onLoad(options) {
@@ -300,23 +307,123 @@ export default {
       const address = this.store && this.store.address ? String(this.store.address).trim() : '';
       return address || '';
     },
-    // 获取门店电话（去空白）
+    // 获取门店电话（保留常见格式字符，避免座机格式被误伤）
     getStorePhone() {
-      const phone = this.store && this.store.phone ? String(this.store.phone).trim() : '';
-      return phone || '';
+      return this.store && this.store.phone ? String(this.store.phone).trim() : '';
     },
-    // 拨打门店电话
+    // 提取可拨号号码（去除空格/括号/短横线等，仅保留数字与前导 +）
+    getDialablePhone(phone) {
+      return String(phone || '')
+        .replace(/[（）()\s-]/g, '')
+        .replace(/[^+\d]/g, '')
+        .replace(/(?!^)\+/g, '')
+        .trim();
+    },
+    // 号码是否可拨打（支持手机与座机）
+    isValidPhoneNumber(phone) {
+      const dialable = this.getDialablePhone(phone);
+      return /^\+?\d{5,20}$/.test(dialable);
+    },
+    // 打开系统拨号盘（不直接拨出）
     callStore() {
-      const phone = this.getStorePhone();
-      if (!phone) {
+      const displayPhone = this.getStorePhone();
+      const phone = this.getDialablePhone(displayPhone);
+      if (!displayPhone || !phone) {
         uni.showToast({ title: '门店电话未设置', icon: 'none' });
         return;
       }
+      if (!this.isValidPhoneNumber(displayPhone)) {
+        uni.showToast({ title: '门店电话格式有误', icon: 'none' });
+        return;
+      }
+      const telUrl = `tel:${phone}`;
+      // #ifdef APP-PLUS
+      if (typeof plus !== 'undefined' && plus.runtime && plus.runtime.openURL) {
+        plus.runtime.openURL(telUrl, () => {
+          uni.showToast({ title: '打开拨号盘失败，请稍后重试', icon: 'none' });
+        });
+        return;
+      }
+      // #endif
       uni.makePhoneCall({
         phoneNumber: phone,
+        success: () => {
+          // noop: 系统接管拨号后通常无额外反馈
+        },
+        complete: (res) => {
+          if (res && (res.errMsg || '').includes('cancel')) {
+            uni.showToast({ title: '已取消拨号', icon: 'none' });
+          }
+        },
         fail: () => {
-          uni.showToast({ title: '拨号失败，请稍后重试', icon: 'none' });
+          // #ifdef APP-PLUS
+          if (typeof plus !== 'undefined' && plus.runtime && plus.runtime.openURL) {
+            plus.runtime.openURL(telUrl, () => {
+              uni.showToast({ title: '打开拨号盘失败，请稍后重试', icon: 'none' });
+            });
+            return;
+          }
+          // #endif
+          // #ifdef H5
+          if (typeof window !== 'undefined') {
+            window.location.href = telUrl;
+            return;
+          }
+          // #endif
+          uni.showToast({ title: '打开拨号盘失败，请稍后重试', icon: 'none' });
         }
+      });
+    },
+    // 头像字段容错：将 "default/null/undefined" 这类无效值视为空
+    normalizeAvatar(avatar) {
+      const value = String(avatar || '').trim();
+      if (!value) return '';
+      const lowered = value.toLowerCase();
+      if (lowered === 'default' || lowered === 'null' || lowered === 'undefined') {
+        return '';
+      }
+      return value;
+    },
+    // 获取理发师显示名（用于默认头像字母与配色种子）
+    getBarberDisplayName(barber) {
+      return String((barber && (barber.username || barber.name)) || '理发师').trim();
+    },
+    // 默认头像首字
+    getBarberAvatarInitial(barber) {
+      const name = this.getBarberDisplayName(barber);
+      return name.slice(0, 1).toUpperCase();
+    },
+    // 按理发师名称生成稳定颜色，保证“每个理发师默认头像不完全一样”
+    getBarberAvatarStyle(barber) {
+      const name = this.getBarberDisplayName(barber);
+      let hash = 0;
+      for (let i = 0; i < name.length; i += 1) {
+        hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+      }
+      const palettes = [
+        { bg: '#E0E7FF', fg: '#3730A3' },
+        { bg: '#DBEAFE', fg: '#1D4ED8' },
+        { bg: '#D1FAE5', fg: '#047857' },
+        { bg: '#FCE7F3', fg: '#BE185D' },
+        { bg: '#FEF3C7', fg: '#B45309' },
+        { bg: '#E2E8F0', fg: '#334155' }
+      ];
+      const picked = palettes[hash % palettes.length];
+      return {
+        backgroundColor: picked.bg,
+        color: picked.fg
+      };
+    },
+    // 远程头像加载失败时回退到默认头像
+    onBarberAvatarError(barberId) {
+      const id = String(barberId || '');
+      if (!id) return;
+      this.barbers = (this.barbers || []).map((item) => {
+        if (String(item && item._id) !== id) return item;
+        return {
+          ...item,
+          avatar: ''
+        };
       });
     },
     // 复制地址到剪贴板，便于用户在地图 App 内粘贴检索
@@ -370,7 +477,10 @@ export default {
         ]);
         this.store = store || null;
         this.services = Array.isArray(services) ? services : [];
-        this.barbers = Array.isArray(barbers) ? barbers : [];
+        this.barbers = (Array.isArray(barbers) ? barbers : []).map((item) => ({
+          ...item,
+          avatar: this.normalizeAvatar(item && item.avatar)
+        }));
         if (this.userLat && this.userLng) {
           this.calculateDistance();
         }
@@ -781,8 +891,18 @@ export default {
   width: 92rpx;
   height: 92rpx;
   border-radius: 14rpx;
-  background: #f1f5f9;
   flex-shrink: 0;
+}
+
+.barber-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.barber-avatar-text {
+  font-size: 34rpx;
+  font-weight: 700;
 }
 
 .barber-main {

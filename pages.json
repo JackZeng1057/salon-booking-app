@@ -151,6 +151,13 @@
       }
     },
     {
+      "path": "pages/admin/barbers/index",
+      "style": {
+        "navigationBarTitleText": "Barbers",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/admin/store-settings/index",
       "style": {
         "navigationBarTitleText": "Store Settings",

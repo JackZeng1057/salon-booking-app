@@ -258,7 +258,7 @@ export default {
     // 当前理发师名称
     currentBarberName() {
       if (this.barberIndex < 0 || !this.barberOptions[this.barberIndex]) return '当前服务暂无可用理发师';
-      return this.barberOptions[this.barberIndex].name || this.barberOptions[this.barberIndex].username || '未命名理发师';
+      return this.barberOptions[this.barberIndex].username || this.barberOptions[this.barberIndex].name || '未命名理发师';
     }
   },
   onLoad(options) {
@@ -353,7 +353,7 @@ export default {
         const barberList = Array.isArray(barbers)
           ? barbers.map((item) => ({
               ...item,
-              name: item.name || item.username || '理发师',
+              name: item.username || item.name || '理发师',
               serviceIds: Array.isArray(item.serviceIds) ? item.serviceIds : []
             }))
           : [];
@@ -620,7 +620,7 @@ export default {
       this.confirmData = {
         store: store.name || '',
         service: service.name || '',
-        barber: barber.name || barber.username || '',
+        barber: barber.username || barber.name || '',
         time: `${this.date} ${timeText}`,
         remark: String(this.remark || '').trim()
       };

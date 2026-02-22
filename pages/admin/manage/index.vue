@@ -56,6 +56,11 @@
           <text class="menu-arrow">›</text>
         </view>
         <view class="divider"></view>
+        <view class="menu-item" @click="goBarberManage">
+          <text class="menu-label">理发师管理</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="divider"></view>
         <view class="menu-item" @click="goStoreReviews">
           <text class="menu-label">门店评价</text>
           <text class="menu-arrow">›</text>
@@ -102,7 +107,7 @@ import { fetchBarberApplications } from '../../../api/barberApproval';
 import { me } from '../../../api/auth';
 import { fetchStoreDetail } from '../../../api/store';
 import { callCloud } from '../../../api/client';
-import { syncCriticalSystemNotifications } from '../../../utils/system-notify';
+import { syncCriticalSystemNotifications, maybePromptNotificationPermissionOnFirstLogin } from '../../../utils/system-notify';
 
 // Date -> YYYY-MM-DD（用于查询“今日待处理订单”）
 function toDateString(date) {
@@ -133,6 +138,9 @@ export default {
     };
   },
   onShow() {
+    setTimeout(() => {
+      maybePromptNotificationPermissionOnFirstLogin();
+    }, 350);
     setTimeout(() => {
       syncCriticalSystemNotifications({ force: true });
     }, 600);
@@ -225,6 +233,7 @@ export default {
     },
     // 跳转消息列表
     goNotifications() {
+      syncCriticalSystemNotifications({ force: true });
       uni.navigateTo({ url: '/pages/user/notifications/index' });
     },
     // 跳转核验页
@@ -270,6 +279,17 @@ export default {
     goBarberServices() {
       uni.navigateTo({
         url: '/pages/admin/barber-services/index',
+        fail: () => {
+          uni.showToast({
+            title: '页面未生效，请重新编译',
+            icon: 'none'
+          });
+        }
+      });
+    },
+    goBarberManage() {
+      uni.navigateTo({
+        url: '/pages/admin/barbers/index',
         fail: () => {
           uni.showToast({
             title: '页面未生效，请重新编译',

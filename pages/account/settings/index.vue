@@ -69,9 +69,9 @@ export default {
       const role = String((this.user && this.user.role) || authStore.state.role || '').toLowerCase();
       return role === 'barber';
     },
-    // 优先展示昵称，其次账号名
+    // 理发师端顶部昵称与“用户名”保持一致
     displayName() {
-      return this.user.name || this.user.username || '';
+      return this.user.username || this.user.name || '';
     },
     // 手机号脱敏显示
     phoneMasked() {

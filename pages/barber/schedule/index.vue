@@ -5,7 +5,14 @@
     <view class="hero-card">
       <view class="hero-head">
         <view class="hero-user">
-          <view class="avatar">{{ barberInitial }}</view>
+          <image
+            v-if="barberAvatar"
+            class="avatar avatar-image"
+            :src="barberAvatar"
+            mode="aspectFill"
+            @error="handleHeaderAvatarError"
+          />
+          <view v-else class="avatar avatar-fallback" :style="barberAvatarStyle">{{ barberInitial }}</view>
           <view class="hero-text">
             <text class="hero-name">{{ barberName }}</text>
             <text class="hero-store">{{ storeName }}</text>
@@ -131,7 +138,7 @@ import { fetchStoreServices, fetchStoreDetail } from '../../../api/store';
 import { me } from '../../../api/auth';
 import { getUnreadCount } from '../../../api/notifications';
 import { authStore } from '../../../store/auth';
-import { syncCriticalSystemNotifications } from '../../../utils/system-notify';
+import { syncCriticalSystemNotifications, maybePromptNotificationPermissionOnFirstLogin } from '../../../utils/system-notify';
 
 // 日期格式化为 YYYY-MM-DD（用于选择器回显与接口入参）
 function toDateString(date) {
@@ -191,10 +198,37 @@ export default {
   },
   computed: {
     barberName() {
-      return this.currentUser.name || this.currentUser.username || '理发师';
+      return this.currentUser.username || this.currentUser.name || '理发师';
     },
     barberInitial() {
       return String(this.barberName || 'B').slice(0, 1).toUpperCase();
+    },
+    barberAvatar() {
+      const value = String((this.currentUser && this.currentUser.avatar) || '').trim();
+      if (!value) return '';
+      const lowered = value.toLowerCase();
+      if (lowered === 'default' || lowered === 'null' || lowered === 'undefined') return '';
+      return value;
+    },
+    barberAvatarStyle() {
+      const seed = this.barberName || '';
+      let hash = 0;
+      for (let i = 0; i < seed.length; i += 1) {
+        hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+      }
+      const palettes = [
+        { bg: '#E0E7FF', fg: '#3730A3' },
+        { bg: '#DBEAFE', fg: '#1D4ED8' },
+        { bg: '#D1FAE5', fg: '#047857' },
+        { bg: '#FCE7F3', fg: '#BE185D' },
+        { bg: '#FEF3C7', fg: '#B45309' },
+        { bg: '#0F172A', fg: '#FFFFFF' }
+      ];
+      const picked = palettes[hash % palettes.length];
+      return {
+        backgroundColor: picked.bg,
+        color: picked.fg
+      };
     },
     storeName() {
       return this.currentUser.storeName || this.currentUser.storeId || '';
@@ -214,6 +248,9 @@ export default {
   },
   onShow() {
     setTimeout(() => {
+      maybePromptNotificationPermissionOnFirstLogin();
+    }, 350);
+    setTimeout(() => {
       syncCriticalSystemNotifications({ force: true });
     }, 600);
     this.loadCurrentUser();
@@ -221,6 +258,12 @@ export default {
     this.loadPreviewSlots();
   },
   methods: {
+    handleHeaderAvatarError() {
+      this.currentUser = {
+        ...(this.currentUser || {}),
+        avatar: ''
+      };
+    },
     // 若用户信息缺少 storeName，则按 storeId 主动补齐，避免页面显示“门店ID”。
     async resolveStoreName(user) {
       if (!user) return;
@@ -263,6 +306,7 @@ export default {
       }
     },
     goNotifications() {
+      syncCriticalSystemNotifications({ force: true });
       uni.navigateTo({ url: '/pages/user/notifications/index' });
     },
     // 日期选择变更
@@ -567,13 +611,21 @@ export default {
   width: 72rpx;
   height: 72rpx;
   border-radius: 36rpx;
-  background: #0f172a;
-  color: #ffffff;
   font-weight: 700;
   font-size: 30rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+
+.avatar-image {
+  background: #e2e8f0;
+}
+
+.avatar-fallback {
+  background: #0f172a;
+  color: #ffffff;
 }
 
 .hero-text {

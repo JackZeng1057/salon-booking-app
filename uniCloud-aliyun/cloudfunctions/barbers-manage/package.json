@@ -1,0 +1,8 @@
+{
+  "name": "barbers-manage",
+  "dependencies": {
+    "sb-common": "file:../common/sb-common"
+  },
+  "extensions": {}
+}
+

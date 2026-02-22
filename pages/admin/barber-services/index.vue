@@ -15,7 +15,7 @@
           <view class="identity">
             <image class="avatar" :src="barber.avatar || defaultAvatar" mode="aspectFill" />
             <view class="meta">
-              <text class="name">{{ barber.name || barber.username || '理发师' }}</text>
+              <text class="name">{{ barber.username || barber.name || '理发师' }}</text>
               <text class="sub">账号：{{ barber.username || '-' }}</text>
             </view>
           </view>

@@ -38,8 +38,8 @@ exports.main = withResponse(async (event, context) => {
     if (existed && existed._id !== userId) {
       throw new ApiError(409, 'username already exists');
     }
-    // 用户名可修改，但昵称按角色规则生成：
-    // admin 昵称默认=门店名；barber 昵称默认=门店名_账号名；普通用户昵称=账号名。
+    // 用户名可修改，昵称策略：
+    // admin 昵称默认=门店名；barber/普通用户昵称=账号名。
     updateData.username = username;
     if (user.role === 'admin' || user.role === 'barber') {
       const storeId = user.storeId || '';
@@ -52,7 +52,7 @@ exports.main = withResponse(async (event, context) => {
       if (user.role === 'admin') {
         updateData.name = storeName || username;
       } else {
-        updateData.name = storeName ? `${storeName}_${username}` : username;
+        updateData.name = username;
       }
     } else {
       updateData.name = username;
