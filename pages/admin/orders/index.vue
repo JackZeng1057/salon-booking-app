@@ -62,9 +62,8 @@
                   <text class="meta">预约时间：{{ order.date }} {{ order.startTime }}-{{ order.endTime }}</text>
                   <text class="meta">理发师：{{ order.barberName || order.barberId || '未知' }}</text>
                 </view>
-                <view v-if="waitHint(order)" class="row">
-                  <text class="label">等待提示</text>
-                  <text class="value">{{ waitHint(order) }}</text>
+                <view v-if="waitHint(order)" class="order-queue">
+                  <text class="meta">{{ waitHint(order) }}</text>
                 </view>
                 <view class="order-foot">
                   <text class="foot-text">订单号：{{ order.orderNo || order._id }}</text>
@@ -75,7 +74,7 @@
                     type="primary"
                     :loading="isActionLoading(order._id, 'start')"
                     :disabled="!canStart(order.status) || isActionLoading(order._id, 'start')"
-                    @click="openVerifyModal(order._id)"
+                    @click="handleStartAction(order)"
                   >
                     开始服务
                   </button>
@@ -227,6 +226,15 @@ export default {
   },
   methods: {
     formatOrderStatus,
+    async handleStartAction(order) {
+      if (!order || !order._id) return;
+      const status = this.normalizeStatus(order.status);
+      if (status === 'ARRIVED') {
+        await this.handleStart(order._id);
+        return;
+      }
+      this.openVerifyModal(order._id);
+    },
     // 打开核验弹窗并记录当前订单
     openVerifyModal(orderId) {
       this.pendingStartOrderId = orderId;
@@ -347,22 +355,76 @@ export default {
         uni.showToast({ title: err.message || '删除失败', icon: 'none' });
       }
     },
-    // 计算等待提示：仅 ARRIVED 且同理发师订单参与排队
+    parseTimeToMinutes(text) {
+      const m = String(text || '').match(/^(\d{2}):(\d{2})$/);
+      if (!m) return NaN;
+      const hh = Number(m[1]);
+      const mm = Number(m[2]);
+      if (!Number.isFinite(hh) || !Number.isFinite(mm)) return NaN;
+      return hh * 60 + mm;
+    },
+    estimateOrderDurationMin(order) {
+      const start = this.parseTimeToMinutes(order && order.startTime);
+      const end = this.parseTimeToMinutes(order && order.endTime);
+      if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+        return end - start;
+      }
+      // 兜底 45 分钟
+      return 45;
+    },
+    getRemainingServiceMin(order) {
+      const duration = this.estimateOrderDurationMin(order);
+      const inServiceAt = Number(order && order.inServiceAt);
+      if (!Number.isFinite(inServiceAt) || inServiceAt <= 0) return duration;
+      const elapsed = Math.floor((Date.now() - inServiceAt) / (60 * 1000));
+      return Math.max(duration - elapsed, 5);
+    },
+    // 计算排队信息：仅 ARRIVED 订单显示“前方人数 + 预计等待分钟”
+    queueSnapshot(order) {
+      const status = this.normalizeStatus(order && order.status);
+      const barberId = order && order.barberId;
+      if (status !== 'ARRIVED' || !barberId) return null;
+
+      const queue = (this.orders || [])
+        .filter((o) => {
+          const s = this.normalizeStatus(o && o.status);
+          return o && o.barberId === barberId && (s === 'ARRIVED' || s === 'IN_SERVICE');
+        })
+        .sort((a, b) => {
+          const sa = this.normalizeStatus(a && a.status);
+          const sb = this.normalizeStatus(b && b.status);
+          if (sa !== sb) return sa === 'IN_SERVICE' ? -1 : 1;
+          const aa = Number(a && a.arrivedAt);
+          const bb = Number(b && b.arrivedAt);
+          if (Number.isFinite(aa) && Number.isFinite(bb) && aa !== bb) return aa - bb;
+          return String((a && a.startTime) || '').localeCompare(String((b && b.startTime) || ''));
+        });
+
+      const idx = queue.findIndex((o) => o && o._id === order._id);
+      if (idx <= 0) return { aheadCount: 0, waitMinutes: 0 };
+
+      const aheadOrders = queue.slice(0, idx);
+      const waitMinutes = aheadOrders.reduce((sum, item) => {
+        const s = this.normalizeStatus(item && item.status);
+        if (s === 'IN_SERVICE') return sum + this.getRemainingServiceMin(item);
+        return sum + this.estimateOrderDurationMin(item);
+      }, 0);
+      return { aheadCount: idx, waitMinutes };
+    },
     waitHint(order) {
-      const status = this.normalizeStatus(order.status);
-      if (status !== 'ARRIVED') return '';
-      const barberId = order.barberId;
-      if (!barberId) return '';
-      const arrived = this.orders
-        .filter((o) => this.normalizeStatus(o.status) === 'ARRIVED' && o.barberId === barberId)
-        .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
-      const index = arrived.findIndex((o) => o._id === order._id);
-      if (index <= 0) return '预计等待：前方 0 人';
-      return `预计等待：前方 ${index} 人`;
+      const aheadCount = Number(order && order.queueAheadCount);
+      const waitMin = Number(order && order.queueWaitMin);
+      if (Number.isFinite(aheadCount) && Number.isFinite(waitMin)) {
+        if (this.normalizeStatus(order && order.status) !== 'ARRIVED') return '';
+        return `预计等待：前方 ${Math.max(aheadCount, 0)} 人，约 ${Math.max(waitMin, 0)} 分钟`;
+      }
+      const snapshot = this.queueSnapshot(order);
+      if (!snapshot) return '';
+      return `预计等待：前方 ${snapshot.aheadCount} 人，约 ${snapshot.waitMinutes} 分钟`;
     },
     canStart(status) {
       const s = this.normalizeStatus(status);
-      return s === 'ARRIVED' || s === 'BOOKED';
+      return s === 'ARRIVED';
     },
     canFinish(status) {
       const s = this.normalizeStatus(status);
@@ -454,8 +516,10 @@ export default {
       if (this.isActionLoading(orderId, 'start')) return;
       this.setActionLoading(orderId, 'start', true);
       try {
-        // 先核验到店，再进入开始服务流程
-        await callCloud('orders-verify', { verifyCode });
+        if (verifyCode) {
+          // 仅在传入核验码时执行到店核验（BOOKED -> ARRIVED）
+          await callCloud('orders-verify', { verifyCode });
+        }
         const res = await startService({ orderId });
         const order = res && res.order;
         if (order) {
@@ -828,16 +892,8 @@ export default {
   color: #94a3b8;
 }
 
-.row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12rpx;
-}
-
-.value {
-  color: $uni-text-color;
-  font-size: 24rpx;
+.order-queue {
+  margin-top: 6rpx;
 }
 
 .actions {

@@ -1,4 +1,10 @@
-const { withResponse, requireRole, autoCancelOverdueBookedOrders } = require('sb-common');
+const {
+  withResponse,
+  requireRole,
+  autoCancelOverdueBookedOrders,
+  buildQueueHintMap,
+  attachQueueHints
+} = require('sb-common');
 
 // 获取当前用户的订单列表（支持状态筛选与分页）
 // - 逻辑删除的订单不返回
@@ -49,6 +55,8 @@ exports.main = withResponse(async (event, context) => {
       startTime: true,
       endTime: true,
       status: true,
+      arrivedAt: true,
+      inServiceAt: true,
       verifyCode: true,
       createdAt: true,
       updatedAt: true
@@ -58,7 +66,9 @@ exports.main = withResponse(async (event, context) => {
     .limit(lastSyncAt > 0 ? Math.min(limit, 50) : safeSize)
     .get();
 
-  const orders = orderRes.data || [];
+  const rawOrders = orderRes.data || [];
+  const queueHintMap = await buildQueueHintMap(db, rawOrders);
+  const orders = attachQueueHints(rawOrders, queueHintMap);
 
   const latestSyncAt = orders.reduce((max, item) => Math.max(max, Number(item.updatedAt || 0)), lastSyncAt || 0);
   return {

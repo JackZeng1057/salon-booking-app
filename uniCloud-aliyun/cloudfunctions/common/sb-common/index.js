@@ -10,6 +10,7 @@ const chinaTime = require('./chinaTime');
 const reviewStats = require('./reviewStats');
 const password = require('./password');
 const barberServices = require('./barberServices');
+const queue = require('./queue');
 
 module.exports = {
   ...response,
@@ -22,5 +23,6 @@ module.exports = {
   ...chinaTime,
   ...reviewStats,
   ...password,
-  ...barberServices
+  ...barberServices,
+  ...queue
 };

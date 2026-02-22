@@ -58,6 +58,9 @@
                   <text class="meta">预约时间：{{ order.date }} {{ order.startTime }}-{{ order.endTime }}</text>
                   <text class="meta">理发师：{{ order.barberName || order.barberId || '未知' }}</text>
                 </view>
+                <view v-if="waitHint(order)" class="order-queue">
+                  <text class="meta">{{ waitHint(order) }}</text>
+                </view>
 
                 <view class="order-foot">
                   <text class="foot-text">订单号：{{ order.orderNo }}</text>
@@ -180,6 +183,14 @@ export default {
         return 'is-cancelled';
       }
       return 'is-default';
+    },
+    waitHint(order) {
+      const status = this.normalizeStatus(order && order.status);
+      if (status !== 'ARRIVED') return '';
+      const ahead = Number(order && order.queueAheadCount);
+      const waitMin = Number(order && order.queueWaitMin);
+      if (!Number.isFinite(ahead) || !Number.isFinite(waitMin)) return '';
+      return `当前等位：前方 ${Math.max(ahead, 0)} 人，预计等待约 ${Math.max(waitMin, 0)} 分钟`;
     },
     canSwipeDelete(order) {
       const status = this.normalizeStatus(order && order.status);
@@ -564,6 +575,10 @@ export default {
   display: block;
   font-size: 22rpx;
   color: #64748b;
+}
+
+.order-queue {
+  margin-top: 6rpx;
 }
 
 .order-foot {

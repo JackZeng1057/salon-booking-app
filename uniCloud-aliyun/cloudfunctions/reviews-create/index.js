@@ -76,6 +76,12 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(ERROR_CODES.CONFLICT, 'review_exists');
   }
 
+  const safeImages = normalizeImages(images);
+  const invalidImages = safeImages.filter((item) => !isSupportedImageRef(item));
+  if (invalidImages.length > 0) {
+    throw new ApiError(400, 'images must be cloud file id or http(s) url');
+  }
+
   const now = Date.now();
   const reviewData = {
     orderId,
@@ -103,8 +109,3 @@ exports.main = withResponse(async (event, context) => {
 
   return { id: reviewId };
 });
-  const safeImages = normalizeImages(images);
-  const invalidImages = safeImages.filter((item) => !isSupportedImageRef(item));
-  if (invalidImages.length > 0) {
-    throw new ApiError(400, 'images must be cloud file id or http(s) url');
-  }

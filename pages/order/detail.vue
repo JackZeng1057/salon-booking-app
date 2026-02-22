@@ -29,6 +29,10 @@
         <text class="label">状态</text>
         <text class="value">{{ formatOrderStatus(detail.order.status) }}</text>
       </view>
+      <view v-if="queueHintText" class="row">
+        <text class="label">等待提示</text>
+        <text class="value">{{ queueHintText }}</text>
+      </view>
       <view class="row">
         <text class="label">核验码</text>
         <text class="value code">{{ detail.order.verifyCode }}</text>
@@ -218,6 +222,15 @@ export default {
       if (!this.detail || !this.detail.order) return '';
       const { barberName, barberId } = this.detail.order;
       return barberName || this.barberMap[barberId] || barberId || '';
+    },
+    queueHintText() {
+      if (!this.detail || !this.detail.order) return '';
+      const order = this.detail.order;
+      if (this.normalizeStatus(order.status) !== 'ARRIVED') return '';
+      const ahead = Number(order.queueAheadCount);
+      const waitMin = Number(order.queueWaitMin);
+      if (!Number.isFinite(ahead) || !Number.isFinite(waitMin)) return '';
+      return `前方 ${Math.max(ahead, 0)} 人，预计等待约 ${Math.max(waitMin, 0)} 分钟`;
     }
   },
   onLoad(options) {

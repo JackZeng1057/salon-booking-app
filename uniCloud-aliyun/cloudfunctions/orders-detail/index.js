@@ -1,4 +1,12 @@
-const { withResponse, ApiError, ERROR_CODES, requireLogin, autoCancelOverdueBookedOrders } = require('sb-common');
+const {
+  withResponse,
+  ApiError,
+  ERROR_CODES,
+  requireLogin,
+  autoCancelOverdueBookedOrders,
+  buildQueueHintMap,
+  attachQueueHints
+} = require('sb-common');
 
 // 获取订单详情：包含快照字段并做权限校验
 exports.main = withResponse(async (event, context) => {
@@ -23,6 +31,8 @@ exports.main = withResponse(async (event, context) => {
     startTime: true,
     endTime: true,
     status: true,
+    arrivedAt: true,
+    inServiceAt: true,
     verifyCode: true,
     remark: true
   };
@@ -66,7 +76,11 @@ exports.main = withResponse(async (event, context) => {
     .get();
   const latestOrder = latestRes.data && latestRes.data[0];
 
+  const finalOrder = latestOrder || order;
+  const queueHintMap = await buildQueueHintMap(db, finalOrder ? [finalOrder] : []);
+  const enriched = attachQueueHints(finalOrder ? [finalOrder] : [], queueHintMap);
+
   return {
-    order: latestOrder || order
+    order: enriched[0] || finalOrder
   };
 });

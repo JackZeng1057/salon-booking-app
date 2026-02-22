@@ -1,4 +1,11 @@
-const { withResponse, ApiError, requireRole, autoCancelOverdueBookedOrders } = require('sb-common');
+const {
+  withResponse,
+  ApiError,
+  requireRole,
+  autoCancelOverdueBookedOrders,
+  buildQueueHintMap,
+  attachQueueHints
+} = require('sb-common');
 
 // 门店查看当天订单
 // - 只返回本店指定日期订单
@@ -47,6 +54,8 @@ exports.main = withResponse(async (event, context) => {
       barberId: true,
       barberName: true,
       status: true,
+      arrivedAt: true,
+      inServiceAt: true,
       orderNo: true,
       verifyCode: true,
       updatedAt: true
@@ -56,7 +65,9 @@ exports.main = withResponse(async (event, context) => {
     .limit(lastSyncAt > 0 ? Math.min(limit, 100) : safeSize)
     .get();
 
-  const list = res.data || [];
+  const rawList = res.data || [];
+  const queueHintMap = await buildQueueHintMap(db, rawList);
+  const list = attachQueueHints(rawList, queueHintMap);
   const latestSyncAt = list.reduce((max, item) => Math.max(max, Number(item.updatedAt || 0)), lastSyncAt || 0);
   return {
     list,

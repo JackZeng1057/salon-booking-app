@@ -1,6 +1,6 @@
 const { withResponse, ApiError, ERROR_CODES, requireRole, logAudit, logOrderEvent } = require('sb-common');
 
-// 开始服务（ARRIVED -> IN_SERVICE）：支持门店核验后的直达路径
+// 开始服务（ARRIVED -> IN_SERVICE）
 exports.main = withResponse(async (event, context) => {
   const requestId = (context && (context.requestId || context.eventId || context.traceId)) || '';
   const operator = await requireRole(['barber', 'admin'], event, context);
@@ -46,48 +46,6 @@ exports.main = withResponse(async (event, context) => {
   const nowTs = now;
   try {
     if (order.status !== 'ARRIVED') {
-      if (role === 'admin' && order.status === 'BOOKED') {
-        const arrivedAt = order.arrivedAt || nowTs;
-        const verifiedBy = order.verifiedBy || operatorId;
-        await db.collection('orders').doc(orderId).update({
-          status: 'IN_SERVICE',
-          arrivedAt,
-          verifiedBy,
-          inServiceAt: nowTs,
-          updatedAt: nowTs
-        });
-
-        await logOrderEvent(db, {
-          orderId,
-          fromStatus: order.status,
-          toStatus: 'IN_SERVICE',
-          opUserId: operatorId,
-          role,
-          ts: nowTs,
-          remark: 'start_service'
-        });
-
-        await logAudit(db, {
-          actorId: operatorId,
-          role,
-          action: 'start',
-          orderId,
-          time: nowTs,
-          result: 'success',
-          requestId
-        });
-
-        return {
-          order: {
-            ...order,
-            status: 'IN_SERVICE',
-            arrivedAt,
-            verifiedBy,
-            inServiceAt: nowTs,
-            updatedAt: nowTs
-          }
-        };
-      }
       throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'status_not_allowed');
     }
 
