@@ -12,6 +12,7 @@ const {
   isAlignedToSlotStep,
   buildRequiredSlotStartTimes,
   ensureSlotTimesWithinSchedule,
+  ensureSlotTimesWithinBusinessHours,
   ensureSlotDocsExist,
   lockSlotTimesForOrder
 } = require('sb-common');
@@ -91,6 +92,7 @@ function mapRescheduleFailMessage(errorCode) {
     booking_window_closed: '目标时段距离开始不足5分钟，已停止预约。',
     time_expired: '目标时段已过期，请重新选择。',
     outside_schedule: '目标时段不在排班内，请更换时间。',
+    outside_business_hours: '目标时段不在门店营业时间内，请更换时间。',
     slot_conflict: '目标时段已被占用，请重新选择。'
   };
   return map[errorCode] || '改期未成功，请稍后重试。';
@@ -268,6 +270,7 @@ exports.main = withResponse(async (event, context) => {
   const newSlotTimes = buildRequiredSlotStartTimes(newStartTime, durationMin);
   try {
     await ensureSlotTimesWithinSchedule(db, order.barberId, newDate, newSlotTimes);
+    await ensureSlotTimesWithinBusinessHours(db, order.storeId, newDate, newSlotTimes);
     await ensureSlotDocsExist(db, {
       storeId: order.storeId || '',
       barberId: order.barberId,

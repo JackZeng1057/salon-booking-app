@@ -11,10 +11,9 @@
 	"indexes": [
 		{
 			"key": {
-				"storeId": 1,
-				"createdAt": -1
+				"storeId": 1
 			},
-			"name": "store_createdAt"
+			"name": "idx_services_store"
 		}
 	],
 	"properties": {

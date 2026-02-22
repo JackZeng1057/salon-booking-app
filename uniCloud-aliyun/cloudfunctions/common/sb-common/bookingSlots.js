@@ -41,6 +41,32 @@ function minutesToTime(minutes) {
   return `${hh}:${mm}`;
 }
 
+// 解析门店营业时间区间文本（HH:mm-HH:mm）
+function parseBusinessRange(rangeText) {
+  const text = String(rangeText || '').trim();
+  const matched = text.match(/^(\d{2}:\d{2})\s*[-~到至]\s*(\d{2}:\d{2})$/);
+  if (!matched) return null;
+  const startMin = timeToMinutes(matched[1]);
+  const endMin = timeToMinutes(matched[2]);
+  if (Number.isNaN(startMin) || Number.isNaN(endMin) || startMin >= endMin) return null;
+  return { startMin, endMin };
+}
+
+// 按日期取门店营业窗口（工作日/周末）
+async function resolveStoreBusinessWindow(db, storeId, date) {
+  if (!storeId || !date) return null;
+  const storeRes = await db
+    .collection('stores')
+    .doc(storeId)
+    .field({ businessHours: true })
+    .get();
+  const store = storeRes.data && storeRes.data[0];
+  const businessHours = (store && store.businessHours) || {};
+  const day = new Date(`${date}T12:00:00+08:00`).getDay();
+  const key = day === 0 || day === 6 ? 'weekend' : 'weekday';
+  return parseBusinessRange(businessHours[key] || '');
+}
+
 // 判断开始时间是否对齐到 5 分钟步长
 function isAlignedToSlotStep(minutes) {
   return minutes % SLOT_STEP_MIN === 0;
@@ -88,6 +114,20 @@ async function ensureSlotTimesWithinSchedule(db, barberId, date, slotTimes) {
   });
   if (outside) {
     throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'outside_schedule');
+  }
+}
+
+// 校验待锁定时段是否全部在门店营业时间区间内
+async function ensureSlotTimesWithinBusinessHours(db, storeId, date, slotTimes) {
+  const window = await resolveStoreBusinessWindow(db, storeId, date);
+  // 未配置营业时间时不限制，兼容历史数据
+  if (!window) return;
+  const outside = (slotTimes || []).some((time) => {
+    const min = timeToMinutes(time);
+    return Number.isNaN(min) || min < window.startMin || min >= window.endMin;
+  });
+  if (outside) {
+    throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'outside_business_hours');
   }
 }
 
@@ -196,6 +236,7 @@ module.exports = {
   isAlignedToSlotStep,
   buildRequiredSlotStartTimes,
   ensureSlotTimesWithinSchedule,
+  ensureSlotTimesWithinBusinessHours,
   ensureSlotDocsExist,
   lockSlotTimesForOrder
 };

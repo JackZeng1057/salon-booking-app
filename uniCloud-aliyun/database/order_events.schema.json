@@ -14,7 +14,7 @@
         "orderId": 1,
         "ts": -1
       },
-      "name": "order_ts"
+      "name": "idx_order_events_order_ts"
     }
   ],
   "properties": {

@@ -253,7 +253,8 @@ async function sendReviewReminders(db, options = {}) {
           type: 'service_finish',
           title: '服务完成，请评价',
           content: `您在 ${whenText} 的服务已完成，欢迎为本次服务打分与评价。`,
-          relatedId: orderId
+          relatedId: orderId,
+          idempotencyKey: `review_reminder_${orderId}`
         }
       });
       remindOrderIds.push(orderId);

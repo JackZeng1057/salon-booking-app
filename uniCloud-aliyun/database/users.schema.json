@@ -13,7 +13,7 @@
 			"key": {
 				"username": 1
 			},
-			"name": "username_unique",
+			"name": "idx_users_username",
 			"unique": true
 		},
 		{

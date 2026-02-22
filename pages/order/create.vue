@@ -1,106 +1,111 @@
 <template>
-  <view class="page">
+  <view class="page" :style="{ paddingTop: pagePaddingTop + 'px' }">
     <app-nav :showTitle="true" title="创建预约" />
-    <view class="hero-card">
-      <text class="hero-subtitle">确认门店服务和时段后提交预约</text>
+    <view class="top-fixed">
+      <view class="hero-card">
+        <text class="hero-subtitle">确认门店服务和时段后提交预约</text>
+      </view>
+
+      <!-- 规则提示 -->
+      <view class="rules-notice">
+        <view class="rules-header">
+          <app-icon class="rules-icon-svg" name="lightbulb" color="#faad14" :size="24" :stroke-width="2.1" />
+          <text class="rules-title">预约须知</text>
+          <text class="rules-action" @click="openRules">查看</text>
+        </view>
+        <text class="rules-text">{{ displayRules }}</text>
+      </view>
     </view>
-    
-    <!-- 规则提示 -->
-    <view class="rules-notice">
-      <view class="rules-header">
-        <app-icon class="rules-icon-svg" name="lightbulb" color="#faad14" :size="24" :stroke-width="2.1" />
-        <text class="rules-title">预约须知</text>
-        <text class="rules-action" @click="openRules">查看</text>
-      </view>
-      <text class="rules-text">{{ displayRules }}</text>
-    </view>
 
-    <view class="form">
-      <view class="field">
-        <text class="label">选择门店</text>
-        <picker :range="storeOptions" range-key="name" :value="storeIndex" @change="onStoreChange">
-          <view class="picker-value">{{ currentStoreName }}</view>
-        </picker>
-      </view>
+    <scroll-view class="content-scroll" scroll-y>
+      <view class="form">
+        <view class="field">
+          <text class="label">选择门店</text>
+          <picker :range="storeOptions" range-key="name" :value="storeIndex" @change="onStoreChange">
+            <view class="picker-value">{{ currentStoreName }}</view>
+          </picker>
+        </view>
 
-      <view class="field">
-        <text class="label">选择服务</text>
-        <picker :range="serviceOptions" range-key="name" :value="serviceIndex" @change="onServiceChange">
-          <view class="picker-value">{{ currentServiceName }}</view>
-        </picker>
-      </view>
+        <view class="field">
+          <text class="label">选择服务</text>
+          <picker :range="serviceOptions" range-key="name" :value="serviceIndex" @change="onServiceChange">
+            <view class="picker-value">{{ currentServiceName }}</view>
+          </picker>
+        </view>
 
-      <view class="field">
-        <text class="label">选择理发师</text>
-        <picker v-if="barberOptions.length > 0" :range="barberOptions" range-key="name" :value="barberIndex" @change="onBarberChange">
-          <view class="picker-value">{{ currentBarberName }}</view>
-        </picker>
-        <view v-else class="picker-value">当前服务暂无可用理发师</view>
-        <text v-if="usingAdminBarberServices" class="hint">当前已按门店配置过滤可选理发师</text>
-      </view>
+        <view class="field">
+          <text class="label">选择理发师</text>
+          <picker v-if="barberOptions.length > 0" :range="barberOptions" range-key="name" :value="barberIndex" @change="onBarberChange">
+            <view class="picker-value">{{ currentBarberName }}</view>
+          </picker>
+          <view v-else class="picker-value">当前服务暂无可用理发师</view>
+          <text v-if="usingAdminBarberServices" class="hint">当前已按门店配置过滤可选理发师</text>
+        </view>
 
-      <view class="field">
-        <text class="label">选择日期</text>
-        <modern-date-picker :value="date" :start="minDate" @change="onDateChange">
-          <view class="picker-value">{{ date || '请选择日期' }}</view>
-        </modern-date-picker>
-      </view>
+        <view class="field">
+          <text class="label">选择日期</text>
+          <modern-date-picker :value="date" :start="minDate" @change="onDateChange">
+            <view class="picker-value">{{ date || '请选择日期' }}</view>
+          </modern-date-picker>
+        </view>
 
-      <view class="field">
-        <text class="label">可预约时段</text>
-        <view v-if="slotsLoading" class="hint">加载时段中...</view>
-        <view v-else-if="slots.length === 0" class="hint">暂无可用时段，请先设置排班或切换日期</view>
-        <view v-else>
-          <view v-if="recommendedStartTime" class="recommend-box">
-            <view class="recommend-main">
-              <text class="recommend-title">智能推荐</text>
-              <text class="recommend-time">{{ recommendedStartTime }}-{{ recommendedEndTime }}</text>
-              <text class="recommend-reason">{{ recommendedReason }}</text>
+        <view class="field">
+          <text class="label">可预约时段</text>
+          <view v-if="slotsLoading" class="hint">加载时段中...</view>
+          <view v-else-if="slots.length === 0" class="hint">暂无可用时段，请先设置排班或切换日期</view>
+          <view v-else>
+            <view v-if="recommendedStartTime" class="recommend-box">
+              <view class="recommend-main">
+                <text class="recommend-title">智能推荐</text>
+                <text class="recommend-time">{{ recommendedStartTime }}-{{ recommendedEndTime }}</text>
+                <text class="recommend-reason">{{ recommendedReason }}</text>
+              </view>
+              <view class="recommend-action" @click="applyRecommendedSlot">一键选中</view>
             </view>
-            <view class="recommend-action" @click="applyRecommendedSlot">一键选中</view>
-          </view>
-          <view class="slots-grid">
-            <view
-              v-for="slot in slots"
-              :key="slot.startTime"
-              class="slot-item"
-              :class="slotClass(slot)"
-              @click="selectSlot(slot)"
-            >
-              <text class="slot-time">{{ slot.startTime }}-{{ slot.endTime }}</text>
-              <text class="slot-status">{{ formatSlotStatus(slot.status) }}</text>
+            <view class="slots-grid">
+              <view
+                v-for="slot in slots"
+                :key="slot.startTime"
+                class="slot-item"
+                :class="slotClass(slot)"
+                @click="selectSlot(slot)"
+              >
+                <text class="slot-time">{{ slot.startTime }}-{{ slot.endTime }}</text>
+                <text class="slot-status">{{ formatSlotStatus(slot.status) }}</text>
+              </view>
             </view>
           </view>
         </view>
-      </view>
 
-      <view class="field">
-        <view class="remark-header">
-          <text class="label">预约备注（可选）</text>
-          <text v-if="fromAiAdvisor" class="remark-tag">来自AI顾问</text>
+        <view class="field">
+          <view class="remark-header">
+            <text class="label">预约备注（可选）</text>
+            <text v-if="fromAiAdvisor" class="remark-tag">来自AI顾问</text>
+          </view>
+          <textarea
+            v-model="remark"
+            class="remark-input"
+            maxlength="120"
+            placeholder="例：发质偏硬，避免漂染，想要层次感和好打理。"
+          />
+          <text class="remark-count">{{ remark.length }}/120</text>
         </view>
-        <textarea
-          v-model="remark"
-          class="remark-input"
-          maxlength="120"
-          placeholder="例：发质偏硬，避免漂染，想要层次感和好打理。"
-        />
-        <text class="remark-count">{{ remark.length }}/120</text>
-      </view>
 
-      <button
-        class="submit"
-        type="primary"
-        :disabled="!selectedStartTime"
-        @click="confirmSelection"
-      >
-        确认预约
-      </button>
+        <button
+          class="submit"
+          type="primary"
+          :disabled="!selectedStartTime"
+          @click="confirmSelection"
+        >
+          确认预约
+        </button>
 
-      <view v-if="selectedStartTime" class="selected-info">
-        已选时段：{{ selectedStartTime }}
+        <view v-if="selectedStartTime" class="selected-info">
+          已选时段：{{ selectedStartTime }}
+        </view>
       </view>
-    </view>
+      <view class="scroll-bottom-safe"></view>
+    </scroll-view>
 
     <app-modal
       :visible="showConfirm"
@@ -232,7 +237,8 @@ export default {
       // 智能推荐时段
       recommendedStartTime: '',
       recommendedEndTime: '',
-      recommendedReason: ''
+      recommendedReason: '',
+      pagePaddingTop: 0
     };
   },
   computed: {
@@ -256,6 +262,7 @@ export default {
     }
   },
   onLoad(options) {
+    this.updatePagePaddingTop();
     // 支持从门店详情或 AI 顾问带入门店/服务/备注
     const presetStoreId = (options && options.storeId) || '';
     const presetServiceId = (options && options.serviceId) || '';
@@ -266,6 +273,7 @@ export default {
     this.loadStores(presetStoreId, this.presetServiceId);
   },
   onShow() {
+    this.updatePagePaddingTop();
     this.minDate = toDateString(new Date());
     this.lastSlotsKey = '';
     if (this.storeIndex >= 0 && this.serviceIndex >= 0 && this.barberIndex >= 0) {
@@ -273,6 +281,16 @@ export default {
     }
   },
   methods: {
+    updatePagePaddingTop() {
+      try {
+        const sys = uni.getSystemInfoSync();
+        const statusBarHeight = Number(sys && sys.statusBarHeight) || 0;
+        // 与 app-nav 保持一致：状态栏 + 44px 导航内容 + 12px 视觉间距
+        this.pagePaddingTop = statusBarHeight + 56;
+      } catch (e) {
+        this.pagePaddingTop = 76;
+      }
+    },
     formatSlotStatus,
     openRules() {
       this.showRulesModal = true;
@@ -648,9 +666,26 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  height: 100vh;
+  padding: 0 28rpx calc(20rpx + env(safe-area-inset-bottom));
   background: #f8fafc;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-fixed {
+  flex-shrink: 0;
+}
+
+.content-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.scroll-bottom-safe {
+  height: 36rpx;
 }
 
 .hero-card {

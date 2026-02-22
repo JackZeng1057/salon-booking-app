@@ -13,16 +13,9 @@
 			"key": {
 				"storeId": 1,
 				"status": 1,
-				"createdAt": -1
+				"updatedAt": -1
 			},
-			"name": "store_status_createdAt"
-		},
-		{
-			"key": {
-				"storeId": 1,
-				"createdAt": -1
-			},
-			"name": "store_createdAt"
+			"name": "idx_aftersales_store_status_updated"
 		}
 	],
 	"properties": {

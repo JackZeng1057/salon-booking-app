@@ -143,8 +143,3 @@ export function setStoreBarberServices(assignments, options = {}) {
     return data;
   });
 }
-
-// 供页面在特殊场景主动清理缓存
-export function invalidateStoreCache(storeId) {
-  clearStoreCache(storeId || '');
-}

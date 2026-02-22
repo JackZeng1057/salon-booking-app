@@ -1,0 +1,91 @@
+美发预约系统 数据库交付与索引核对清单
+
+A. 交付文件清单（必须）
+1) uniCloud-aliyun/database/*.schema.json
+2) 云数据库json文件夹（按表导出的数据json）
+
+B. 核心表核对（14张）
+1) aftersales
+2) audit_logs
+3) auth_tokens
+4) barber_schedules
+5) notifications
+6) order_events
+7) order_items
+8) orders
+9) reviews
+10) services
+11) sms_codes
+12) stores
+13) time_slots
+14) users
+
+C. 12个核心业务索引（答辩重点）
+1) orders.user_status_updatedAt
+   字段：userId(升序) + status(升序) + updatedAt(降序)
+   用途：用户订单列表、状态筛选、最近更新时间排序
+
+2) orders.store_status_updatedAt
+   字段：storeId(升序) + status(升序) + updatedAt(降序)
+   用途：门店订单列表、状态分组查询
+
+3) orders.barber_date_status
+   字段：barberId(升序) + date(升序) + status(升序)
+   用途：理发师当日工单、待服务队列
+
+4) orders.verifyCode_unique（唯一）
+   字段：verifyCode(升序)
+   用途：到店核验码快速查单，避免重复核验码
+
+5) order_events.order_ts
+   字段：orderId(升序) + ts(降序)
+   用途：订单时间线/操作日志按时间倒序查询
+
+6) notifications.userId_createdAt
+   字段：userId(升序) + createdAt(降序)
+   用途：用户通知列表按时间倒序
+
+7) aftersales.store_status_createdAt
+   字段：storeId(升序) + status(升序) + createdAt(降序)
+   用途：门店售后工单处理列表
+
+8) time_slots.barber_date_start_unique（唯一）
+   字段：barberId(升序) + date(升序) + startTime(升序)
+   用途：时段唯一约束，防止重复写入同一时段
+
+9) barber_schedules.barber_date_unique（唯一）
+   字段：barberId(升序) + date(升序)
+   用途：理发师排班唯一，防止一天多份冲突排班
+
+10) services.store_createdAt
+    字段：storeId(升序) + createdAt(降序)
+    用途：门店服务项列表查询
+
+11) users.username_unique（唯一）
+    字段：username(升序)
+    用途：登录账号唯一约束
+
+12) auth_tokens.token_unique（唯一）
+    字段：token(升序)
+    用途：登录态鉴权时按 token 快速反查
+
+D. 额外建议核对索引（非答辩必讲，但项目已使用）
+1) orders.(storeId,date)
+2) orders.(barberId,date)
+3) orders.(userId,createdAt)
+4) order_items.order_createdAt
+5) reviews.orderId_unique
+6) time_slots.barber_date_query
+7) users.store_role_createdAt
+8) audit_logs.order_time
+9) audit_logs.actor_time
+10) auth_tokens.user_createdAt
+11) auth_tokens.expiresAt
+12) stores.createdAt_desc
+13) aftersales.store_createdAt
+
+E. 验收打勾项
+[ ] schema 已上传
+[ ] init 数据已导入
+[ ] 12个核心索引存在
+[ ] 登录/下单/到店/开服务/完服务链路可跑通

@@ -11,9 +11,10 @@
 		{
 			"key": {
 				"userId": 1,
+				"isRead": 1,
 				"createdAt": -1
 			},
-			"name": "userId_createdAt"
+			"name": "idx_noti_user_read_created"
 		}
 	],
 	"properties": {

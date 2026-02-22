@@ -38,7 +38,8 @@
             </view>
             <view class="stat-main">
               <text class="stat-label">营业时间</text>
-              <text class="stat-value">{{ getBusinessHoursText('weekday') }}</text>
+              <text class="stat-value">工作日 {{ getBusinessHoursText('weekday') }}</text>
+              <text class="stat-value">周末 {{ getBusinessHoursText('weekend') }}</text>
             </view>
           </view>
 

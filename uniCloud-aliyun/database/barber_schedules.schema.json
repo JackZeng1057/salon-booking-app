@@ -14,7 +14,7 @@
 				"barberId": 1,
 				"date": 1
 			},
-			"name": "barber_date_unique",
+			"name": "idx_sched_barber_date",
 			"unique": true
 		}
 	],

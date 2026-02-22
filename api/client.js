@@ -78,6 +78,7 @@ function translateErrorMessage(message, code) {
     schedule_not_set: '该日期未设置排班',
     schedule_invalid: '排班配置异常，请联系门店管理员',
     outside_schedule: '所选时段不在排班时间内',
+    outside_business_hours: '所选时段不在门店营业时间内',
     slot_conflict: '该时段已被占用，请重新选择',
     booking_window_closed: '该时段距离开始不足5分钟，已停止预约',
     time_expired: '该时段已过期，请重新选择',

@@ -14,16 +14,13 @@
 			// 启动时恢复登录态，避免重复登录造成读操作升高
 			authStore.init()
 			syncCriticalSystemNotifications({ force: true, skipGuides: true })
-			console.log('App Launch')
 		},
 		onShow: function() {
 			syncCriticalSystemNotifications({ force: true, skipGuides: true })
 			this.startSystemNotifyPolling()
-			console.log('App Show')
 		},
 		onHide: function() {
 			this.stopSystemNotifyPolling()
-			console.log('App Hide')
 		},
 		methods: {
 			startSystemNotifyPolling() {

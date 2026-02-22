@@ -1,6 +1,7 @@
 // 通知创建：供内部云函数调用，写入通知表
 // 引入统一响应包装
 const { withResponse, ApiError } = require('sb-common');
+const crypto = require('crypto');
 
 const TYPE_ALIAS = {
   BOOKING_SUCCESS: 'booking_success',
@@ -30,6 +31,11 @@ function normalizeType(type) {
   return 'arrival_reminder';
 }
 
+function makeIdempotentDocId(userId, type, idempotencyKey) {
+  const raw = `${userId}::${type}::${idempotencyKey}`;
+  return `noti_${crypto.createHash('md5').update(raw).digest('hex')}`;
+}
+
 /**
  * 创建通知（系统内部调用）
  * 可被其他云函数调用
@@ -41,6 +47,7 @@ exports.main = withResponse(async (event, context) => {
   const content = event && event.content;
   const relatedId = event && event.relatedId;
   const relatedType = event && event.relatedType;
+  const idempotencyKey = String((event && event.idempotencyKey) || '').trim();
 
   if (!userId || !type || !title || !content) {
     throw new ApiError(400, 'userId, type, title, and content are required');
@@ -60,6 +67,24 @@ exports.main = withResponse(async (event, context) => {
     isDeleted: false,
     createdAt: now
   };
+
+  // 可选幂等：调用方传入 idempotencyKey 时，使用固定 _id 防止并发重复写入。
+  if (idempotencyKey) {
+    const docId = makeIdempotentDocId(userId, type, idempotencyKey);
+    try {
+      await db.collection('notifications').add({
+        _id: docId,
+        ...notificationData
+      });
+      return { id: docId };
+    } catch (err) {
+      const message = String((err && err.message) || '').toLowerCase();
+      if (message.includes('duplicate') || message.includes('conflict') || message.includes('exists')) {
+        return { id: docId };
+      }
+      throw err;
+    }
+  }
 
   const res = await db.collection('notifications').add(notificationData);
   return { id: res.id || (res.ids && res.ids[0]) || '' };

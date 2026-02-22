@@ -51,6 +51,40 @@ function isInBreakWindow(startMin) {
   });
 }
 
+function parseBusinessRange(rangeText) {
+  const text = String(rangeText || '').trim();
+  const matched = text.match(/^(\d{2}:\d{2})\s*[-~到至]\s*(\d{2}:\d{2})$/);
+  if (!matched) return null;
+  const startMin = timeToMinutes(matched[1]);
+  const endMin = timeToMinutes(matched[2]);
+  if (Number.isNaN(startMin) || Number.isNaN(endMin) || startMin >= endMin) return null;
+  return { startMin, endMin };
+}
+
+async function resolveStoreBusinessWindow(db, { barberId = '', date = '', schedule = null } = {}) {
+  let storeId = (schedule && schedule.storeId) || '';
+  if (!storeId && barberId) {
+    const barberRes = await db
+      .collection('users')
+      .doc(barberId)
+      .field({ storeId: true })
+      .get();
+    const barber = barberRes.data && barberRes.data[0];
+    storeId = (barber && barber.storeId) || '';
+  }
+  if (!storeId || !date) return null;
+  const storeRes = await db
+    .collection('stores')
+    .doc(storeId)
+    .field({ businessHours: true })
+    .get();
+  const store = storeRes.data && storeRes.data[0];
+  const businessHours = (store && store.businessHours) || {};
+  const day = new Date(`${date}T12:00:00+08:00`).getDay();
+  const key = day === 0 || day === 6 ? 'weekend' : 'weekday';
+  return parseBusinessRange(businessHours[key] || '');
+}
+
 async function fetchAllSlotsByDate(slotCol, barberId, date) {
   const PAGE_SIZE = 500;
   const MAX_PAGES = 50;
@@ -99,6 +133,7 @@ exports.main = withResponse(async (event, context) => {
   const scheduleRes = await db
     .collection('barber_schedules')
     .where({ barberId, date })
+    .field({ workStart: true, workEnd: true, storeId: true })
     .limit(1)
     .get();
   const schedule = scheduleRes.data && scheduleRes.data[0];
@@ -171,6 +206,16 @@ exports.main = withResponse(async (event, context) => {
 
   if (Number.isNaN(windowStartMin) || Number.isNaN(windowEndMin)) {
     return [];
+  }
+
+  // 叠加门店营业时间窗口：最终可约区间为“门店营业时间 ∩ 理发师排班”
+  const businessWindow = await resolveStoreBusinessWindow(db, { barberId, date, schedule });
+  if (businessWindow) {
+    windowStartMin = Math.max(windowStartMin, businessWindow.startMin);
+    windowEndMin = Math.min(windowEndMin, businessWindow.endMin);
+    if (windowStartMin >= windowEndMin) {
+      return [];
+    }
   }
 
   // 兜底填充缺失的 5 分钟 slot，避免前端出现“全部不可预约”的错觉

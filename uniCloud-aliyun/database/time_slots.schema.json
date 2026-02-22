@@ -15,7 +15,7 @@
 				"date": 1,
 				"startTime": 1
 			},
-			"name": "barber_date_start_unique",
+			"name": "idx_slots_barber_date_start",
 			"unique": true
 		},
 		{

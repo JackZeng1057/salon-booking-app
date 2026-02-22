@@ -12,6 +12,7 @@ const {
   isAlignedToSlotStep,
   buildRequiredSlotStartTimes,
   ensureSlotTimesWithinSchedule,
+  ensureSlotTimesWithinBusinessHours,
   ensureSlotDocsExist,
   lockSlotTimesForOrder,
   isBarberAssignedToService
@@ -148,6 +149,7 @@ exports.main = withResponse(async (event, context) => {
   try {
     const slotTimes = buildRequiredSlotStartTimes(startTime, durationMin);
     await ensureSlotTimesWithinSchedule(db, barberId, date, slotTimes);
+    await ensureSlotTimesWithinBusinessHours(db, storeId, date, slotTimes);
     await ensureSlotDocsExist(db, { storeId, barberId, date, slotTimes });
     await lockSlotTimesForOrder(db, { barberId, date, slotTimes, orderId });
 
