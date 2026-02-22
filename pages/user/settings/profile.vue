@@ -134,17 +134,42 @@ export default {
       if (!this.canSave) return;
       this.saving = true;
       try {
+        const submittedName = String(this.username || '').trim();
         const res = await updateProfile({
-          username: String(this.username || '').trim(),
+          username: submittedName,
           avatar: this.avatar
         });
         const latest = (res && res.user) || {};
-        this.user = { ...this.user, ...latest };
-        this.username = latest.username || this.username;
-        this.avatar = latest.avatar || this.avatar;
+        // 先用提交值 + 回包做一次本地立即同步，避免返回首页读到旧值
+        const optimistic = {
+          ...(this.user || {}),
+          ...(latest || {})
+        };
+        if (submittedName) {
+          optimistic.username = submittedName;
+          // user 端昵称同账号名，保证首页文案与默认头像首字符即时一致
+          optimistic.name = submittedName;
+        }
+        optimistic.avatar = this.avatar || '';
+        this.user = optimistic;
+        this.username = optimistic.username || this.username;
+        this.avatar = optimistic.avatar || this.avatar;
+        authStore.setUser(this.user);
+        uni.$emit('user-profile-updated', this.user);
+
+        // 保存后回源一次，确保本地登录态与数据库最终一致
+        try {
+          const fresh = await me();
+          if (fresh && typeof fresh === 'object') {
+            this.user = fresh;
+            this.username = (fresh.username || fresh.name || this.username);
+            this.avatar = fresh.avatar || this.avatar;
+          }
+        } catch (e) {}
         this.originUsername = this.username;
         this.originAvatar = this.avatar;
         authStore.setUser(this.user);
+        uni.$emit('user-profile-updated', this.user);
         uni.showToast({ title: '保存成功', icon: 'success' });
       } catch (err) {
         uni.showToast({ title: err.message || '保存失败', icon: 'none' });

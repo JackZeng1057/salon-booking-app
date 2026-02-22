@@ -18,12 +18,13 @@
 
             <view class="avatar-wrap" @click="goSettings">
               <image
-                v-if="currentUser.avatar"
+                v-if="userAvatar"
                 class="avatar-image"
-                :src="currentUser.avatar"
+                :src="userAvatar"
                 mode="aspectFill"
+                @error="handleAvatarError"
               />
-              <view v-else class="avatar-image avatar-fallback">{{ displayName.slice(0, 1).toUpperCase() }}</view>
+              <view v-else class="avatar-image avatar-fallback">{{ avatarInitial }}</view>
             </view>
           </view>
         </view>
@@ -116,10 +117,19 @@
 
 <script>
 import { authStore } from '../../../store/auth';
+import { me } from '../../../api/auth';
 import { getUnreadCount } from '../../../api/notifications';
 import { fetchStores } from '../../../api/store';
 import { syncCriticalSystemNotifications, maybePromptNotificationPermissionOnFirstLogin } from '../../../utils/system-notify';
 import BottomTabBar from '../../../components/bottom-tab-bar/bottom-tab-bar.vue';
+
+function getNameInitial(value, fallback = 'U') {
+  const text = String(value || '').trim();
+  if (!text) return fallback;
+  const first = text.charAt(0);
+  if (/^[a-z]$/i.test(first)) return first.toUpperCase();
+  return first;
+}
 
 /**
  * 用户首页
@@ -151,12 +161,19 @@ export default {
         { key: 'orders', label: '我的预约', iconName: 'calendar', bg: '#dcfce7' },
         { key: 'pricing', label: '价目表', iconName: 'file', bg: '#fef3c7' },
         { key: 'profile', label: '个人中心', iconName: 'user', bg: '#ede9fe' }
-      ]
+      ],
+      // 当前时间戳：用于驱动问候语随时间自动变化
+      nowTs: Date.now(),
+      greetingTimer: null,
+      // 强制触发 currentUser 相关计算属性更新
+      userSyncTick: 0
     };
   },
   computed: {
     // 当前登录用户（兜底为 Guest）
     currentUser() {
+      // 引用 tick，确保跨页面 setUser 后可立即重算
+      void this.userSyncTick;
       return authStore.state.user || { nickname: 'Guest' };
     },
     // 首页展示名：账号名 > 姓名 > 昵称
@@ -164,19 +181,40 @@ export default {
       const user = this.currentUser || {};
       return user.username || user.name || user.nickname || '新朋友';
     },
+    // 头像字段容错：无效值统一视作未设置
+    normalizedAvatar() {
+      const value = String((this.currentUser && this.currentUser.avatar) || '').trim();
+      if (!value) return '';
+      const lowered = value.toLowerCase();
+      if (lowered === 'default' || lowered === 'null' || lowered === 'undefined') return '';
+      return value;
+    },
+    // 与理发师端一致：仅当头像有效时显示图片，否则走字母占位
+    userAvatar() {
+      return this.normalizedAvatar;
+    },
+    // 默认头像文字：按用户名首字符变化（英文字母转大写）
+    avatarInitial() {
+      return getNameInitial(this.displayName, 'U');
+    },
     // 按当前时段展示问候语
     greetingText() {
-      const hour = new Date().getHours();
-      if (hour < 11) return '上午好';
-      if (hour < 18) return '下午好';
+      const hour = new Date(this.nowTs).getHours();
+      if (hour >= 17 || hour < 4) return '晚上好';
+      if (hour < 9) return '早上好';
+      if (hour < 12) return '上午好';
+      if (hour < 13) return '中午好';
+      if (hour < 17) return '下午好';
       return '晚上好';
     }
   },
   onLoad() {
     this.hideNativeTabBar();
+    uni.$on('user-profile-updated', this.handleUserProfileUpdated);
   },
   onShow() {
     this.hideNativeTabBar();
+    this.startGreetingTicker();
     setTimeout(() => {
       maybePromptNotificationPermissionOnFirstLogin();
     }, 350);
@@ -184,6 +222,13 @@ export default {
       syncCriticalSystemNotifications({ force: true });
     }, 600);
     this.refreshHome();
+  },
+  onHide() {
+    this.stopGreetingTicker();
+  },
+  onUnload() {
+    this.stopGreetingTicker();
+    uni.$off('user-profile-updated', this.handleUserProfileUpdated);
   },
   onPullDownRefresh() {
     this.refreshHome(true).finally(() => {
@@ -197,9 +242,51 @@ export default {
         uni.hideTabBar({ animation: false });
       } catch (e) {}
     },
+    // 启动问候语时钟：每 30 秒刷新一次时间戳
+    startGreetingTicker() {
+      this.stopGreetingTicker();
+      this.nowTs = Date.now();
+      this.greetingTimer = setInterval(() => {
+        this.nowTs = Date.now();
+      }, 30000);
+    },
+    // 停止问候语时钟
+    stopGreetingTicker() {
+      if (this.greetingTimer) {
+        clearInterval(this.greetingTimer);
+        this.greetingTimer = null;
+      }
+    },
     // 刷新首页核心数据：未读数 + 推荐门店
     async refreshHome(forceRefresh = false) {
-      await Promise.all([this.loadUnreadCount(), this.loadRecommendedStores(forceRefresh)]);
+      await Promise.all([this.loadCurrentUser(), this.loadUnreadCount(), this.loadRecommendedStores(forceRefresh)]);
+    },
+    // 资料页保存后实时更新首页显示（无需手动刷新）
+    handleUserProfileUpdated(user) {
+      if (!user || typeof user !== 'object') return;
+      authStore.setUser({
+        ...(authStore.state.user || {}),
+        ...user
+      });
+      this.userSyncTick += 1;
+    },
+    // 拉取当前用户最新资料并同步到本地登录态
+    async loadCurrentUser() {
+      try {
+        const data = await me();
+        if (data && typeof data === 'object') {
+          authStore.setUser(data);
+          this.userSyncTick += 1;
+        }
+      } catch (err) {}
+    },
+    // 与理发师端一致：头像加载失败后清空头像字段，回退字母占位
+    handleAvatarError() {
+      authStore.setUser({
+        ...(this.currentUser || {}),
+        avatar: ''
+      });
+      this.userSyncTick += 1;
     },
     // 拉取未读消息数
     async loadUnreadCount() {
@@ -437,7 +524,7 @@ export default {
 }
 
 .avatar-fallback {
-  background: linear-gradient(140deg, #0f172a, #1e293b);
+  background: #0f172a;
   color: #ffffff;
   font-size: 30rpx;
   font-weight: 700;

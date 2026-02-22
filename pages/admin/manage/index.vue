@@ -149,8 +149,23 @@ export default {
     this.loadPendingBarberCount();
     this.loadTodayPendingOrderCount();
   },
+  onLoad() {
+    uni.$on('user-profile-updated', this.handleUserProfileUpdated);
+  },
+  onUnload() {
+    uni.$off('user-profile-updated', this.handleUserProfileUpdated);
+  },
   // 管理员管理页最小入口
   methods: {
+    // 资料保存后实时同步本地用户信息（无需手动刷新）
+    async handleUserProfileUpdated(user) {
+      if (!user || typeof user !== 'object') return;
+      authStore.setUser({
+        ...(authStore.state.user || {}),
+        ...user
+      });
+      await this.loadStoreName();
+    },
     // 加载门店名称：优先本地用户信息，缺失时回源查询
     async loadStoreName() {
       try {

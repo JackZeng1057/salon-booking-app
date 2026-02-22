@@ -87,7 +87,9 @@ export default {
     // 获取最新用户信息，确保设置页展示与服务端一致
     async loadMe() {
       try {
-        this.user = (await me()) || {};
+        const data = (await me()) || {};
+        this.user = data;
+        authStore.setUser(data || null);
       } catch (e) {}
     },
     // 跳转：个人资料

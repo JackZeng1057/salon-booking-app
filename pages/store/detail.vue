@@ -104,7 +104,7 @@
                 mode="aspectFill"
                 @error="onBarberAvatarError(barber._id)"
               />
-              <view v-else class="barber-avatar barber-avatar-fallback" :style="getBarberAvatarStyle(barber)">
+              <view v-else class="barber-avatar barber-avatar-fallback">
                 <text class="barber-avatar-text">{{ getBarberAvatarInitial(barber) }}</text>
               </view>
               <view class="barber-main">
@@ -384,7 +384,7 @@ export default {
       }
       return value;
     },
-    // 获取理发师显示名（用于默认头像字母与配色种子）
+    // 获取理发师显示名（用于默认头像字母）
     getBarberDisplayName(barber) {
       return String((barber && (barber.username || barber.name)) || '理发师').trim();
     },
@@ -392,27 +392,6 @@ export default {
     getBarberAvatarInitial(barber) {
       const name = this.getBarberDisplayName(barber);
       return name.slice(0, 1).toUpperCase();
-    },
-    // 按理发师名称生成稳定颜色，保证“每个理发师默认头像不完全一样”
-    getBarberAvatarStyle(barber) {
-      const name = this.getBarberDisplayName(barber);
-      let hash = 0;
-      for (let i = 0; i < name.length; i += 1) {
-        hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-      }
-      const palettes = [
-        { bg: '#E0E7FF', fg: '#3730A3' },
-        { bg: '#DBEAFE', fg: '#1D4ED8' },
-        { bg: '#D1FAE5', fg: '#047857' },
-        { bg: '#FCE7F3', fg: '#BE185D' },
-        { bg: '#FEF3C7', fg: '#B45309' },
-        { bg: '#E2E8F0', fg: '#334155' }
-      ];
-      const picked = palettes[hash % palettes.length];
-      return {
-        backgroundColor: picked.bg,
-        color: picked.fg
-      };
     },
     // 远程头像加载失败时回退到默认头像
     onBarberAvatarError(barberId) {
@@ -895,6 +874,8 @@ export default {
 }
 
 .barber-avatar-fallback {
+  background: #0f172a;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -12,7 +12,7 @@
             mode="aspectFill"
             @error="handleHeaderAvatarError"
           />
-          <view v-else class="avatar avatar-fallback" :style="barberAvatarStyle">{{ barberInitial }}</view>
+          <view v-else class="avatar avatar-fallback">{{ barberInitial }}</view>
           <view class="hero-text">
             <text class="hero-name">{{ barberName }}</text>
             <text class="hero-store">{{ storeName }}</text>
@@ -168,6 +168,14 @@ function parseTimeToPickerValue(value) {
   return [hourIndex, minuteIndex];
 }
 
+function getNameInitial(value, fallback = 'B') {
+  const text = String(value || '').trim();
+  if (!text) return fallback;
+  const first = text.charAt(0);
+  if (/^[a-z]$/i.test(first)) return first.toUpperCase();
+  return first;
+}
+
 export default {
   data() {
     return {
@@ -201,7 +209,7 @@ export default {
       return this.currentUser.username || this.currentUser.name || '理发师';
     },
     barberInitial() {
-      return String(this.barberName || 'B').slice(0, 1).toUpperCase();
+      return getNameInitial(this.barberName, 'B');
     },
     barberAvatar() {
       const value = String((this.currentUser && this.currentUser.avatar) || '').trim();
@@ -210,28 +218,8 @@ export default {
       if (lowered === 'default' || lowered === 'null' || lowered === 'undefined') return '';
       return value;
     },
-    barberAvatarStyle() {
-      const seed = this.barberName || '';
-      let hash = 0;
-      for (let i = 0; i < seed.length; i += 1) {
-        hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-      }
-      const palettes = [
-        { bg: '#E0E7FF', fg: '#3730A3' },
-        { bg: '#DBEAFE', fg: '#1D4ED8' },
-        { bg: '#D1FAE5', fg: '#047857' },
-        { bg: '#FCE7F3', fg: '#BE185D' },
-        { bg: '#FEF3C7', fg: '#B45309' },
-        { bg: '#0F172A', fg: '#FFFFFF' }
-      ];
-      const picked = palettes[hash % palettes.length];
-      return {
-        backgroundColor: picked.bg,
-        color: picked.fg
-      };
-    },
     storeName() {
-      return this.currentUser.storeName || this.currentUser.storeId || '';
+      return this.currentUser.storeName || '所属门店';
     },
     weekDays() {
       const labels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -257,7 +245,24 @@ export default {
     this.loadUnreadCount();
     this.loadPreviewSlots();
   },
+  onLoad() {
+    uni.$on('user-profile-updated', this.handleUserProfileUpdated);
+  },
+  onUnload() {
+    uni.$off('user-profile-updated', this.handleUserProfileUpdated);
+  },
   methods: {
+    // 资料保存后实时刷新当前页用户信息（无需手动刷新）
+    async handleUserProfileUpdated(user) {
+      if (!user || typeof user !== 'object') return;
+      const merged = {
+        ...(this.currentUser || {}),
+        ...user
+      };
+      this.currentUser = merged;
+      authStore.setUser(merged);
+      await this.resolveStoreName(merged);
+    },
     handleHeaderAvatarError() {
       this.currentUser = {
         ...(this.currentUser || {}),
