@@ -1,0 +1,68 @@
+美发预约系统-白盒测试记录（第二轮，扩展版）
+
+测试时间：2026-02-22
+执行方式：本地 Node 白盒脚本（模拟 uniCloud DB），按分支逐条断言
+执行命令：node tests/whitebox/run-whitebox.js
+
+一、测试对象（5个核心云函数）
+1) orders-start-service
+2) orders-verify
+3) orders-finish-service
+4) orders-no-show
+5) reviews-create
+
+二、覆盖的关键分支
+A. orders-start-service（6条）
+- 缺少 orderId -> 400
+- 订单不存在 -> 404
+- 理发师越权 -> 403
+- BOOKED 不可开始 -> 422
+- ARRIVED 正常开始 -> 0
+- IN_SERVICE 幂等 -> 0
+
+B. orders-verify（6条）
+- 缺少 verifyCode -> 400
+- 核验码查不到订单 -> 404
+- 门店越权 -> 403
+- 非 BOOKED 状态核验 -> 422
+- ARRIVED 幂等 -> 0
+- BOOKED 正常核验到店 -> 0
+
+C. orders-finish-service（6条）
+- 缺少 orderId -> 400
+- 订单不存在 -> 404
+- 管理员门店越权 -> 403
+- 非 IN_SERVICE 不可完成 -> 422
+- FINISHED 幂等 -> 0
+- IN_SERVICE 正常完成 -> 0
+
+D. orders-no-show（7条）
+- 缺少 orderId -> 400
+- 订单不存在 -> 404
+- 门店越权 -> 403
+- 非 BOOKED 不可标记爽约 -> 422
+- 未超时不可标记 -> 422
+- 已 NO_SHOW 幂等 -> 0
+- BOOKED 且超时正常标记 -> 0
+
+E. reviews-create（6条）
+- 缺少 rating -> 400
+- 非本人订单评价 -> 403
+- 非 FINISHED 订单评价 -> 422
+- 重复评价 -> 409
+- 非法图片引用 -> 400
+- 合法请求正常创建 -> 0
+
+三、结果统计
+- 总用例数：31
+- 通过：31
+- 失败：0
+
+四、结论
+- 订单状态机的关键防线已通过分支验证。
+- 订单核验、开单、完单、爽约与评价创建的异常路径均按预期被拦截。
+- 当前白盒测试可作为毕业论文“代码级验证”证据使用。
+
+五、文件位置
+- 白盒脚本：/Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app/tests/whitebox/run-whitebox.js
+- 测试记录：/Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app/docs/白盒测试记录.txt

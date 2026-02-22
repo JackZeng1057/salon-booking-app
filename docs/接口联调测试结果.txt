@@ -1,0 +1,59 @@
+美发预约系统-接口联调测试结果
+
+扫描时间：2026-02-22T04:25:39.229Z
+统一返回结构扫描：总计 47，通过 47，失败 0
+核心链路联调：通过
+
+一、统一返回结构扫描明细
+1. admin-dashboard - PASS (code=401)
+2. aftersales-create - PASS (code=401)
+3. aftersales-reply - PASS (code=401)
+4. aftersales-store-list - PASS (code=401)
+5. ai-service-advisor - PASS (code=401)
+6. auth-login - PASS (code=422)
+7. auth-me - PASS (code=401)
+8. auth-register - PASS (code=422)
+9. barber-application-review - PASS (code=401)
+10. barber-applications-list - PASS (code=401)
+11. barber-schedule-set - PASS (code=401)
+12. barber-services-set - PASS (code=401)
+13. barber-slots-get - PASS (code=401)
+14. notifications-create - PASS (code=400)
+15. notifications-delete - PASS (code=401)
+16. notifications-list - PASS (code=401)
+17. notifications-mark-read - PASS (code=401)
+18. orders-barber-list - PASS (code=401)
+19. orders-cancel - PASS (code=401)
+20. orders-create - PASS (code=401)
+21. orders-delete - PASS (code=401)
+22. orders-detail - PASS (code=401)
+23. orders-events-list - PASS (code=401)
+24. orders-finish-service - PASS (code=401)
+25. orders-items-list - PASS (code=401)
+26. orders-mine - PASS (code=401)
+27. orders-no-show - PASS (code=401)
+28. orders-reschedule - PASS (code=401)
+29. orders-start-service - PASS (code=401)
+30. orders-store-list - PASS (code=401)
+31. orders-verify - PASS (code=401)
+32. password-reset - PASS (code=400)
+33. reviews-by-order - PASS (code=401)
+34. reviews-create - PASS (code=401)
+35. reviews-delete - PASS (code=401)
+36. reviews-list - PASS (code=500)
+37. reviews-mine - PASS (code=401)
+38. seed-data - PASS (code=401)
+39. sms-send-code - PASS (code=400)
+40. sms-verify-code - PASS (code=400)
+41. store-update-profile - PASS (code=401)
+42. stores-barbers - PASS (code=422)
+43. stores-detail - PASS (code=422)
+44. stores-list - PASS (code=500)
+45. stores-services - PASS (code=422)
+46. user-bind-phone - PASS (code=401)
+47. user-profile-update - PASS (code=401)
+
+二、核心链路联调结果
+- 步骤：verify -> start -> finish -> review
+- order_events 写入条数：3
+- audit_logs 写入条数：3

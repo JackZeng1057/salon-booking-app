@@ -1,0 +1,54 @@
+美发预约系统-测试总报告（整合版）
+
+测试日期：2026-02-22
+项目路径：/Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app
+
+一、测试范围
+1) 白盒分支测试（核心业务函数）
+2) 接口联调测试（云函数统一返回与核心链路）
+3) 数据与性能基础测试（数据一致性 + 轻量性能基线）
+
+二、执行脚本与命令
+1. 白盒分支测试
+- 脚本：tests/whitebox/run-whitebox.js
+- 命令：node tests/whitebox/run-whitebox.js
+- 结果：31/31 通过
+
+2. 全量白盒基线扫描
+- 脚本：tests/whitebox/run-whitebox-all.js
+- 命令：node tests/whitebox/run-whitebox-all.js
+- 扫描范围：47 个云函数
+- 结果：47/47 通过
+
+3. 接口联调测试
+- 脚本：tests/interface/run-interface-contract.js
+- 命令：node tests/interface/run-interface-contract.js
+- 内容：
+  a) 47 个云函数统一返回结构扫描
+  b) 核心链路联调（verify -> start -> finish -> review）
+- 结果：通过
+
+4. 数据与性能基础测试
+- 脚本：tests/perf/run-data-perf-basic.js
+- 命令：node tests/perf/run-data-perf-basic.js
+- 内容：
+  a) 数据一致性（状态流转后订单状态/日志）
+  b) 队列计算轻量性能基线（500/2000/5000）
+- 结果：通过
+
+5. 一键执行入口
+- 脚本：tests/run-all-tests.js
+- 命令：node tests/run-all-tests.js
+
+三、关键结论
+- 状态机约束已验证：BOOKED 不能直接开始，必须 ARRIVED 才能 IN_SERVICE。
+- 核心接口返回结构统一（code/message/data/requestId）。
+- 数据一致性通过：订单主表状态与 order_events/audit_logs 能形成闭环。
+- 轻量性能基线可接受，配合已落地 12 个索引可支撑当前阶段答辩与演示。
+
+四、结果文件（用于论文附录）
+- docs/白盒测试记录.txt
+- docs/白盒基线扫描结果.txt
+- docs/接口联调测试结果.txt
+- docs/数据与性能基础测试结果.txt
+- docs/测试总报告.txt
