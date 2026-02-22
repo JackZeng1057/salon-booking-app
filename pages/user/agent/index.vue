@@ -239,34 +239,49 @@ import { adviseServices } from '../../../api/agent';
 import { authStore } from '../../../store/auth';
 import BottomTabBar from '../../../components/bottom-tab-bar/bottom-tab-bar.vue';
 
+// 本地会话存储 key（用于持久化历史聊天）
 const SESSION_STORAGE_KEY = 'ai_agent_sessions_v1';
 
+/**
+ * AI 顾问页面
+ * 主要能力：
+ * 1) 图文提问并获取 AI 推荐服务
+ * 2) 会话历史持久化、切换、删除、批量管理
+ * 3) 将推荐结果一键带备注跳转到下单页
+ */
 export default {
   components: {
     BottomTabBar
   },
   data() {
     return {
+      // 顶部导航与安全区布局参数
       statusBarHeight: 24,
       navHeight: 112,
+      // 输入与上传状态
       queryText: '',
       inputFocused: false,
       imageItems: [],
       uploading: false,
       asking: false,
+      // 列表滚动控制
       scrollAnchor: '',
       contentScrollTop: 0,
+      // 历史会话面板状态
       historyVisible: false,
       batchMode: false,
       batchSelectedIds: [],
+      // 历史项长按菜单状态
       historyMenuVisible: false,
       historyMenuSessionId: '',
       historyMenuLeft: 0,
       historyMenuTop: 0,
+      // 会话数据
       sessions: [],
       currentSessionId: '',
       seq: 0,
       chatItems: [],
+      // 空态快捷提问模板
       quickPrompts: [
         '我想要干净利落的短发，发质偏硬，如何选择？',
         '预算200以内，推荐适合职场的发型方案',
@@ -276,24 +291,30 @@ export default {
     };
   },
   computed: {
+    // 内容区顶部内边距：避开固定导航
     contentTopPadding() {
       return Math.max(Number(this.navHeight || 88) - 18, 0);
     },
+    // 内容区底部内边距：根据输入态/历史面板/图片条动态调整
     contentBottomPadding() {
       if (this.inputFocused) return '20rpx';
       if (this.historyVisible) return '120rpx';
       return this.imageItems.length > 0 ? '420rpx' : '260rpx';
     },
+    // 输入框底部定位：聚焦时贴底，未聚焦时上移避开自定义 tabbar
     composerBottom() {
       if (this.inputFocused || this.historyVisible) return '0px';
       return '124rpx';
     },
+    // 今日会话分组
     todaySessions() {
       return this.sessions.filter((item) => this.isToday(item.updatedAt));
     },
+    // 更早会话分组
     olderSessions() {
       return this.sessions.filter((item) => !this.isToday(item.updatedAt));
     },
+    // 批量模式是否已全选
     batchAllSelected() {
       const total = this.sessions.length;
       if (!total) return false;
@@ -321,6 +342,7 @@ export default {
     this.upsertCurrentSession();
   },
   methods: {
+    // 初始化导航布局尺寸
     initLayout() {
       try {
         const sys = uni.getSystemInfoSync();
@@ -332,6 +354,7 @@ export default {
         this.navHeight = 86;
       }
     },
+    // 设置 App 端软键盘模式，避免输入时遮挡内容
     setSoftInputMode() {
       // #ifdef APP-PLUS
       try {
@@ -350,16 +373,19 @@ export default {
       } catch (e) {}
       // #endif
     },
+    // 安全隐藏系统 tabbar（项目使用自定义底栏）
     hideTabBarSafe() {
       try {
         uni.hideTabBar({ animation: false });
       } catch (e) {}
     },
+    // 统一 tabbar 处理（当前仍保持隐藏以免与自定义底栏冲突）
     showTabBarSafe() {
       try {
         uni.hideTabBar({ animation: false });
       } catch (e) {}
     },
+    // 初始化会话：优先读取本地缓存，空则创建新会话
     initSessions() {
       try {
         const raw = uni.getStorageSync(SESSION_STORAGE_KEY);
@@ -375,14 +401,17 @@ export default {
         this.startNewChat(false);
       }
     },
+    // 持久化会话列表到本地缓存
     persistSessions() {
       try {
         uni.setStorageSync(SESSION_STORAGE_KEY, this.sessions);
       } catch (e) {}
     },
+    // 生成唯一会话 ID
     genSessionId() {
       return `session_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
     },
+    // 深拷贝聊天消息，避免引用污染
     cloneChatItems(items) {
       if (!Array.isArray(items)) return [];
       try {
@@ -391,11 +420,13 @@ export default {
         return [];
       }
     },
+    // 基于首条用户消息生成会话标题
     buildSessionTitle(chatItems) {
       const firstUser = (chatItems || []).find((item) => item && item.role === 'user' && item.text);
       if (!firstUser) return '新会话';
       return String(firstUser.text).slice(0, 16);
     },
+    // 将当前会话插入/更新到 sessions，并按更新时间排序
     upsertCurrentSession() {
       const id = String(this.currentSessionId || '').trim();
       if (!id) return;
@@ -414,6 +445,7 @@ export default {
       this.sessions.sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
       this.persistSessions();
     },
+    // 判断时间戳是否为今天
     isToday(ts) {
       const time = Number(ts || 0);
       if (!time) return false;
@@ -425,6 +457,7 @@ export default {
         d.getDate() === n.getDate()
       );
     },
+    // 新建会话并清空当前输入/图片状态
     startNewChat(withTip = true) {
       this.upsertCurrentSession();
       this.currentSessionId = this.genSessionId();
@@ -443,6 +476,7 @@ export default {
         uni.showToast({ title: '已新建会话', icon: 'none' });
       }
     },
+    // 打开历史会话面板
     openHistory() {
       this.upsertCurrentSession();
       this.closeHistoryMenu();
@@ -450,6 +484,7 @@ export default {
       this.showTabBarSafe();
       this.historyVisible = true;
     },
+    // 关闭历史面板，并恢复常规状态
     closeHistory() {
       this.closeHistoryMenu();
       this.cancelBatchMode();
@@ -458,6 +493,7 @@ export default {
         this.showTabBarSafe();
       }
     },
+    // 历史项点击：批量模式下切换选中，普通模式下切换会话
     onHistoryItemClick(session) {
       if (this.batchMode) {
         this.toggleBatchSelect(session.id);
@@ -465,6 +501,7 @@ export default {
       }
       this.switchSession(session);
     },
+    // 长按历史项打开上下文菜单（批量/删除）
     onHistoryItemLongPress(session, event) {
       if (this.batchMode || !session || !session.id) return;
       const touch =
@@ -484,23 +521,28 @@ export default {
       this.historyMenuTop = Math.max(140, y - 30);
       this.historyMenuVisible = true;
     },
+    // 关闭历史上下文菜单
     closeHistoryMenu() {
       this.historyMenuVisible = false;
       this.historyMenuSessionId = '';
     },
+    // 进入批量管理模式
     enterBatchMode() {
       this.batchMode = true;
       this.batchSelectedIds = [];
       this.closeHistoryMenu();
     },
+    // 退出批量模式并清空选中项
     cancelBatchMode() {
       this.batchMode = false;
       this.batchSelectedIds = [];
       this.closeHistoryMenu();
     },
+    // 判断会话是否已在批量选中列表中
     isBatchSelected(sessionId) {
       return this.batchSelectedIds.includes(sessionId);
     },
+    // 切换单个会话选中状态
     toggleBatchSelect(sessionId) {
       if (!sessionId) return;
       const idx = this.batchSelectedIds.indexOf(sessionId);
@@ -510,6 +552,7 @@ export default {
         this.batchSelectedIds.push(sessionId);
       }
     },
+    // 全选/取消全选
     toggleSelectAllBatch() {
       if (this.batchAllSelected) {
         this.batchSelectedIds = [];
@@ -517,12 +560,14 @@ export default {
       }
       this.batchSelectedIds = this.sessions.map((item) => item.id);
     },
+    // 删除单个会话
     deleteSessionById(sessionId) {
       if (!sessionId) return;
       const set = new Set([sessionId]);
       this.applyDeleteSessions(set);
       this.closeHistoryMenu();
     },
+    // 删除批量选中的会话
     deleteSelectedSessions() {
       if (!this.batchSelectedIds.length) {
         uni.showToast({ title: '请先选择会话', icon: 'none' });
@@ -532,6 +577,7 @@ export default {
       this.applyDeleteSessions(set);
       this.cancelBatchMode();
     },
+    // 执行会话删除并处理当前会话兜底
     applyDeleteSessions(deleteSet) {
       if (!deleteSet || deleteSet.size === 0) return;
       this.sessions = this.sessions.filter((item) => !deleteSet.has(item.id));
@@ -554,6 +600,7 @@ export default {
       this.sessions.sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
       this.persistSessions();
     },
+    // 切换到指定会话并恢复其消息内容
     switchSession(session) {
       if (!session || !session.id) return;
       this.upsertCurrentSession();
@@ -570,9 +617,11 @@ export default {
         this.scrollToBottom();
       });
     },
+    // 使用快捷提问模板
     usePrompt(text) {
       this.queryText = String(text || '').trim();
     },
+    // 输入框聚焦：隐藏底栏，必要时重置滚动
     onInputFocus() {
       this.inputFocused = true;
       this.setSoftInputMode();
@@ -582,10 +631,12 @@ export default {
         this.contentScrollTop = 0;
       }
     },
+    // 输入框失焦：恢复底栏
     onInputBlur() {
       this.inputFocused = false;
       this.showTabBarSafe();
     },
+    // 选择参考图片（最多 3 张）
     pickImages() {
       if (this.uploading) return;
       const remain = 3 - this.imageItems.length;
@@ -604,6 +655,7 @@ export default {
         }
       });
     },
+    // 上传图片到云存储并加入待发送列表
     async uploadImages(files) {
       this.uploading = true;
       try {
@@ -630,15 +682,18 @@ export default {
         this.uploading = false;
       }
     },
+    // 移除待发送图片
     removeImage(index) {
       this.imageItems.splice(index, 1);
     },
+    // 预览待发送图片
     previewPendingImage(index) {
       const urls = this.imageItems.map((item) => item && item.preview).filter((url) => !!url);
       if (!urls.length) return;
       const current = urls[Math.max(0, Math.min(index, urls.length - 1))];
       uni.previewImage({ current, urls });
     },
+    // 预览聊天记录中的图片
     previewChatImage(images, index) {
       const list = Array.isArray(images) ? images : [];
       const urls = list
@@ -648,16 +703,19 @@ export default {
       const current = urls[Math.max(0, Math.min(index, urls.length - 1))];
       uni.previewImage({ current, urls });
     },
+    // 生成消息唯一 ID
     makeMsgId(prefix) {
       this.seq += 1;
       return `${prefix}_${Date.now()}_${this.seq}`;
     },
+    // 按 ID 删除某条消息（用于去除 loading 占位）
     removeChatById(id) {
       const idx = this.chatItems.findIndex((item) => item.id === id);
       if (idx >= 0) {
         this.chatItems.splice(idx, 1);
       }
     },
+    // 发起 AI 顾问请求（支持纯文本/图文）
     async askAdvisor() {
       if (this.asking) return;
 
@@ -726,6 +784,7 @@ export default {
         this.scrollToBottom();
       }
     },
+    // 从推荐结果跳转下单页，并携带 AI 备注
     goBooking(item, bookingRemark) {
       if (!item || !item.serviceId) return;
       const storeId = String(item.storeId || '').trim();
@@ -737,6 +796,7 @@ export default {
       const url = `/pages/order/create?storeId=${storeId}&serviceId=${item.serviceId}&aiRemark=${remark}`;
       uni.navigateTo({ url });
     },
+    // 滚动到底部锚点
     scrollToBottom() {
       this.contentScrollTop = 0;
       this.scrollAnchor = '';

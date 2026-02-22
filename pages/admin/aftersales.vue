@@ -67,12 +67,22 @@
 import { fetchAftersales, replyAftersale } from '../../api/order';
 import { formatAftersaleStatus, formatAftersaleType } from '../../utils/status';
 
+/**
+ * 售后管理页（管理员）
+ * 功能：
+ * 1) 按售后状态筛选列表
+ * 2) 对未回复售后进行文本回复并更新处理状态
+ */
 export default {
   data() {
     return {
+      // 列表加载态
       loading: false,
+      // 售后单列表
       list: [],
+      // 当前筛选状态
       status: '',
+      // 状态 tab 配置
       statusOptions: [
         { label: '全部', value: '' },
         { label: '待处理', value: 'OPEN' },
@@ -90,6 +100,7 @@ export default {
   methods: {
     formatAftersaleStatus,
     formatAftersaleType,
+    // 将状态映射到标签样式
     getStatusClass(status) {
       const map = {
         待处理: 'is-open',
@@ -98,6 +109,7 @@ export default {
       };
       return map[this.formatAftersaleStatus(status)] || 'is-default';
     },
+    // 加载售后列表
     async loadList() {
       this.loading = true;
       try {
@@ -109,20 +121,24 @@ export default {
         this.loading = false;
       }
     },
+    // 切换筛选状态并刷新
     changeStatus(value) {
       this.status = value;
       this.loadList();
     },
+    // 点击输入框时设置当前项聚焦，并取消其他项聚焦
     ensureReplyFocus(target) {
       this.list = this.list.map((item) => ({
         ...item,
         _focus: item._id === target._id
       }));
     },
+    // 缓存当前售后项输入中的回复内容
     onReplyInput(e, item) {
       const val = (e && e.detail && e.detail.value) || '';
       item._reply = val;
     },
+    // 提交回复：有内容则直接标记已解决，否则标记处理中
     async handleReply(item) {
       try {
         await replyAftersale({

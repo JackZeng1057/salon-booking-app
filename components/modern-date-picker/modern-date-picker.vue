@@ -46,14 +46,25 @@
 </template>
 
 <script>
+/**
+ * 现代风格日期选择器
+ * 特性：
+ * 1) 支持 start/end 范围限制
+ * 2) 支持面板月份切换与禁用日期样式
+ * 3) 通过 input/change 事件对外输出日期值
+ */
+
+// 补零：1 -> "01"
 function pad2(n) {
   return String(n).padStart(2, '0');
 }
 
+// 将年月日拼接为 YYYY-MM-DD
 function toDateString(y, m, d) {
   return `${y}-${pad2(m)}-${pad2(d)}`;
 }
 
+// 解析 YYYY-MM-DD 字符串
 function parseDateString(text) {
   const m = String(text || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;
@@ -65,17 +76,20 @@ function parseDateString(text) {
   return { y, m: mon, d: day };
 }
 
+// 生成今天日期字符串
 function todayString() {
   const now = new Date();
   return toDateString(now.getFullYear(), now.getMonth() + 1, now.getDate());
 }
 
+// 日期键值：用于范围比较（按字符串比较即可）
 function dateKey(text) {
   const parsed = parseDateString(text);
   if (!parsed) return '';
   return `${parsed.y}${pad2(parsed.m)}${pad2(parsed.d)}`;
 }
 
+// 获取某年某月天数
 function monthDayCount(year, month) {
   return new Date(year, month, 0).getDate();
 }
@@ -107,25 +121,32 @@ export default {
   data() {
     return {
       visible: false,
+      // 面板当前显示的年/月
       panelYear: 0,
       panelMonth: 0,
+      // 弹窗内暂存值，点击“确定”后才真正写回外部
       tempValue: '',
       weekLabels: ['日', '一', '二', '三', '四', '五', '六']
     };
   },
   computed: {
+    // 触发器显示文案
     displayText() {
       return this.value || this.placeholder;
     },
+    // 面板标题
     panelTitle() {
       return this.title || '选择日期';
     },
+    // 起始日期键值
     minKey() {
       return dateKey(this.start);
     },
+    // 结束日期键值
     maxKey() {
       return dateKey(this.end);
     },
+    // 当前月份日历格子（6 行 x 7 列，共 42 格）
     monthCells() {
       const firstWeekDay = new Date(this.panelYear, this.panelMonth - 1, 1).getDay();
       const total = monthDayCount(this.panelYear, this.panelMonth);
@@ -146,14 +167,17 @@ export default {
       }
       return cells;
     },
+    // 是否允许切到上个月
     canPrevMonth() {
       return this.monthHasEnabledDay(this.panelYear, this.panelMonth - 1);
     },
+    // 是否允许切到下个月
     canNextMonth() {
       return this.monthHasEnabledDay(this.panelYear, this.panelMonth + 1);
     }
   },
   methods: {
+    // 判断日期是否落在可选范围内
     isDateEnabled(date) {
       if (!date) return false;
       const key = dateKey(date);
@@ -162,6 +186,7 @@ export default {
       if (this.maxKey && key > this.maxKey) return false;
       return true;
     },
+    // 判断指定月份是否至少存在 1 个可选日期
     monthHasEnabledDay(year, month) {
       let y = year;
       let m = month;
@@ -178,6 +203,7 @@ export default {
       }
       return false;
     },
+    // 打开面板时确定初始选中日期
     resolveInitDate() {
       const candidate = this.value || this.start || todayString();
       if (this.isDateEnabled(candidate)) return candidate;
@@ -185,26 +211,31 @@ export default {
       if (this.isDateEnabled(fallback)) return fallback;
       return todayString();
     },
+    // 根据日期定位面板当前年月
     setPanelByDate(date) {
       const parsed = parseDateString(date);
       if (!parsed) return;
       this.panelYear = parsed.y;
       this.panelMonth = parsed.m;
     },
+    // 打开日期选择器
     openPicker() {
       const initDate = this.resolveInitDate();
       this.tempValue = this.isDateEnabled(this.value) ? this.value : initDate;
       this.setPanelByDate(this.tempValue);
       this.visible = true;
     },
+    // 取消选择并关闭面板
     cancel() {
       this.visible = false;
       this.tempValue = '';
     },
+    // 点击某日：仅更新临时值，不立即对外提交
     pickDay(cell) {
       if (!cell || !cell.day || cell.disabled) return;
       this.tempValue = cell.date;
     },
+    // 切换到上个月
     toPrevMonth() {
       if (!this.canPrevMonth) return;
       if (this.panelMonth === 1) {
@@ -214,6 +245,7 @@ export default {
         this.panelMonth -= 1;
       }
     },
+    // 切换到下个月
     toNextMonth() {
       if (!this.canNextMonth) return;
       if (this.panelMonth === 12) {
@@ -223,9 +255,11 @@ export default {
         this.panelMonth += 1;
       }
     },
+    // 判断是否今天
     isToday(date) {
       return date === todayString();
     },
+    // 生成日期格子的样式 class
     dayClass(cell) {
       if (!cell || !cell.day) return 'empty';
       const classes = [];
@@ -235,6 +269,7 @@ export default {
       if (selected && cell.date === selected) classes.push('selected');
       return classes.join(' ');
     },
+    // 点击确定：校验并通过 input/change 输出结果
     confirm() {
       const val = this.tempValue || this.value || '';
       if (!val || !this.isDateEnabled(val)) {

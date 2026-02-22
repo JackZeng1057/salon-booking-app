@@ -49,20 +49,31 @@
 import { me } from '../../../api/auth';
 import { authStore } from '../../../store/auth';
 
+/**
+ * 账号设置页（理发师/通用账号）
+ * 能力：
+ * 1) 展示当前账号摘要信息
+ * 2) 跳转个人资料、手机绑定、密码修改页
+ * 3) 处理退出登录
+ */
 export default {
   data() {
     return {
+      // 登录用户详情（onShow 时拉取最新）
       user: {}
     };
   },
   computed: {
+    // 是否为理发师角色：用于控制底部栏形态与返回按钮展示
     isBarberRole() {
       const role = String((this.user && this.user.role) || authStore.state.role || '').toLowerCase();
       return role === 'barber';
     },
+    // 优先展示昵称，其次账号名
     displayName() {
       return this.user.name || this.user.username || '';
     },
+    // 手机号脱敏显示
     phoneMasked() {
       const phone = String(this.user.phone || this.user.mobile || '');
       if (!phone) return '未绑定';
@@ -73,26 +84,33 @@ export default {
     this.loadMe();
   },
   methods: {
+    // 获取最新用户信息，确保设置页展示与服务端一致
     async loadMe() {
       try {
         this.user = (await me()) || {};
       } catch (e) {}
     },
+    // 跳转：个人资料
     goProfile() {
       uni.navigateTo({ url: '/pages/user/settings/profile' });
     },
+    // 跳转：绑定手机号
     goPhone() {
       uni.navigateTo({ url: '/pages/user/settings/phone' });
     },
+    // 跳转：修改密码
     goPassword() {
       uni.navigateTo({ url: '/pages/user/settings/password' });
     },
+    // 理发师端快捷跳转：排班页
     goBarberSchedule() {
       uni.redirectTo({ url: '/pages/barber/schedule/index' });
     },
+    // 理发师端快捷跳转：订单页
     goBarberOrders() {
       uni.redirectTo({ url: '/pages/barber/orders/index' });
     },
+    // 清空登录态并回到登录页
     handleLogout() {
       authStore.clear();
       uni.reLaunch({ url: '/pages/auth/login' });

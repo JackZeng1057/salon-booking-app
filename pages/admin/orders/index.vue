@@ -155,6 +155,10 @@
 
 <script>
 // 门店订单页：核验开始、完结服务与爽约标记
+// 页面职责：
+// 1) 门店侧按日期管理订单状态流转；
+// 2) 提供到店核验、开始服务、完成服务、取消、爽约、删除等操作；
+// 3) 支持增量同步与侧滑删除，保证高频操作场景下的交互流畅。
 import { fetchStoreOrders, startService, finishService, markNoShow, deleteOrder, cancelOrder } from '../../../api/order';
 import { callCloud } from '../../../api/client';
 import { formatOrderStatus } from '../../../utils/status';
@@ -206,6 +210,7 @@ export default {
     };
   },
   computed: {
+    // 按 UI 标签聚合订单状态，避免在模板中写复杂判断。
     filteredOrders() {
       const mapStatus = (status) => {
         const s = this.normalizeStatus(status);
@@ -226,6 +231,9 @@ export default {
   },
   methods: {
     formatOrderStatus,
+    // “开始服务”入口：
+    // - ARRIVED 状态可直接开始；
+    // - BOOKED 状态需先核验验证码再开始。
     async handleStartAction(order) {
       if (!order || !order._id) return;
       const status = this.normalizeStatus(order.status);
@@ -498,6 +506,7 @@ export default {
         const useIncremental = this.lastSyncAt > 0;
         const payload = { date: this.date };
         if (useIncremental) {
+          // 使用 lastSyncAt 拉增量变更，降低门店端重复全量拉取压力。
           payload.lastSyncAt = this.lastSyncAt;
           payload.limit = 50;
         }
@@ -535,6 +544,7 @@ export default {
         }
         uni.showToast({ title: '已开始服务', icon: 'success' });
       } catch (err) {
+        // 422 多为状态竞争（被他端先操作），提示用户刷新后重试。
         if (err && err.code === 422) {
           uni.showToast({ title: '当前状态不允许操作', icon: 'none' });
           return;
@@ -561,6 +571,7 @@ export default {
         }
         uni.showToast({ title: '已完成服务', icon: 'success' });
       } catch (err) {
+        // 统一处理状态冲突提示，减少“操作失败”模糊反馈。
         if (err && err.code === 422) {
           uni.showToast({ title: '当前状态不允许操作', icon: 'none' });
           return;
@@ -588,6 +599,7 @@ export default {
         }
         uni.showToast({ title: '已标记爽约', icon: 'success' });
       } catch (err) {
+        // 特殊错误码翻译为可理解业务文案。
         if (err && err.code === 422) {
           const msg = err.message === 'not_overdue' ? '未超过爽约时间' : '当前状态不允许操作';
           uni.showToast({ title: msg, icon: 'none' });
@@ -623,6 +635,7 @@ export default {
         }
         uni.showToast({ title: '已取消', icon: 'success' });
       } catch (err) {
+        // 取消超时或状态不允许均走明确提示，避免店员误判系统异常。
         if (err && err.code === 422) {
           const msg = err.message === 'cancel_window_expired'
             ? '已超过可取消时限（开始后5分钟）'
@@ -636,6 +649,7 @@ export default {
       }
     },
     openConfirmDialog(options = {}) {
+      // 若已有未决弹窗，先回收上一个 Promise，防止悬空回调。
       if (this.confirmDialogResolver) {
         this.confirmDialogResolver(false);
         this.confirmDialogResolver = null;

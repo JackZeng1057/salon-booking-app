@@ -1,6 +1,7 @@
 // 店家审核理发师申请（通过/拒绝）
 const { withResponse, requireRole, ApiError, ERROR_CODES } = require('sb-common');
 
+// 审核动作归一化：支持 approve/pass、reject/deny
 function normalizeAction(raw) {
   const text = String(raw || '').trim().toLowerCase();
   if (text === 'approve' || text === 'pass') return 'APPROVE';
@@ -8,6 +9,13 @@ function normalizeAction(raw) {
   return '';
 }
 
+/**
+ * 理发师申请审核云函数
+ * 规则：
+ * 1) 仅门店管理员可操作本店申请
+ * 2) 通过后角色切换为 barber
+ * 3) 拒绝后保留 pendingRole=barber，便于后续重新申请
+ */
 exports.main = withResponse(async (event, context) => {
   const admin = await requireRole(['admin'], event, context);
   const adminId = admin._id || admin.uid || admin.userId || '';
@@ -56,6 +64,7 @@ exports.main = withResponse(async (event, context) => {
   const now = Date.now();
   const isApprove = action === 'APPROVE';
 
+  // 按审核结果生成更新字段
   const updateData = isApprove
     ? {
         role: 'barber',
@@ -78,6 +87,7 @@ exports.main = withResponse(async (event, context) => {
 
   await db.collection('users').doc(userId).update(updateData);
 
+  // 发送审核结果通知（失败不影响主流程）
   try {
     await uniCloud.callFunction({
       name: 'notifications-create',

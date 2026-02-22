@@ -2,16 +2,25 @@ import { authStore } from '../store/auth';
 import { fetchNotifications } from '../api/notifications';
 import { openAppConfirm } from './app-confirm';
 
+// 轮询冷却：避免高频触发 unread 查询导致性能抖动。
 const CHECK_COOLDOWN_MS = 45 * 1000;
+// 每个用户单独记录“已推送过”的通知 ID，避免重复弹同一条本地通知。
 const STORAGE_KEY_PREFIX = 'systemNotifiedIds:';
+// 全局指纹：用于跨账号/跨会话去重同内容通知（兜底）。
 const GLOBAL_FINGERPRINT_STORAGE_KEY = 'systemNotifiedFingerprints';
+// 引导弹窗展示标记，避免反复打扰用户。
 const PERMISSION_GUIDE_SHOWN_KEY = 'notificationPermissionGuideShown';
 const HEADS_UP_GUIDE_SHOWN_KEY = 'notificationHeadsUpGuideShown';
+// 本地去重数据上限，防止 storage 无限增长。
 const STORAGE_LIMIT = 500;
+// 单次同步最多触发的系统通知条数，防止批量消息刷屏。
 const MAX_PUSH_PER_SYNC = 3;
+// 仅推送最近 24h 的关键消息，过期消息只在站内列表查看。
 const IMPORTANT_WINDOW_MS = 24 * 60 * 60 * 1000;
+// Android 通知渠道 ID（高优先级关键业务提醒）。
 const CRITICAL_CHANNEL_ID = 'salon_critical_v1';
 
+// 运行时状态位：控制并发、节流与一次性绑定行为。
 let checking = false;
 let lastCheckedAt = 0;
 let clickHandlerBound = false;
@@ -20,11 +29,13 @@ let pendingForceSync = false;
 let channelReady = false;
 let permissionRequesting = false;
 
+// 当前登录用户 ID（兼容不同字段命名）。
 function getCurrentUserId() {
   const user = authStore.state.user || {};
   return String(user._id || user.id || user.userId || user.uid || '').trim();
 }
 
+// 归一化当前角色：未知角色按普通用户处理，避免误推管理员级提醒。
 function getCurrentRole() {
   const role = String(authStore.state.role || (authStore.state.user && authStore.state.user.role) || '').trim();
   if (role === 'admin' || role === 'barber' || role === 'user') return role;
@@ -35,6 +46,7 @@ function getStorageKey(userId) {
   return `${STORAGE_KEY_PREFIX}${userId}`;
 }
 
+// 读取“已通知 ID 列表”，并做字符串化与空值过滤。
 function loadNotifiedIdList(userId) {
   const raw = uni.getStorageSync(getStorageKey(userId));
   if (!Array.isArray(raw)) return [];
@@ -43,6 +55,7 @@ function loadNotifiedIdList(userId) {
     .filter(Boolean);
 }
 
+// 保存“已通知 ID 列表”：去重 + 截断，保证本地存储可控。
 function saveNotifiedIdList(userId, ids) {
   const list = Array.isArray(ids) ? ids : [];
   const unique = [];
@@ -57,6 +70,7 @@ function saveNotifiedIdList(userId, ids) {
   uni.setStorageSync(getStorageKey(userId), sliced);
 }
 
+// 读取全局通知指纹列表（用于跨会话去重同内容通知）。
 function loadGlobalFingerprintList() {
   const raw = uni.getStorageSync(GLOBAL_FINGERPRINT_STORAGE_KEY);
   if (!Array.isArray(raw)) return [];
@@ -65,6 +79,7 @@ function loadGlobalFingerprintList() {
     .filter(Boolean);
 }
 
+// 保存全局通知指纹列表：同样做去重与截断。
 function saveGlobalFingerprintList(list) {
   const values = Array.isArray(list) ? list : [];
   const unique = [];
@@ -78,6 +93,7 @@ function saveGlobalFingerprintList(list) {
   uni.setStorageSync(GLOBAL_FINGERPRINT_STORAGE_KEY, unique.slice(-STORAGE_LIMIT));
 }
 
+// 构造通知指纹：type + relatedId + title + content 组合。
 function buildNotificationFingerprint(item) {
   const type = String((item && item.type) || '').trim();
   const title = String((item && item.title) || '').trim();
@@ -86,6 +102,7 @@ function buildNotificationFingerprint(item) {
   return `${type}|${relatedId}|${title}|${content}`;
 }
 
+// 在通知页内不重复弹系统通知，避免“列表已可见还弹横幅”的打扰。
 function isNotificationPageActive() {
   const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
   const top = pages && pages.length > 0 ? pages[pages.length - 1] : null;
@@ -93,10 +110,14 @@ function isNotificationPageActive() {
   return route === 'pages/user/notifications/index' || route === 'pages/user/notifications/detail';
 }
 
+// 安全类通知识别：密码、账号安全、风控异常等关键词。
 function isSecurityNotification(mergedText) {
   return /密码|账号安全|安全提醒|绑定手机号|异常|风控/.test(mergedText);
 }
 
+// 判断是否“关键通知”：
+// - 全角色：取消、爽约、安全；
+// - admin/barber/user 额外按职责与标题关键词判定。
 function isCriticalNotification(item, role) {
   const type = String((item && item.type) || '').toLowerCase();
   const title = String((item && item.title) || '');
@@ -129,6 +150,7 @@ function isCriticalNotification(item, role) {
   return false;
 }
 
+// 本地通知点击 payload：统一跳转站内通知页。
 function buildPushPayload(item) {
   return JSON.stringify({
     type: 'notification',
@@ -137,6 +159,7 @@ function buildPushPayload(item) {
   });
 }
 
+// 读取系统通知授权状态（uni 原生 API）。
 function getNotificationAuthStatus() {
   if (typeof uni.getAppAuthorizeSetting !== 'function') return '';
   try {
@@ -156,6 +179,7 @@ function markPermissionGuideShown() {
   uni.setStorageSync(PERMISSION_GUIDE_SHOWN_KEY, 1);
 }
 
+// 打开系统通知设置页：先走 uni API，失败再走 Android Intent 兜底。
 function openNotificationSettings() {
   if (typeof uni.openAppAuthorizeSetting === 'function') {
     let done = false;
@@ -222,6 +246,8 @@ function openNotificationSettingsByIntent() {
   // #endif
 }
 
+// Android 13+ 动态申请 POST_NOTIFICATIONS 权限。
+// 注意：仅在用户确认后调用，避免无感打断。
 function requestAndroidNotificationPermission(onGranted, onDenied) {
   if (permissionRequesting) return;
   // #ifdef APP-PLUS
@@ -268,6 +294,10 @@ function requestAndroidNotificationPermission(onGranted, onDenied) {
   }
 }
 
+// 提示用户开启通知权限：
+// - 先弹业务引导；
+// - 同意后尝试系统授权；
+// - 失败时引导手动跳设置页。
 async function promptEnableNotificationPermission(forceShow = false) {
   if (!forceShow && hasShownPermissionGuide()) return;
   // 先标记，避免异常情况下重复弹窗循环
@@ -296,6 +326,7 @@ async function promptEnableNotificationPermission(forceShow = false) {
   );
 }
 
+// 兼容不同 uni 版本的 PushChannel 管理 API。
 function getChannelManager() {
   if (typeof uni.getChannelManager === 'function') {
     return uni.getChannelManager();
@@ -306,6 +337,7 @@ function getChannelManager() {
   return null;
 }
 
+// 创建/确保关键通知渠道存在（Android）。
 function ensureCriticalPushChannel() {
   // #ifdef APP-PLUS
   if (channelReady) return;
@@ -335,6 +367,7 @@ function markHeadsUpGuideShown() {
   uni.setStorageSync(HEADS_UP_GUIDE_SHOWN_KEY, 1);
 }
 
+// 横幅提醒引导：针对 Android 机型常见“权限开了但无横幅/无声音”场景。
 async function maybeShowHeadsUpGuide(forceShow = false) {
   // #ifdef APP-PLUS
   if (typeof plus === 'undefined' || !plus.os || plus.os.name !== 'Android') return;
@@ -352,6 +385,9 @@ async function maybeShowHeadsUpGuide(forceShow = false) {
   // #endif
 }
 
+// 发送系统通知：
+// 1) 优先 uni.createPushMessage；
+// 2) 失败再回退 plus.push.createMessage。
 function sendSystemNotification(item) {
   const title = String((item && item.title) || '系统通知');
   const content = String((item && item.content) || '您有一条重要消息');
@@ -388,6 +424,10 @@ function sendSystemNotification(item) {
   // #endif
 }
 
+// 权限检查入口：
+// - 已授权则直接通过；
+// - 明确拒绝则触发引导；
+// - 未知状态不自动强拉系统授权，保持可控体验。
 function ensureNotificationPermission(options = {}) {
   // #ifdef APP-PLUS
   const forcePrompt = !!(options && options.forcePrompt);
@@ -411,6 +451,7 @@ function ensureNotificationPermission(options = {}) {
   // #endif
 }
 
+// 绑定系统通知点击事件（仅绑定一次）。
 function bindSystemNotificationClick() {
   // #ifdef APP-PLUS
   if (typeof plus === 'undefined' || !plus.push || typeof plus.push.addEventListener !== 'function') return;
@@ -437,6 +478,10 @@ function bindSystemNotificationClick() {
   // #endif
 }
 
+// 同步关键系统通知（App 端）：
+// - 拉取未读通知；
+// - 经过“关键性 + 时效 + 去重”筛选；
+// - 触发本地系统通知并持久化去重信息。
 export async function syncCriticalSystemNotifications(options = {}) {
   // #ifndef APP-PLUS
   return;
@@ -447,10 +492,13 @@ export async function syncCriticalSystemNotifications(options = {}) {
   const forcePrompt = !!(options && options.forcePrompt);
   const skipGuides = !!(options && options.skipGuides);
   if (checking) {
+    // 正在执行时记录强制重跑意图，等本轮结束后补跑一次。
     if (force) pendingForceSync = true;
     return;
   }
+  // 非强制模式下走冷却节流。
   if (!force && now - lastCheckedAt < CHECK_COOLDOWN_MS) return;
+  // 用户已在通知页时不再弹系统通知，避免重复干扰。
   if (isNotificationPageActive()) return;
 
   const userId = getCurrentUserId();
@@ -488,12 +536,16 @@ export async function syncCriticalSystemNotifications(options = {}) {
       const item = list[i] || {};
       const id = String(item._id || '').trim();
       if (!id) continue;
+      // 已推送过相同通知 ID 则跳过。
       if (notifiedSet.has(id)) continue;
       const fingerprint = buildNotificationFingerprint(item);
       if (!fingerprint) continue;
+      // 同内容指纹去重：避免后端重复入库导致重复推送。
       if (fingerprintSet.has(fingerprint)) continue;
+      // 仅关键通知触发系统级提醒。
       if (!isCriticalNotification(item, role)) continue;
       const createdAt = Number(item.createdAt || 0);
+      // 超时消息不走系统通知，仅保留站内查看。
       if (createdAt > 0 && now - createdAt > IMPORTANT_WINDOW_MS) continue;
       if (pushed >= MAX_PUSH_PER_SYNC) break;
 
@@ -513,6 +565,7 @@ export async function syncCriticalSystemNotifications(options = {}) {
     checking = false;
     if (pendingForceSync) {
       pendingForceSync = false;
+      // 轻微延迟重跑，避免同步结束瞬间的状态竞争。
       setTimeout(() => {
         syncCriticalSystemNotifications({ force: true });
       }, 200);

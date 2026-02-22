@@ -56,13 +56,25 @@
 <script>
 import { fetchBarberApplications, reviewBarberApplication } from '../../../api/barberApproval';
 
+/**
+ * 理发师审核页面（管理员）
+ * 功能：
+ * 1) 拉取待审核申请列表
+ * 2) 支持通过/拒绝审核操作
+ * 3) 统一使用确认弹窗避免误操作
+ */
 export default {
   data() {
     return {
+      // 列表加载态
       loading: false,
+      // 审核提交中状态，防止重复操作
       reviewing: false,
+      // 申请列表
       list: [],
+      // 默认头像
       defaultAvatar: 'https://dummyimage.com/100x100/efefef/999&text=B',
+      // 通用确认弹窗状态
       confirmDialog: {
         visible: false,
         title: '',
@@ -80,6 +92,7 @@ export default {
     this.loadList();
   },
   methods: {
+    // 拉取申请列表（当前仅展示待审核）
     async loadList() {
       this.loading = true;
       try {
@@ -96,16 +109,19 @@ export default {
         this.loading = false;
       }
     },
+    // 审核状态转中文文案
     formatStatus(status) {
       if (status === 'APPROVED') return '已通过';
       if (status === 'REJECTED') return '未通过';
       return '待审核';
     },
+    // 审核状态对应样式 class
     statusClass(status) {
       if (status === 'APPROVED') return 'ok';
       if (status === 'REJECTED') return 'fail';
       return 'wait';
     },
+    // 时间戳格式化
     formatTime(ts) {
       const n = Number(ts || 0);
       if (!n) return '-';
@@ -117,6 +133,7 @@ export default {
       const mm = String(d.getMinutes()).padStart(2, '0');
       return `${y}-${m}-${day} ${hh}:${mm}`;
     },
+    // 审核操作：二次确认后调用接口
     async handleReview(item, action) {
       if (this.reviewing) return;
       const isApprove = action === 'APPROVE';
@@ -141,6 +158,7 @@ export default {
         this.reviewing = false;
       }
     },
+    // 打开确认弹窗，返回 Promise<boolean>
     openConfirmDialog(options = {}) {
       if (this.confirmDialogResolver) {
         this.confirmDialogResolver(false);
@@ -157,15 +175,18 @@ export default {
         this.confirmDialogResolver = resolve;
       });
     },
+    // 关闭确认弹窗并回写结果
     closeConfirmDialog(result) {
       const resolver = this.confirmDialogResolver;
       this.confirmDialogResolver = null;
       this.confirmDialog.visible = false;
       if (typeof resolver === 'function') resolver(!!result);
     },
+    // 取消回调
     handleConfirmDialogCancel() {
       this.closeConfirmDialog(false);
     },
+    // 确认回调
     handleConfirmDialogConfirm() {
       this.closeConfirmDialog(true);
     }

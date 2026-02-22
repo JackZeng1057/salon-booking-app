@@ -1,0 +1,102 @@
+美发预约系统-云数据库说明（项目内版本）
+
+0. 说明
+- 数据库目录：/Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app/uniCloud-aliyun/database
+- 架构思路：主业务表 + 订单事件日志 + 审计日志
+- 主链路：users -> orders -> order_events/order_items -> reviews/aftersales/notifications
+
+1) 集合清单（14张）
+- 用户与认证：users, auth_tokens, sms_codes
+- 门店与服务：stores, services
+- 排班与时段：barber_schedules, time_slots
+- 订单域：orders, order_items, order_events
+- 评价与售后：reviews, aftersales
+- 通知与审计：notifications, audit_logs
+
+2) 核心表简述
+- users：账号信息（角色、门店归属）
+- stores：门店基础资料、营业信息、规则和评分
+- services：门店服务项目与价格时长
+- barber_schedules：理发师日排班
+- time_slots：预约时段库存（AVAILABLE/BOOKED）
+- orders：订单主表（状态机核心）
+- order_items：订单明细
+- order_events：订单状态流转日志
+- reviews：订单评价
+- aftersales：售后工单
+- notifications：站内消息
+- audit_logs：审计日志
+
+3) 订单状态约束（当前实现）
+- 标准：BOOKED -> ARRIVED -> IN_SERVICE -> FINISHED
+- 异常：BOOKED -> CANCELLED，BOOKED -> NO_SHOW
+- 现在已收口：orders-start-service 只允许 ARRIVED -> IN_SERVICE
+
+4) 等位与等待时长
+- 输出字段：queueAheadCount, queueWaitMin
+- 使用位置：门店订单列表、用户订单列表、订单详情
+- 备注：等待时长是估算值（按已到店/服务中队列推算）
+
+5) 已创建索引（12个）+ 对应用途
+
+A. orders（4个）
+1. idx_orders_user_updated
+   字段：userId(升序), updatedAt(降序)
+   用途：我的订单列表、分页、下拉刷新
+
+2. idx_orders_store_date_updated
+   字段：storeId(升序), date(升序), updatedAt(降序)
+   用途：门店按日期看订单、增量同步
+
+3. idx_orders_barber_date_status
+   字段：barberId(升序), date(升序), status(升序)
+   用途：理发师视角查询、等位队列计算
+
+4. idx_orders_verify_code
+   字段：verifyCode(升序)
+   用途：到店核验码匹配
+
+B. order_events（1个）
+5. idx_order_events_order_ts
+   字段：orderId(升序), ts(降序)
+   用途：订单日志倒序读取
+
+C. reviews（1个）
+6. idx_reviews_store_created
+   字段：storeId(升序), createdAt(降序)
+   用途：门店评价列表、最新评价
+
+D. notifications（1个）
+7. idx_noti_user_read_created
+   字段：userId(升序), isRead(升序), createdAt(降序)
+   用途：通知列表、未读筛选、按时间排序
+
+E. aftersales（1个）
+8. idx_aftersales_store_status_updated
+   字段：storeId(升序), status(升序), updatedAt(降序)
+   用途：门店售后按状态处理
+
+F. time_slots（1个）
+9. idx_slots_barber_date_start
+   字段：barberId(升序), date(升序), startTime(升序)
+   用途：可预约时段查询与时间排序
+
+G. barber_schedules（1个）
+10. idx_sched_barber_date
+    字段：barberId(升序), date(升序)
+    用途：排班查询与编辑回显
+
+H. services（1个）
+11. idx_services_store
+    字段：storeId(升序)
+    用途：门店服务列表加载
+
+I. users（1个）
+12. idx_users_username（唯一）
+    字段：username(升序)
+    用途：保证用户名不重复，并加速登录/注册重名校验
+
+6) 维护备注
+- 新增字段：同步更新 schema 和本文件
+- 新增状态值：同步更新云函数状态校验和接口文档
+- 答辩前建议做一次 schema/云函数/文档三方对照

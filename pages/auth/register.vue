@@ -105,15 +105,21 @@
 
 <script>
 // 注册页面：选择角色、校验输入并提交注册
+// 角色策略：
+// - 普通用户：直接注册；
+// - 理发师：必须先选择已存在门店（提交审核）；
+// - 店家：admin 角色，输入门店名后由后端创建/关联门店。
 import { register } from '../../api/auth';
 import { fetchStores } from '../../api/store';
 
 export default {
   data() {
     return {
+      // 账号与密码输入
       username: '',
       password: '',
       confirmPassword: '',
+      // 角色相关门店字段：admin 填门店名，barber 从列表选择
       storeName: '',
       roleOptions: [
         { label: '普通用户', value: 'user' },
@@ -121,10 +127,13 @@ export default {
         { label: '店家', value: 'admin' }
       ],
       roleIndex: 0,
+      // 提交加载态，避免重复点击
       loading: false,
+      // 门店列表加载态与候选项（仅 barber 需要）
       loadingStores: false,
       storeOptions: [],
       storeIndex: -1,
+      // 理发师最终提交给后端的门店 ID
       selectedStoreId: ''
     };
   },
@@ -150,12 +159,14 @@ export default {
       return `${item.name || ''}${item.address ? `（${item.address}）` : ''}`;
     },
     storeNamePlaceholder() {
+      // admin 输入“待创建/待关联门店名”，barber 显示“所属门店提示”。
       return this.isAdminRole
         ? '请输入门店名称（将自动创建新门店）'
         : '请输入所属门店名称';
     }
   },
   onLoad() {
+    // 初始角色若为 barber（默认不是），提前拉取门店数据避免首屏等待。
     if (this.isBarberRole) {
       this.loadStores();
     }
@@ -168,6 +179,7 @@ export default {
     // 角色选择变更
     onRoleChange(e) {
       this.roleIndex = Number(e.detail.value || 0);
+      // barber 切换进来时主动加载门店；切出时清空门店相关状态防止脏值提交。
       if (this.isBarberRole) {
         this.loadStores();
       } else {
@@ -180,15 +192,19 @@ export default {
         this.storeName = '';
       }
       if (this.isAdminRole) {
+        // admin 不走已有门店选择，强制改为手动填写名称。
         this.storeName = '';
       }
     },
+    // 拉取门店列表供理发师选择；失败时清空并保持可重试状态。
     async loadStores() {
       this.loadingStores = true;
       try {
         const list = await fetchStores({ page: 1, pageSize: 50, noCache: true });
+        // 仅保留有名称的有效门店数据，避免 picker 展示空项。
         this.storeOptions = Array.isArray(list) ? list.filter((item) => item && item.name) : [];
         if (this.storeOptions.length > 0) {
+          // 默认选第一家门店，减少一次点击操作。
           this.storeIndex = 0;
           this.storeName = this.storeOptions[0].name || '';
           this.selectedStoreId = this.storeOptions[0]._id || '';
@@ -206,6 +222,7 @@ export default {
         this.loadingStores = false;
       }
     },
+    // 理发师选择门店后同步 storeName/storeId，确保提交参数一致。
     onStoreChange(e) {
       const index = Number(e && e.detail && e.detail.value);
       if (!Number.isFinite(index) || index < 0 || !this.storeOptions[index]) return;
@@ -215,6 +232,7 @@ export default {
     },
     // 处理注册
     async handleRegister() {
+      // 前端基础校验：必填项、密码一致性、角色对应门店条件。
       if (!this.username.trim() || !this.password.trim()) {
         uni.showToast({ title: '请输入用户名和密码', icon: 'none' });
         return;
@@ -235,6 +253,10 @@ export default {
       this.loading = true;
       try {
         const role = this.roleOptions[this.roleIndex].value;
+        // 参数约定：
+        // - needStoreName=false 时 storeName 传空；
+        // - barber 必须附带 storeId；
+        // - admin 不传 storeId，由后端按 storeName 处理门店归属。
         await register({
           username: this.username,
           password: this.password,
@@ -246,6 +268,7 @@ export default {
           title: this.isBarberRole ? '申请已提交' : '注册成功',
           icon: 'success'
         });
+        // 成功后返回登录页，由登录流程接管后续跳转。
         setTimeout(() => {
           uni.navigateBack();
         }, 500);

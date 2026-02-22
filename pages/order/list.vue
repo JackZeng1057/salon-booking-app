@@ -47,6 +47,10 @@
 
 <script>
 // 我的订单页：状态筛选、分页与增量同步
+// 读取策略：
+// 1) 首屏优先读本地缓存提升速度；
+// 2) 有 lastSyncAt 时走增量同步补齐变更；
+// 3) 触底分页按页追加。
 import { fetchOrderList } from '../../api/order';
 import { getCache } from '../../utils/cache';
 import { formatOrderStatus } from '../../utils/status';
@@ -56,11 +60,15 @@ export default {
     return {
       loading: false,
       orders: [],
+      // 当前筛选状态（空字符串=全部）
       status: '',
+      // 分页参数
       page: 1,
       pageSize: 10,
       hasMore: true,
+      // 增量同步游标：后端返回的“最后更新时间戳”
       lastSyncAt: 0,
+      // tabs 与后端状态枚举映射
       statusOptions: [
         { label: '全部', value: '' },
         { label: '已预约', value: 'BOOKED' },
@@ -72,9 +80,11 @@ export default {
     };
   },
   onLoad() {
+    // 首次进入拉取数据
     this.loadOrders(true);
   },
   onShow() {
+    // 回到页面时刷新，确保详情页操作后的状态可见
     this.loadOrders(true);
   },
   onPullDownRefresh() {
@@ -91,9 +101,11 @@ export default {
   },
   methods: {
     formatOrderStatus,
+    // 缓存按“筛选条件 + 分页参数”隔离，避免不同筛选串数据。
     getCacheKey() {
       return `orders-mine:${this.status || ''}:${this.page || 1}:${this.pageSize || 10}`;
     },
+    // 合并增量返回的订单：以 _id 去重，后到数据覆盖旧字段。
     mergeOrders(list) {
       const map = new Map(this.orders.map((o) => [o._id, o]));
       list.forEach((item) => {
@@ -103,6 +115,7 @@ export default {
       });
       return Array.from(map.values()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     },
+    // 增量同步：只拉取 lastSyncAt 之后变更，降低网络与解析开销。
     async syncIncremental() {
       if (!this.lastSyncAt) return;
       try {
@@ -113,18 +126,21 @@ export default {
         }
         this.lastSyncAt = (data && data.lastSyncAt) || this.lastSyncAt;
       } catch (err) {
-        // 静默失败，避免打断页面
+        // 静默失败：不打断用户当前浏览，下一次全量/增量刷新会自动纠正。
       }
     },
     // 获取订单列表
     async loadOrders(reset = false) {
+      // 非重置模式下，若已无更多数据则直接返回。
       if (!this.hasMore && !reset) return;
       if (reset) {
+        // 重置分页游标并允许继续翻页。
         this.page = 1;
         this.hasMore = true;
       }
       const key = this.getCacheKey();
       if (this.page === 1) {
+        // 首屏命中缓存：立即渲染 + 后台增量补齐，减少白屏等待。
         const cached = getCache(key);
         if (cached && Array.isArray(cached.list)) {
           this.orders = cached.list;
@@ -137,6 +153,7 @@ export default {
       }
       this.loading = true;
       try {
+        // 分页拉取当前筛选下的数据
         const data = await fetchOrderList({
           status: this.status,
           page: this.page,
@@ -148,6 +165,7 @@ export default {
         } else {
           this.orders = this.orders.concat(Array.isArray(list) ? list : []);
         }
+        // 返回数量达到 pageSize 说明可能还有下一页。
         this.hasMore = Array.isArray(list) && list.length >= this.pageSize;
         this.lastSyncAt = (data && data.lastSyncAt) || this.lastSyncAt;
       } catch (err) {
@@ -160,6 +178,7 @@ export default {
     changeStatus(value) {
       if (this.status === value) return;
       this.status = value;
+      // 切换筛选后重置列表与增量游标，重新走首屏加载逻辑。
       this.page = 1;
       this.hasMore = true;
       this.lastSyncAt = 0;

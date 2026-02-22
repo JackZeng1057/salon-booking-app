@@ -121,19 +121,31 @@ import { fetchStores } from '../../../api/store';
 import { syncCriticalSystemNotifications } from '../../../utils/system-notify';
 import BottomTabBar from '../../../components/bottom-tab-bar/bottom-tab-bar.vue';
 
+/**
+ * 用户首页
+ * 提供：
+ * 1) 问候区与消息入口
+ * 2) 快捷功能入口
+ * 3) 附近推荐门店卡片
+ */
 export default {
   components: {
     BottomTabBar
   },
   data() {
     return {
+      // 未读消息数量（用于红点）
       unreadCount: 0,
+      // 推荐门店加载态
       storeLoading: false,
+      // 首页推荐门店（最多 3 条）
       recommendedStores: [],
+      // 顶部活动图与门店兜底图
       bannerCover:
         'https://images.unsplash.com/photo-1560066984-138dadb4c035?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80',
       defaultStoreCover:
         'https://images.unsplash.com/photo-1521590832896-7ea20ade7336?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
+      // 快捷入口配置
       quickActions: [
         { key: 'stores', label: '找门店', iconName: 'store', bg: '#dbeafe' },
         { key: 'orders', label: '我的预约', iconName: 'calendar', bg: '#dcfce7' },
@@ -143,13 +155,16 @@ export default {
     };
   },
   computed: {
+    // 当前登录用户（兜底为 Guest）
     currentUser() {
       return authStore.state.user || { nickname: 'Guest' };
     },
+    // 首页展示名：账号名 > 姓名 > 昵称
     displayName() {
       const user = this.currentUser || {};
       return user.username || user.name || user.nickname || '新朋友';
     },
+    // 按当前时段展示问候语
     greetingText() {
       const hour = new Date().getHours();
       if (hour < 11) return '上午好';
@@ -173,14 +188,17 @@ export default {
     });
   },
   methods: {
+    // 项目使用自定义底部栏，进入页面后隐藏系统 tabbar
     hideNativeTabBar() {
       try {
         uni.hideTabBar({ animation: false });
       } catch (e) {}
     },
+    // 刷新首页核心数据：未读数 + 推荐门店
     async refreshHome(forceRefresh = false) {
       await Promise.all([this.loadUnreadCount(), this.loadRecommendedStores(forceRefresh)]);
     },
+    // 拉取未读消息数
     async loadUnreadCount() {
       try {
         this.unreadCount = await getUnreadCount();
@@ -188,6 +206,7 @@ export default {
         this.unreadCount = 0;
       }
     },
+    // 拉取门店并按评分降序取前 3 条
     async loadRecommendedStores(forceRefresh = false) {
       this.storeLoading = true;
       try {
@@ -207,6 +226,7 @@ export default {
         this.storeLoading = false;
       }
     },
+    // 快捷入口路由分发
     handleQuickAction(key) {
       if (key === 'stores') {
         this.goStores();
@@ -224,30 +244,36 @@ export default {
         this.goSettings();
       }
     },
+    // 评分格式化
     formatStoreRating(store) {
       const score = Number((store && store.rating && store.rating.overall) || 0);
       return score > 0 ? score.toFixed(1) : '5.0';
     },
+    // 距离格式化
     formatDistance(distance) {
       if (distance === null || distance === undefined) return '';
       if (distance < 1) return `${Math.round(distance * 1000)}米`;
       return `${Number(distance).toFixed(1)}公里`;
     },
+    // 起价文案
     formatPrice(store) {
       const minPrice = Number((store && store.minPrice) || 0);
       return minPrice > 0 ? `¥${minPrice}起` : '价格面议';
     },
+    // 评价数量文案
     formatReviewCount(store) {
       const count = Number((store && store.rating && store.rating.count) || 0);
       if (!count) return '暂无评价';
       if (count >= 1000) return `${(count / 1000).toFixed(1)}k评价`;
       return `${count}条评价`;
     },
+    // 获取当天营业时间文本
     getTodayHours(store) {
       if (!store || !store.businessHours) return '';
       const day = new Date().getDay();
       return day === 0 || day === 6 ? store.businessHours.weekend : store.businessHours.weekday;
     },
+    // 解析营业时间区间（HH:mm-HH:mm）
     parseBusinessRange(rangeText) {
       const text = String(rangeText || '').trim();
       if (!text) return null;
@@ -263,6 +289,7 @@ export default {
         end: endHour * 60 + endMinute
       };
     },
+    // 返回营业状态文案
     getBusinessStatusText(store) {
       const range = this.parseBusinessRange(this.getTodayHours(store));
       if (!range) return '营业时间待设置';
@@ -274,22 +301,28 @@ export default {
           : minutes >= range.start && minutes <= range.end;
       return isOpen ? '营业中' : '休息中';
     },
+    // 读取门店封面（无封面时回退默认图）
     getStoreCover(store) {
       return (store && store.cover) || this.defaultStoreCover;
     },
+    // 跳转搜索/门店列表
     goSearch() {
       uni.navigateTo({ url: '/pages/store/list' });
     },
+    // 跳转门店列表
     goStores() {
       uni.navigateTo({ url: '/pages/store/list' });
     },
+    // 跳转门店详情
     goStoreDetail(id) {
       if (!id) return;
       uni.navigateTo({ url: `/pages/store/detail?id=${id}` });
     },
+    // 跳转消息中心
     goNotifications() {
       uni.navigateTo({ url: '/pages/user/notifications/index' });
     },
+    // 跳转“我的”设置页
     goSettings() {
       uni.switchTab({ url: '/pages/user/settings/index' });
     }

@@ -1,15 +1,26 @@
 const { withResponse, ApiError, requireRole, normalizeIdList } = require('sb-common');
 
+/**
+ * 门店资料更新云函数（管理员）
+ * 支持更新：
+ * - 门店基础信息（名称/地址/电话/封面/简介/标签）
+ * - 营业时间、预约规则
+ * - 服务项目增删改
+ */
+
+// 安全判断对象是否显式包含某字段（区分“未传”与“传空值”）
 function hasOwn(obj, key) {
   return Object.prototype.hasOwnProperty.call(obj || {}, key);
 }
 
+// 文本字段标准化：去前后空白并限制长度
 function normalizeText(value, maxLength = 200) {
   const text = String(value || '').trim();
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength);
 }
 
+// 标准化单个服务项并做格式校验
 function normalizeServiceItem(item) {
   const source = item || {};
   const id = normalizeText(source._id, 64);
@@ -45,6 +56,7 @@ function normalizeServiceItem(item) {
   };
 }
 
+// 门店资料更新入口
 exports.main = withResponse(async (event, context) => {
   const admin = await requireRole(['admin'], event, context);
   const storeId = (admin && admin.storeId) || '';
@@ -63,6 +75,7 @@ exports.main = withResponse(async (event, context) => {
   const payload = event || {};
   const updateData = { updatedAt: now };
 
+  // 仅更新请求中显式传入的字段
   if (hasOwn(payload, 'name')) {
     updateData.name = normalizeText(payload.name, 60);
   }
@@ -122,6 +135,7 @@ exports.main = withResponse(async (event, context) => {
       .filter((item) => !!item)
       .slice(0, 30);
 
+    // 服务项目全量同步策略：保留、更新、新增、删除
     const _ = db.command;
     const servicesCol = db.collection('services');
     const oldRes = await servicesCol.where({ storeId }).field({ _id: true }).get();

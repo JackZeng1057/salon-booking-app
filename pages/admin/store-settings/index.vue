@@ -149,6 +149,7 @@ import { fetchStoreDetail, fetchStoreServices, updateManagedStore } from '../../
 import { me } from '../../../api/auth';
 import { authStore } from '../../../store/auth';
 
+// 标签字符串转数组：按中英文逗号/分号/换行拆分，最多保留 8 项
 function splitTags(text) {
   return String(text || '')
     .split(/[,，、;\n]/)
@@ -157,13 +158,16 @@ function splitTags(text) {
     .slice(0, 8);
 }
 
+// 补零工具（例如 3 -> "03"）
 function pad2(n) {
   return String(n).padStart(2, '0');
 }
 
+// 时间选择器选项（00~23 / 00~59）
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => pad2(i));
 const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => pad2(i));
 
+// 将 HH:mm 文本解析为 picker-view 索引值
 function parseTimeToPickerValue(value) {
   const text = String(value || '').trim();
   const matched = text.match(/^(\d{2}):(\d{2})$/);
@@ -175,6 +179,7 @@ function parseTimeToPickerValue(value) {
   return [hourIndex, minuteIndex];
 }
 
+// 构造一个空服务行
 function createEmptyService() {
   return {
     localId: `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
@@ -185,19 +190,32 @@ function createEmptyService() {
   };
 }
 
+/**
+ * 门店设置页（管理员）
+ * 能力：
+ * 1) 编辑门店基础资料（名称、封面、电话、地址、标签）
+ * 2) 配置服务项目（名称/价格/时长）
+ * 3) 配置营业时间与预约规则
+ */
 export default {
   data() {
     return {
+      // 页面状态
       loading: false,
       saving: false,
       uploadingCover: false,
+      // 管理门店 ID
       storeId: '',
+      // 默认封面图
       defaultCover: 'https://dummyimage.com/600x400/efefef/333&text=Store',
+      // 时间选择器数据源
       hourOptions: HOUR_OPTIONS,
       minuteOptions: MINUTE_OPTIONS,
+      // 时间选择器状态
       showTimePicker: false,
       timePickerKey: '',
       tempTimeValue: [9, 0],
+      // 表单数据模型
       form: {
         name: '',
         cover: '',
@@ -220,6 +238,7 @@ export default {
     this.loadStoreProfile();
   },
   methods: {
+    // 获取并确保当前账号有 storeId
     async ensureStoreId() {
       let user = authStore.state.user || {};
       if (!user.storeId) {
@@ -229,6 +248,7 @@ export default {
       }
       return user.storeId || '';
     },
+    // 使用后端数据回填表单
     fillForm(store, services) {
       const businessHours = store.businessHours || {};
       const bookingRules = store.bookingRules || {};
@@ -258,6 +278,7 @@ export default {
         }))
         : [createEmptyService()];
     },
+    // 将时间范围文本拆分为开始/结束
     parseTimeRange(text) {
       const value = String(text || '').trim();
       const matched = value.match(/^(\d{2}:\d{2})\s*[-~到至]\s*(\d{2}:\d{2})$/);
@@ -266,6 +287,7 @@ export default {
       }
       return { start: matched[1], end: matched[2] };
     },
+    // 合并时间范围（要求起止都存在）
     formatTimeRange(start, end) {
       const safeStart = String(start || '').trim();
       const safeEnd = String(end || '').trim();
@@ -273,22 +295,27 @@ export default {
       if (!safeStart || !safeEnd) return '';
       return `${safeStart}-${safeEnd}`;
     },
+    // 获取某时间值对应的 picker 索引
     timePickerValue(value) {
       return parseTimeToPickerValue(value);
     },
+    // 打开时间选择器
     openTimePicker(key) {
       this.timePickerKey = key;
       this.tempTimeValue = this.timePickerValue(this.form[key] || '');
       this.showTimePicker = true;
     },
+    // 选择器滚动变更
     onTimePickerChange(e) {
       const value = (e && e.detail && e.detail.value) || [0, 0];
       this.tempTimeValue = [Number(value[0] || 0), Number(value[1] || 0)];
     },
+    // 取消时间选择
     cancelTimePicker() {
       this.showTimePicker = false;
       this.timePickerKey = '';
     },
+    // 确认时间选择并写回对应字段
     confirmTimePicker() {
       if (!this.timePickerKey) {
         this.cancelTimePicker();
@@ -300,14 +327,17 @@ export default {
       this.form[this.timePickerKey] = `${hour}:${minute}`;
       this.cancelTimePicker();
     },
+    // 新增一行服务配置
     addService() {
       this.form.services.push(createEmptyService());
     },
+    // 删除指定服务行
     removeService(index) {
       const list = Array.isArray(this.form.services) ? this.form.services : [];
       if (index < 0 || index >= list.length) return;
       this.form.services.splice(index, 1);
     },
+    // 校验并构建服务项目提交参数
     buildServicesPayload() {
       const list = Array.isArray(this.form.services) ? this.form.services : [];
       const result = [];
@@ -343,6 +373,7 @@ export default {
       }
       return result;
     },
+    // 加载门店资料与服务列表
     async loadStoreProfile(options = {}) {
       this.loading = true;
       try {
@@ -367,6 +398,7 @@ export default {
         this.loading = false;
       }
     },
+    // 选择门店封面图片
     pickCover() {
       if (this.uploadingCover) return;
       uni.chooseImage({
@@ -380,6 +412,7 @@ export default {
         }
       });
     },
+    // 上传封面到云存储并回填 fileID
     async uploadCover(filePath) {
       this.uploadingCover = true;
       try {
@@ -401,6 +434,7 @@ export default {
         this.uploadingCover = false;
       }
     },
+    // 提交保存门店资料与服务配置
     async saveStoreProfile() {
       if (!this.storeId) {
         uni.showToast({ title: '门店信息缺失', icon: 'none' });

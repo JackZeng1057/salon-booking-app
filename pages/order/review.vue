@@ -94,17 +94,25 @@
 
 <script>
 // 订单评价页：多维评分、文本与图片
+// 提交流程：
+// 1) 本地校验内容与订单号；
+// 2) 先上传本地图片到云存储；
+// 3) 调用创建评价接口一次性提交评分/文本/图片地址。
 import { createReview } from '../../api/order';
 
 export default {
   data() {
     return {
+      // 路由传入的订单 ID
       orderId: '',
+      // 三个维度评分，默认 5 星
       serviceRating: 5,
       environmentRating: 5,
       barberRating: 5,
+      // 评价文本和图片（支持本地临时路径 + 云文件 ID）
       content: '',
       images: [],
+      // 防重复提交
       loading: false
     };
   },
@@ -116,6 +124,7 @@ export default {
     }
   },
   onLoad(options) {
+    // 从页面参数读取 orderId，缺失时后续提交会被拦截。
     this.orderId = (options && options.orderId) || '';
   },
   methods: {
@@ -127,10 +136,12 @@ export default {
     // 选择图片
     chooseImage() {
       uni.chooseImage({
+        // 最多 6 张，减去当前已选数量
         count: 6 - this.images.length,
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
+          // 追加已选图片，支持多次选择
           this.images = [...this.images, ...res.tempFilePaths];
         }
       });
@@ -143,7 +154,7 @@ export default {
     async handleSubmit() {
       if (!this.orderId) return;
       
-      // 验证
+      // 文本必填校验：避免空评价污染评分体系
       if (!this.content.trim()) {
         uni.showToast({ title: '请填写评价内容', icon: 'none' });
         return;
@@ -151,6 +162,7 @@ export default {
 
       this.loading = true;
       try {
+        // 先上传图片，拿到可持久化的 URL/云文件 ID 再提交评价。
         const uploadedImages = await this.uploadReviewImages();
         await createReview({
           orderId: this.orderId,
@@ -167,6 +179,7 @@ export default {
           uni.navigateBack();
         }, 500);
       } catch (err) {
+        // 409 表示该订单已评价，前端给出可理解提示避免重复提交。
         if (err && err.code === 409) {
           uni.showToast({ title: '已评价过该订单', icon: 'none' });
           return;
@@ -176,6 +189,9 @@ export default {
         this.loading = false;
       }
     },
+    // 上传评价图片：
+    // - cloud/http(s) 地址直接复用；
+    // - 本地临时路径上传到 uniCloud 后转成 fileID。
     async uploadReviewImages() {
       const source = Array.isArray(this.images) ? this.images : [];
       if (source.length === 0) return [];
@@ -187,6 +203,7 @@ export default {
           uploaded.push(item);
           continue;
         }
+        // 根据原图后缀构造云端路径，便于后续排查资源类型。
         const extMatch = item.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
         const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
         const cloudPath = `reviews/${this.orderId}_${Date.now()}_${i}.${ext}`;

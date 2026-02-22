@@ -70,22 +70,36 @@ import { authStore } from '../../../store/auth';
 import { callCloud } from '../../../api/client';
 import { syncCriticalSystemNotifications } from '../../../utils/system-notify';
 
+/**
+ * 绑定/修改手机号页面
+ * 关键流程：
+ * 1) 输入手机号并发送短信验证码
+ * 2) 提交验证码绑定手机号
+ * 3) 成功后同步用户信息与系统关键通知
+ */
 export default {
   data() {
     return {
+      // 当前用户资料（用于展示与绑定后回写）
       user: authStore.state.user || {},
+      // 表单字段
       phone: '',
       code: '',
+      // 演示环境返回的验证码（生产可隐藏）
       demoCode: '',
+      // 发送验证码倒计时（秒）
       countdown: 0,
       timer: null,
+      // 保存中状态，防止重复提交
       saving: false
     };
   },
   computed: {
+    // 手机号是否满足大陆手机号规则
     canSend() {
       return /^1[3-9]\d{9}$/.test(this.phone);
     },
+    // 绑定提交条件：手机号合法 + 6 位验证码
     canSubmit() {
       return this.canSend && /^\d{6}$/.test(this.code);
     }
@@ -97,6 +111,7 @@ export default {
     if (this.timer) clearInterval(this.timer);
   },
   methods: {
+    // 拉取并同步最新用户信息
     async loadMe() {
       try {
         const data = await me();
@@ -107,6 +122,7 @@ export default {
         uni.showToast({ title: err.message || '获取用户失败', icon: 'none' });
       }
     },
+    // 发送短信验证码，并开启 60 秒防抖倒计时
     async sendCode() {
       if (!this.canSend) {
         uni.showToast({ title: '请输入正确手机号', icon: 'none' });
@@ -132,6 +148,7 @@ export default {
         uni.showToast({ title: err.message || '发送失败', icon: 'none' });
       }
     },
+    // 提交手机号绑定，成功后刷新用户资料并触发关键通知同步
     async handleBind() {
       if (!this.canSubmit) return;
       this.saving = true;

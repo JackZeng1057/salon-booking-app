@@ -40,6 +40,9 @@
 
 <script>
 // 到店核验页：输入核验码并返回订单信息
+// 使用场景：
+// - 前台到店时由店员输入 6 位核验码；
+// - 核验成功后订单进入可开始服务状态。
 import { callCloud } from '../../api/client';
 import { formatOrderStatus } from '../../utils/status';
 
@@ -71,16 +74,19 @@ export default {
     },
     // 核验订单
     async handleVerify() {
+      // 基础校验：空值不提交，避免无效请求。
       if (!this.verifyCode.trim()) {
         uni.showToast({ title: '请输入核验码', icon: 'none' });
         return;
       }
       this.loading = true;
       try {
+        // 调用云函数进行核验，成功后返回订单快照用于现场确认。
         const res = await callCloud('orders-verify', { verifyCode: this.verifyCode.trim() });
         this.order = res && res.order;
         uni.showToast({ title: '核验成功', icon: 'success' });
       } catch (err) {
+        // 422 常见于“订单状态不允许核验”（如已取消/已完成）。
         if (err && err.code === 422) {
           uni.showToast({ title: '当前状态不允许核验', icon: 'none' });
           return;

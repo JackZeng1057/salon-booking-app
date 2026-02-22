@@ -1,6 +1,13 @@
 // 通知删除：仅允许通知归属用户删除自己的通知
 const { withResponse, requireRole, ApiError } = require('sb-common');
 
+/**
+ * 删除通知云函数（逻辑删除）
+ * 规则：
+ * 1) 仅通知归属人可删除
+ * 2) 删除时强制标记已读
+ * 3) 返回 unreadReduced 供前端修正未读数
+ */
 exports.main = withResponse(async (event, context) => {
   const user = await requireRole(['user', 'admin', 'barber'], event, context);
   const userId = user._id || user.uid || user.userId;
@@ -24,6 +31,7 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(403, 'forbidden');
   }
 
+  // 幂等：已删除则直接返回
   if (notification.isDeleted === true) {
     return {
       success: true,

@@ -21,12 +21,14 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(404, 'order not found');
   }
 
+  // 用户角色仅允许查看自己的订单评价
   const role = user.role || user.type || '';
   const userId = user._id || user.uid || user.userId;
   if (role === 'user' && order.userId !== userId) {
     throw new ApiError(ERROR_CODES.FORBIDDEN, 'forbidden');
   }
 
+  // 一个订单最多返回一条评价记录
   const res = await db.collection('reviews').where({ orderId }).limit(1).get();
   return { review: res.data && res.data[0] };
 });

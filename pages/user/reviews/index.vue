@@ -79,16 +79,29 @@
 <script>
 import { fetchMyReviews, deleteReview } from '../../../api/order';
 
+/**
+ * 我的评价列表页
+ * 支持：
+ * 1) 分页加载历史评价
+ * 2) 预览评价图片
+ * 3) 删除评价（带二次确认）
+ */
 export default {
   data() {
     return {
+      // 首屏加载态
       loading: false,
+      // 追加加载态（加载更多）
       loadingMore: false,
+      // 当前正在删除的评价 ID（用于按钮 loading）
       deletingId: '',
+      // 评价列表
       reviews: [],
+      // 分页参数
       page: 1,
       pageSize: 10,
       hasMore: true,
+      // 通用确认弹窗状态
       confirmDialog: {
         visible: false,
         title: '',
@@ -109,17 +122,20 @@ export default {
     this.loadMore();
   },
   methods: {
+    // 统一格式化评分为 1 位小数
     formatScore(rating) {
       if (!rating) return '0.0';
       const score = typeof rating === 'number' ? rating : rating.overall;
       return Number(score || 0).toFixed(1);
     },
+    // 将评分转为星级字符展示
     formatStars(rating) {
       if (!rating) return '☆☆☆☆☆';
       const score = Number(typeof rating === 'number' ? rating : rating.overall) || 0;
       const count = Math.max(0, Math.min(5, Math.round(score)));
       return '★'.repeat(count) + '☆'.repeat(5 - count);
     },
+    // 时间戳转本地可读时间
     formatTime(ts) {
       if (!ts) return '';
       const d = new Date(ts);
@@ -130,10 +146,12 @@ export default {
       const mm = String(d.getMinutes()).padStart(2, '0');
       return `${y}-${m}-${day} ${hh}:${mm}`;
     },
+    // 图片大图预览
     previewImages(urls, index) {
       if (!Array.isArray(urls) || urls.length === 0) return;
       uni.previewImage({ urls, current: index });
     },
+    // 跳转订单详情
     goOrderDetail(item) {
       if (!item || !item.orderId) {
         uni.showToast({ title: '订单信息不存在', icon: 'none' });
@@ -141,6 +159,7 @@ export default {
       }
       uni.navigateTo({ url: `/pages/order/detail?id=${item.orderId}` });
     },
+    // 拉取评价列表（支持重置与追加）
     async loadReviews(reset = false) {
       if (this.loading || (!reset && !this.hasMore)) return;
       let ok = true;
@@ -170,6 +189,7 @@ export default {
       }
       return ok;
     },
+    // 上拉分页加载
     async loadMore() {
       if (this.loadingMore || this.loading || !this.hasMore) return;
       this.loadingMore = true;
@@ -183,6 +203,7 @@ export default {
         this.loadingMore = false;
       }
     },
+    // 删除前二次确认，确认后调用删除接口并本地移除
     async confirmDelete(item) {
       if (!item || !item._id || this.deletingId) return;
       const confirmed = await this.openConfirmDialog({
@@ -204,6 +225,7 @@ export default {
         this.deletingId = '';
       }
     },
+    // 打开通用确认弹窗，返回 Promise<boolean>
     openConfirmDialog(options = {}) {
       if (this.confirmDialogResolver) {
         this.confirmDialogResolver(false);
@@ -220,6 +242,7 @@ export default {
         this.confirmDialogResolver = resolve;
       });
     },
+    // 关闭确认弹窗并将结果返回给调用方
     closeConfirmDialog(result) {
       const resolver = this.confirmDialogResolver;
       this.confirmDialogResolver = null;
@@ -229,6 +252,7 @@ export default {
     handleConfirmDialogCancel() {
       this.closeConfirmDialog(false);
     },
+    // 确认按钮回调
     handleConfirmDialogConfirm() {
       this.closeConfirmDialog(true);
     }

@@ -157,23 +157,31 @@ import { formatOrderStatus, formatSlotStatus } from '../../utils/status';
 export default {
   data() {
     return {
+      // 当前订单 ID（路由参数）
       id: '',
       loading: false,
+      // 订单详情响应（含 order 主对象）
       detail: null,
+      // 取消面板状态与输入
       showCancel: false,
       cancelReason: '',
+      // 改期面板状态与选择信息
       showReschedule: false,
       rescheduleDate: '',
       slots: [],
       slotsLoading: false,
       selectedStartTime: '',
+      // 评价信息（仅已完成订单展示）
       review: null,
+      // 订单明细折叠面板
       showItems: false,
       itemsLoading: false,
       orderItems: [],
+      // 订单事件日志折叠面板
       showEvents: false,
       eventsLoading: false,
       orderEvents: [],
+      // 快照缺失时的本地字典兜底
       storeMap: {},
       serviceMap: {},
       barberMap: {}
@@ -242,6 +250,7 @@ export default {
   methods: {
     formatOrderStatus,
     formatSlotStatus,
+    // 兼容中文状态，统一用于页面逻辑判断。
     normalizeStatus(status) {
       const map = {
         已预约: 'BOOKED',
@@ -313,6 +322,7 @@ export default {
       try {
         const data = await fetchOrderDetail({ id: this.id });
         this.detail = data || null;
+        // 改期日期默认使用原预约日期。
         this.rescheduleDate = (data && data.order && data.order.date) || '';
         if (this.detail && this.detail.order) {
           const order = this.detail.order;
@@ -336,6 +346,7 @@ export default {
       }
     },
     async toggleItems() {
+      // 懒加载：首次展开时才请求明细，减少初始请求数。
       this.showItems = !this.showItems;
       if (this.showItems && this.orderItems.length === 0) {
         this.itemsLoading = true;
@@ -350,6 +361,7 @@ export default {
       }
     },
     async toggleEvents() {
+      // 懒加载：首次展开时才请求事件日志。
       this.showEvents = !this.showEvents;
       if (this.showEvents && this.orderEvents.length === 0) {
         this.eventsLoading = true;
@@ -404,6 +416,7 @@ export default {
         return;
       }
       try {
+        // 取消成功后合并后端返回订单快照，避免额外全量请求。
         const res = await cancelOrder({ orderId: this.id, reason: this.cancelReason });
         const order = res && res.order;
         if (order && this.detail && this.detail.order) {
@@ -498,6 +511,7 @@ export default {
         });
         uni.showToast({ title: '改期成功', icon: 'success' });
         this.showReschedule = false;
+        // 改期成功后回读详情，保证页面展示与服务端一致。
         this.loadDetail();
       } catch (err) {
         if (err && err.code === 409) {

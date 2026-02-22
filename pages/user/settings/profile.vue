@@ -42,19 +42,31 @@
 import { me, updateProfile } from '../../../api/auth';
 import { authStore } from '../../../store/auth';
 
+/**
+ * 个人资料页
+ * 当前支持：
+ * 1) 修改账号名
+ * 2) 上传并更新头像
+ */
 export default {
   data() {
     return {
+      // 当前用户对象（用于上传路径与本地展示）
       user: authStore.state.user || {},
+      // 可编辑字段
       username: '',
       avatar: '',
+      // 初始值：用于判断是否有改动，控制“保存”按钮可用态
       originUsername: '',
       originAvatar: '',
+      // 上传中状态（防止重复选择/上传）
       uploading: false,
+      // 保存中状态（防止重复提交）
       saving: false
     };
   },
   computed: {
+    // 仅当头像或名称发生有效变化时允许提交
     canSave() {
       const name = String(this.username || '').trim();
       const avatarChanged = this.avatar !== this.originAvatar;
@@ -66,6 +78,7 @@ export default {
     this.loadMe();
   },
   methods: {
+    // 拉取最新用户资料并刷新可编辑初始值
     async loadMe() {
       try {
         const data = await me();
@@ -79,6 +92,7 @@ export default {
         uni.showToast({ title: err.message || '获取用户失败', icon: 'none' });
       }
     },
+    // 选择头像文件（相册/相机）
     pickAvatar() {
       if (this.uploading) return;
       uni.chooseImage({
@@ -92,6 +106,7 @@ export default {
         }
       });
     },
+    // 上传头像到云存储并回填 fileID
     async uploadAvatar(filePath) {
       this.uploading = true;
       try {
@@ -114,6 +129,7 @@ export default {
         this.uploading = false;
       }
     },
+    // 提交资料更新并同步本地登录态
     async handleSave() {
       if (!this.canSave) return;
       this.saving = true;

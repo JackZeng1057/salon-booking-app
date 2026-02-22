@@ -1,11 +1,13 @@
 const { withResponse, ApiError, requireRole } = require('sb-common');
 
+// 标准化售后状态：仅允许固定枚举，非法值回退 PROCESSING 防止写入异常状态。
 function normalizeAftersaleStatus(status) {
   const raw = String(status || '').toUpperCase();
   if (raw === 'OPEN' || raw === 'PROCESSING' || raw === 'RESOLVED' || raw === 'REJECTED') return raw;
   return 'PROCESSING';
 }
 
+// 根据状态和回复内容生成通知文案，统一用户侧消息体验。
 function buildAftersaleProgressMessage(status, reply) {
   const replyText = String(reply || '').trim();
   const map = {
@@ -38,6 +40,10 @@ function buildAftersaleProgressMessage(status, reply) {
 }
 
 // 门店处理售后：回复并更新状态
+// 主流程：
+// 1) 校验管理员权限与工单归属门店；
+// 2) 更新售后状态与回复；
+// 3) 通知用户“售后进度更新”（通知失败不影响主流程）。
 exports.main = withResponse(async (event, context) => {
   const admin = await requireRole(['admin'], event, context);
 
@@ -68,6 +74,7 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(404, 'aftersale not found');
   }
 
+  // 门店隔离：管理员只能处理自己门店的售后工单。
   if (admin.storeId && after.storeId !== admin.storeId) {
     throw new ApiError(403, 'forbidden');
   }

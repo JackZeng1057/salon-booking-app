@@ -177,26 +177,45 @@
 import { fetchStoreDetail, fetchStoreServices, fetchStoreBarbers } from '../../api/store';
 import { fetchStoreReviews, normalizeReviewImages, resolveReviewImageUrls } from '../../api/review';
 
+/**
+ * 门店详情页
+ * 职责：
+ * 1) 展示门店基础信息、服务、理发师与预约规则
+ * 2) 提供导航、拨号、下单等快捷操作
+ * 3) 展示并筛选门店评价
+ */
 export default {
   data() {
     return {
+      // 当前门店 ID（来自路由）
       storeId: '',
+      // 门店详情对象
       store: null,
+      // 服务项目列表
       services: [],
+      // 理发师列表
       barbers: [],
+      // 评价列表（首页仅展示前 10 条）
       reviews: [],
+      // 页面加载态（详情）
       loading: false,
+      // 评价加载态
       reviewsLoading: false,
+      // 当前评价筛选项
       reviewFilter: 'all',
+      // 评价筛选配置
       reviewFilters: [
         { label: '全部', value: 'all' },
         { label: '好评', value: 'good' },
         { label: '差评', value: 'bad' },
         { label: '有图', value: 'withImages' }
       ],
+      // 与用户当前位置距离（km）
       distance: null,
+      // 用户定位坐标
       userLat: null,
       userLng: null,
+      // 兜底封面与头像
       defaultCover:
         'https://images.unsplash.com/photo-1521590832169-dcb6f5465cbf?auto=format&fit=crop&q=80&w=800',
       defaultAvatar:
@@ -215,6 +234,7 @@ export default {
     }
   },
   methods: {
+    // 获取用户定位（用于计算与门店距离）
     getUserLocation() {
       uni.getLocation({
         type: 'gcj02',
@@ -227,6 +247,7 @@ export default {
         }
       });
     },
+    // 使用 Haversine 公式计算两点球面距离（单位：km）
     calculateDistance() {
       if (!this.store || !this.store.location || !this.userLat || !this.userLng) {
         return;
@@ -248,11 +269,13 @@ export default {
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       this.distance = R * c;
     },
+    // 距离格式化（<1km 显示米）
     formatDistance(distance) {
       if (distance === null || distance === undefined) return '';
       if (distance < 1) return `${Math.round(distance * 1000)}米`;
       return `${Number(distance).toFixed(1)}公里`;
     },
+    // 打开导航：允许用户选择地图应用
     openNavigation() {
       const address = this.getNavigationAddress();
       if (!address) {
@@ -271,14 +294,17 @@ export default {
         }
       });
     },
+    // 获取导航地址（去空白）
     getNavigationAddress() {
       const address = this.store && this.store.address ? String(this.store.address).trim() : '';
       return address || '';
     },
+    // 获取门店电话（去空白）
     getStorePhone() {
       const phone = this.store && this.store.phone ? String(this.store.phone).trim() : '';
       return phone || '';
     },
+    // 拨打门店电话
     callStore() {
       const phone = this.getStorePhone();
       if (!phone) {
@@ -292,6 +318,7 @@ export default {
         }
       });
     },
+    // 复制地址到剪贴板，便于用户在地图 App 内粘贴检索
     copyAddress(address) {
       return new Promise((resolve) => {
         uni.setClipboardData({
@@ -302,6 +329,7 @@ export default {
         });
       });
     },
+    // 按地图提供商构造 URL 并尝试打开
     openMapByAddress(provider, address) {
       const keyword = encodeURIComponent(address);
       const appName = encodeURIComponent('salon-booking-app');
@@ -330,6 +358,7 @@ export default {
       }
       return false;
     },
+    // 加载门店详情、服务、理发师数据
     async loadDetail(options = {}) {
       this.loading = true;
       try {
@@ -351,6 +380,7 @@ export default {
         this.loading = false;
       }
     },
+    // 加载门店评价（按当前筛选项）
     async loadReviews() {
       this.reviewsLoading = true;
       try {
@@ -368,13 +398,16 @@ export default {
         this.reviewsLoading = false;
       }
     },
+    // 切换评价筛选并刷新列表
     changeReviewFilter(filter) {
       this.reviewFilter = filter;
       this.loadReviews();
     },
+    // 归一化评价图片数组
     getReviewImages(review) {
       return normalizeReviewImages(review);
     },
+    // 预览评价图片
     previewReviewImage(review, index) {
       const images = this.getReviewImages(review);
       if (!images.length) return;
@@ -384,6 +417,7 @@ export default {
         urls: images
       });
     },
+    // 评价时间友好化展示
     formatReviewTime(timestamp) {
       if (!timestamp) return '';
       const date = new Date(timestamp);
@@ -398,14 +432,17 @@ export default {
       const d = String(date.getDate()).padStart(2, '0');
       return `${y}-${m}-${d}`;
     },
+    // 门店评分格式化
     formatRating(store) {
       if (!store.rating || !store.rating.overall) return '5.0';
       return Number(store.rating.overall).toFixed(1);
     },
+    // 读取营业时间文本（weekday/weekend）
     getBusinessHoursText(key) {
       const businessHours = (this.store && this.store.businessHours) || {};
       return businessHours[key] || '未设置';
     },
+    // 读取预约规则文本，不存在则使用默认文案
     getBookingRuleText(key) {
       const defaults = {
         notice: '预约成功后请按约定时间到店，迟到可能影响服务安排。',
@@ -415,11 +452,13 @@ export default {
       const bookingRules = (this.store && this.store.bookingRules) || {};
       return bookingRules[key] || defaults[key] || '未设置';
     },
+    // 去下单页（可携带 serviceId 快速预选服务）
     goCreateOrder(serviceId = '') {
       if (!this.storeId) return;
       const serviceQuery = serviceId ? `&serviceId=${encodeURIComponent(serviceId)}` : '';
       uni.navigateTo({ url: `/pages/order/create?storeId=${this.storeId}${serviceQuery}` });
     },
+    // 跳转“门店评价”页查看完整评价列表
     goStoreReviews() {
       if (!this.storeId) return;
       const name = encodeURIComponent((this.store && this.store.name) || '');

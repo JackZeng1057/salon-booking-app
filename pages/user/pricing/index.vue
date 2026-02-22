@@ -50,6 +50,7 @@
 <script>
 import { fetchStores, fetchStoreServices } from '../../../api/store';
 
+// 根据服务名称做轻量分类，用于前端筛选标签
 function inferCategory(serviceName = '') {
   const name = String(serviceName || '').toLowerCase();
   if (/剪|cut|trim/.test(name)) return 'haircut';
@@ -59,10 +60,19 @@ function inferCategory(serviceName = '') {
   return 'all';
 }
 
+/**
+ * 价目表页面
+ * 设计：
+ * 1) 聚合多门店服务数据统一展示
+ * 2) 支持按服务类型快速筛选
+ * 3) 从价目项可直接跳转预约下单页
+ */
 export default {
   data() {
     return {
+      // 全局加载态
       loading: false,
+      // 当前分类筛选项
       activeCategory: 'all',
       categories: [
         { key: 'all', label: '全部' },
@@ -71,6 +81,7 @@ export default {
         { key: 'perm', label: '烫发' },
         { key: 'care', label: '护理' }
       ],
+      // 聚合后的服务列表（已扁平化）
       services: []
     };
   },
@@ -78,12 +89,14 @@ export default {
     this.loadPricing();
   },
   computed: {
+    // 根据当前筛选标签返回列表
     filteredServices() {
       if (this.activeCategory === 'all') return this.services;
       return this.services.filter((item) => item.category === this.activeCategory);
     }
   },
   methods: {
+    // 拉取门店与服务并合并为统一展示结构
     async loadPricing() {
       this.loading = true;
       try {
@@ -117,6 +130,7 @@ export default {
         this.loading = false;
       }
     },
+    // 跳转到预约创建页，并携带门店/服务上下文
     goCreateOrder(item) {
       if (!item || !item.storeId || !item.id) return;
       uni.navigateTo({

@@ -1,5 +1,13 @@
 const { logAudit, logOrderEvent } = require('./audit');
 
+/**
+ * 自动任务工具：
+ * 1) 超时未到店订单自动标记爽约
+ * 2) 发送到店前提醒（1小时/10分钟/5分钟）
+ * 3) 服务完成后发送评价提醒
+ */
+
+// 状态归一化（兼容中文状态）
 function normalizeStatus(status) {
   const map = {
     已预约: 'BOOKED',
@@ -12,6 +20,7 @@ function normalizeStatus(status) {
   return map[status] || status;
 }
 
+// 基于 UTC+8 计算日期字符串（YYYY-MM-DD）
 function toShanghaiDate(ts) {
   const d = new Date(ts + 8 * 60 * 60 * 1000);
   const y = d.getUTCFullYear();
@@ -20,6 +29,7 @@ function toShanghaiDate(ts) {
   return `${y}-${m}-${day}`;
 }
 
+// 将订单开始时间解析为时间戳
 function parseOrderStartMs(order) {
   if (!order || !order.date) return 0;
   const startTime = order.startTime || order.endTime || '';
@@ -27,6 +37,7 @@ function parseOrderStartMs(order) {
   return new Date(`${order.date}T${startTime}:00+08:00`).getTime();
 }
 
+// 判断某条到店提醒是否已发送（防重复）
 async function hasArrivalReminderSent(db, userId, orderId, title, content) {
   if (!userId || !orderId || !title) return false;
   const where = {
@@ -44,6 +55,7 @@ async function hasArrivalReminderSent(db, userId, orderId, title, content) {
   return !!(res && res.data && res.data.length > 0);
 }
 
+// 发送单个用户的到店提醒
 async function sendUpcomingReminderForUser(order, minutes) {
   const orderId = order._id || '';
   const userId = order.userId || '';
@@ -76,6 +88,7 @@ async function sendUpcomingReminderForUser(order, minutes) {
   return true;
 }
 
+// 批量扫描并发送到店前提醒
 async function sendUpcomingReminders(db, options = {}) {
   const _ = db.command;
   const now = Date.now();
@@ -85,6 +98,7 @@ async function sendUpcomingReminders(db, options = {}) {
   const remindOrderIds = [];
   const remindedUsers = [];
 
+  // 默认扫描今天和明天的预约单
   const where = {
     status: _.in(['BOOKED', '已预约']),
     date: _.in([today, tomorrow])
@@ -117,6 +131,7 @@ async function sendUpcomingReminders(db, options = {}) {
     const diffMin = Math.floor((startMs - now) / (60 * 1000));
     if (diffMin < 0 || diffMin > 60) continue;
 
+    // 根据剩余分钟确定提醒档位
     let targetMinute = 0;
     if (diffMin <= 5) {
       targetMinute = 5;
@@ -160,6 +175,7 @@ async function sendUpcomingReminders(db, options = {}) {
   };
 }
 
+// 判断“服务完成评价提醒”是否已发送
 async function hasReviewReminderSent(db, userId, orderId) {
   if (!userId || !orderId) return false;
   const res = await db
@@ -175,6 +191,7 @@ async function hasReviewReminderSent(db, userId, orderId) {
   return !!(res && res.data && res.data.length > 0);
 }
 
+// 批量发送服务完成后的评价提醒
 async function sendReviewReminders(db, options = {}) {
   const _ = db.command;
   const now = Date.now();
@@ -218,6 +235,7 @@ async function sendReviewReminders(db, options = {}) {
     const userId = order.userId || '';
     if (!orderId || !userId) continue;
     const doneAt = Number(order.finishedAt || order.updatedAt || 0);
+    // 完成后至少 30 分钟再提醒，避免打断用户
     if (!doneAt || now - doneAt < 30 * 60 * 1000) continue;
 
     const reviewRes = await db.collection('reviews').where({ orderId }).limit(1).get();
@@ -251,6 +269,7 @@ async function sendReviewReminders(db, options = {}) {
   };
 }
 
+// 订单被自动标记爽约后，通知用户/理发师/店家管理员
 async function sendAutoNoShowNotifications(db, order, graceMin) {
   const orderId = order._id || '';
   const date = order.date || '';
@@ -351,6 +370,7 @@ async function autoCancelOverdueBookedOrders(db, options = {}) {
   const list = res.data || [];
   const noShowOrderIds = [];
 
+  // 扫描超时预约并原子更新为 NO_SHOW
   for (let i = 0; i < list.length; i += 1) {
     const order = list[i];
     if (normalizeStatus(order.status) !== 'BOOKED') continue;
@@ -372,6 +392,7 @@ async function autoCancelOverdueBookedOrders(db, options = {}) {
 
     noShowOrderIds.push(order._id);
 
+    // 释放时段占用，避免后续下单受阻
     await db.collection('time_slots').where({ orderId: order._id }).update({
       status: 'AVAILABLE',
       orderId: '',
@@ -398,6 +419,7 @@ async function autoCancelOverdueBookedOrders(db, options = {}) {
       message: `auto timeout no_show (${graceMin}min)`
     });
 
+    // 发送自动爽约通知（失败不影响主流程）
     try {
       await sendAutoNoShowNotifications(db, order, graceMin);
     } catch (err) {
@@ -405,6 +427,7 @@ async function autoCancelOverdueBookedOrders(db, options = {}) {
     }
   }
 
+  // 执行到店提醒
   let reminderStats = { scanned: 0, reminded: 0, remindOrderIds: [] };
   try {
     reminderStats = await sendUpcomingReminders(db, options);
@@ -412,6 +435,7 @@ async function autoCancelOverdueBookedOrders(db, options = {}) {
     console.error('auto upcoming reminders failed:', err);
   }
 
+  // 执行评价提醒
   let reviewReminderStats = { scanned: 0, reminded: 0, remindOrderIds: [] };
   try {
     reviewReminderStats = await sendReviewReminders(db, options);

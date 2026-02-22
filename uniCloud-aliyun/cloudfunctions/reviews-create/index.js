@@ -1,6 +1,10 @@
 const { withResponse, ApiError, ERROR_CODES, requireRole, updateStoreRating } = require('sb-common');
 
 // 创建评价（仅 FINISHED 订单可评价）：支持多维评分与图片
+// 关键约束：
+// 1) 仅订单所属用户可评价；
+// 2) 同一订单仅允许评价一次；
+// 3) 评价创建后立即重算门店评分聚合。
 exports.main = withResponse(async (event, context) => {
   const user = await requireRole(['user'], event, context);
 
@@ -9,6 +13,7 @@ exports.main = withResponse(async (event, context) => {
   const content = (event && event.content) || '';
   const images = (event && event.images) || [];
 
+  // 统一清洗图片引用列表，去掉空值与非字符串噪音。
   function normalizeImages(input) {
     if (!Array.isArray(input)) return [];
     return input
@@ -64,19 +69,23 @@ exports.main = withResponse(async (event, context) => {
   if (!order) {
     throw new ApiError(404, 'order not found');
   }
+  // 权限：只能评价自己的订单。
   if (order.userId !== userId) {
     throw new ApiError(ERROR_CODES.FORBIDDEN, 'forbidden');
   }
+  // 状态机：仅已完成订单可评价。
   if (order.status !== 'FINISHED') {
     throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'status_not_allowed');
   }
 
+  // 幂等保护：同订单只允许 1 条评价。
   const existed = await db.collection('reviews').where({ orderId }).limit(1).get();
   if (existed.data && existed.data.length > 0) {
     throw new ApiError(ERROR_CODES.CONFLICT, 'review_exists');
   }
 
   const safeImages = normalizeImages(images);
+  // 图片仅接受 cloud fileID 或 http(s) 直链，防止写入本地临时路径。
   const invalidImages = safeImages.filter((item) => !isSupportedImageRef(item));
   if (invalidImages.length > 0) {
     throw new ApiError(400, 'images must be cloud file id or http(s) url');
@@ -107,5 +116,6 @@ exports.main = withResponse(async (event, context) => {
   // 更新门店评分统计
   await updateStoreRating(db, order.storeId);
 
+  // 返回新增评价主键，便于前端做路由回退与提示。
   return { id: reviewId };
 });

@@ -1,6 +1,14 @@
 const { withResponse, ApiError, requireRole, normalizeIdList } = require('sb-common');
 
+/**
+ * 管理员配置“理发师可服务项目”云函数
+ * 入参：
+ * - assignments: [{ barberId, serviceIds[] }]
+ * - overwriteAll: 是否覆盖未传入理发师（默认 true）
+ */
+
 exports.main = withResponse(async (event, context) => {
+  // 仅门店管理员可操作
   const admin = await requireRole(['admin'], event, context);
   const storeId = (admin && admin.storeId) || '';
   if (!storeId) {
@@ -16,6 +24,7 @@ exports.main = withResponse(async (event, context) => {
   const db = uniCloud.database();
   const now = Date.now();
 
+  // 拉取当前门店合法 barberId / serviceId 白名单，后续用于强校验
   const [barberRes, serviceRes] = await Promise.all([
     db
       .collection('users')
@@ -33,6 +42,7 @@ exports.main = withResponse(async (event, context) => {
   const barberIdSet = new Set(barbers.map((item) => item && item._id).filter((id) => !!id));
   const serviceIdSet = new Set(services.map((item) => item && item._id).filter((id) => !!id));
 
+  // 标准化入参并校验 ID 有效性
   const normalizedAssignments = new Map();
   assignments.forEach((item) => {
     const row = item || {};
@@ -49,6 +59,7 @@ exports.main = withResponse(async (event, context) => {
     normalizedAssignments.set(barberId, serviceIds);
   });
 
+  // 覆盖模式：更新整个门店理发师；增量模式：仅更新传入理发师
   const targetBarberIds = overwriteAll ? Array.from(barberIdSet) : Array.from(normalizedAssignments.keys());
   for (let i = 0; i < targetBarberIds.length; i += 1) {
     const barberId = targetBarberIds[i];
@@ -58,6 +69,7 @@ exports.main = withResponse(async (event, context) => {
     });
   }
 
+  // 标记门店已启用“显式服务绑定”策略
   await db.collection('stores').doc(storeId).update({
     barberServiceAssignmentEnabled: true,
     updatedAt: now

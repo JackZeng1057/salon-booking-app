@@ -77,19 +77,26 @@ import { me } from '../../../api/auth';
 import { authStore } from '../../../store/auth';
 import BottomTabBar from '../../../components/bottom-tab-bar/bottom-tab-bar.vue';
 
+/**
+ * 用户端设置首页
+ * 功能：资料入口、手机号入口、密码入口、我的评价入口、退出登录。
+ */
 export default {
   components: {
     BottomTabBar
   },
   data() {
     return {
+      // 优先使用本地登录态，进入页面后再做远端刷新
       user: authStore.state.user || {}
     };
   },
   computed: {
+    // 展示名：昵称优先，其次账号名
     displayName() {
       return this.user.name || this.user.username || '';
     },
+    // 手机号脱敏展示
     phoneMasked() {
       const phone = String(this.user.phone || this.user.mobile || '');
       if (!phone) return '未绑定';
@@ -104,11 +111,13 @@ export default {
     this.loadMe();
   },
   methods: {
+    // 本项目使用自定义底部栏，进入页面先隐藏系统 tabbar
     hideNativeTabBar() {
       try {
         uni.hideTabBar({ animation: false });
       } catch (e) {}
     },
+    // 拉取用户最新资料并同步回 authStore
     async loadMe() {
       try {
         const data = await me();
@@ -116,18 +125,23 @@ export default {
         authStore.setUser(data || null);
       } catch (err) {}
     },
+    // 跳转：个人资料
     goProfile() {
       uni.navigateTo({ url: '/pages/user/settings/profile' });
     },
+    // 跳转：手机号绑定
     goPhone() {
       uni.navigateTo({ url: '/pages/user/settings/phone' });
     },
+    // 跳转：密码修改
     goPassword() {
       uni.navigateTo({ url: '/pages/user/settings/password' });
     },
+    // 跳转：我的评价
     goReviews() {
       uni.navigateTo({ url: '/pages/user/reviews/index' });
     },
+    // 退出登录并清空本地身份状态
     handleLogout() {
       authStore.clear();
       uni.reLaunch({ url: '/pages/auth/login' });

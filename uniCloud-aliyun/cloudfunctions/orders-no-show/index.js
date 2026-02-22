@@ -1,5 +1,11 @@
 const { withResponse, ApiError, ERROR_CODES, requireRole, logAudit, logOrderEvent } = require('sb-common');
 
+/**
+ * 管理员手动标记爽约
+ * 状态流转：BOOKED -> NO_SHOW
+ */
+
+// 状态归一化，兼容中文状态值
 function normalizeStatus(status) {
   const map = {
     已预约: 'BOOKED',
@@ -12,6 +18,7 @@ function normalizeStatus(status) {
   return map[status] || status;
 }
 
+// 中国时区日期时间转时间戳
 function toChinaTimestamp(date, time) {
   if (!date || !time) return 0;
   const ms = new Date(`${date}T${time}:00+08:00`).getTime();
@@ -49,6 +56,7 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(404, 'order not found');
   }
 
+  // 管理员只能操作自己门店订单
   if (admin.storeId && order.storeId !== admin.storeId) {
     throw new ApiError(ERROR_CODES.FORBIDDEN, 'forbidden');
   }
@@ -61,6 +69,7 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'status_not_allowed');
   }
 
+  // 未超过超时阈值不允许标记爽约
   const startMs = toChinaTimestamp(order.date, order.startTime);
   if (!startMs || Date.now() < startMs + thresholdMin * 60 * 1000) {
     throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'not_overdue');
@@ -70,6 +79,7 @@ exports.main = withResponse(async (event, context) => {
   const adminId = admin._id || admin.uid || admin.userId;
 
   try {
+    // 订单状态更新 + 事件日志 + 审计日志
     await db.collection('orders').doc(orderId).update({
       status: 'NO_SHOW',
       noShowAt: now,

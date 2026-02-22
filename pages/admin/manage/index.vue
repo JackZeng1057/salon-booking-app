@@ -104,6 +104,7 @@ import { fetchStoreDetail } from '../../../api/store';
 import { callCloud } from '../../../api/client';
 import { syncCriticalSystemNotifications } from '../../../utils/system-notify';
 
+// Date -> YYYY-MM-DD（用于查询“今日待处理订单”）
 function toDateString(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -111,12 +112,23 @@ function toDateString(date) {
   return `${y}-${m}-${d}`;
 }
 
+/**
+ * 管理员工作台首页
+ * 汇总展示：
+ * 1) 未读通知数量
+ * 2) 待审核理发师数量
+ * 3) 今日待处理订单数
+ */
 export default {
   data() {
     return {
+      // 通知红点数量
       unreadCount: 0,
+      // 待审核理发师数量
       pendingBarberCount: 0,
+      // 今日待处理订单数（BOOKED/ARRIVED/IN_SERVICE）
       todayPendingOrderCount: 0,
+      // 门店展示名称
       storeName: '当前门店'
     };
   },
@@ -131,6 +143,7 @@ export default {
   },
   // 管理员管理页最小入口
   methods: {
+    // 加载门店名称：优先本地用户信息，缺失时回源查询
     async loadStoreName() {
       try {
         let user = authStore.state.user || {};
@@ -157,6 +170,7 @@ export default {
         this.storeName = '当前门店';
       }
     },
+    // 拉取未读通知数量
     async loadUnreadCount() {
       try {
         this.unreadCount = await getUnreadCount();
@@ -164,6 +178,7 @@ export default {
         this.unreadCount = 0;
       }
     },
+    // 拉取待审核理发师数量
     async loadPendingBarberCount() {
       try {
         const data = await fetchBarberApplications({ page: 1, pageSize: 1, status: 'PENDING' });
@@ -172,6 +187,7 @@ export default {
         this.pendingBarberCount = 0;
       }
     },
+    // 订单状态归一化（兼容中文）
     normalizeOrderStatus(status) {
       const map = {
         已预约: 'BOOKED',
@@ -183,10 +199,12 @@ export default {
       };
       return map[status] || String(status || '').toUpperCase();
     },
+    // 是否属于“待处理订单”状态
     isPendingOrderStatus(status) {
       const normalized = this.normalizeOrderStatus(status);
       return normalized === 'BOOKED' || normalized === 'ARRIVED' || normalized === 'IN_SERVICE';
     },
+    // 统计今日待处理订单数量（分页拉取门店订单）
     async loadTodayPendingOrderCount() {
       const date = toDateString(new Date());
       const pageSize = 100;
@@ -205,9 +223,11 @@ export default {
         this.todayPendingOrderCount = 0;
       }
     },
+    // 跳转消息列表
     goNotifications() {
       uni.navigateTo({ url: '/pages/user/notifications/index' });
     },
+    // 跳转核验页
     goVerify() {
       uni.navigateTo({ url: '/pages/admin/verify' });
     },
@@ -258,6 +278,7 @@ export default {
         }
       });
     },
+    // 跳转门店评价页
     goStoreReviews() {
       uni.navigateTo({
         url: '/pages/admin/reviews/index',

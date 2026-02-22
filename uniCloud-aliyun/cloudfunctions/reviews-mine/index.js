@@ -4,6 +4,7 @@ const { withResponse, requireRole } = require('sb-common');
 exports.main = withResponse(async (event, context) => {
   const user = await requireRole(['user'], event, context);
 
+  // 分页参数保护：页码>=1，pageSize 最大 20
   const page = Number((event && event.page) || 1);
   const pageSize = Number((event && event.pageSize) || 10);
   const safePage = Number.isFinite(page) && page > 0 ? page : 1;
@@ -13,6 +14,7 @@ exports.main = withResponse(async (event, context) => {
   const _ = db.command;
   const userId = user._id || user.uid || user.userId;
 
+  // 先查评价主表
   const reviewRes = await db
     .collection('reviews')
     .where({ userId })
@@ -35,6 +37,7 @@ exports.main = withResponse(async (event, context) => {
     .get();
 
   const reviews = reviewRes.data || [];
+  // 收集关联订单 ID，批量查询订单快照字段
   const orderIds = Array.from(new Set(reviews.map((item) => item.orderId).filter(Boolean)));
 
   let orderMap = new Map();
@@ -58,6 +61,7 @@ exports.main = withResponse(async (event, context) => {
     orderMap = new Map((orderRes.data || []).map((item) => [item._id, item]));
   }
 
+  // 组装前端所需展示字段
   const list = reviews.map((item) => {
     const order = orderMap.get(item.orderId) || {};
     return {

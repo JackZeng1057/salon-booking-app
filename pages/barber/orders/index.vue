@@ -94,6 +94,10 @@
 
 <script>
 // 理发师订单页：按日期查看订单，并进行开始/完成服务操作
+// 交互重点：
+// - 默认查看当天订单；
+// - 支持按“待服务/已完成/已取消”分栏；
+// - 状态操作采用按钮 loading 防抖，避免重复提交。
 import { fetchBarberOrders, startService, finishService } from '../../../api/order';
 import { formatOrderStatus } from '../../../utils/status';
 
@@ -125,6 +129,7 @@ export default {
     };
   },
   computed: {
+    // 前端分栏映射：把后端状态聚合成 3 类，便于理发师快速处理。
     filteredOrders() {
       const mapStatus = (status) => {
         const s = this.normalizeStatus(status);
@@ -144,6 +149,7 @@ export default {
   },
   methods: {
     formatOrderStatus,
+    // 兼容老数据中的中文状态值，统一成英文枚举供逻辑判断使用。
     normalizeStatus(status) {
       const map = {
         已预约: 'BOOKED',
@@ -178,6 +184,7 @@ export default {
       return '-';
     },
     canStart(status) {
+      // 到店后可开始服务；兼容老数据 BOOKED 直接开始。
       const s = this.normalizeStatus(status);
       return s === 'ARRIVED' || s === 'BOOKED';
     },
@@ -244,6 +251,7 @@ export default {
         const useIncremental = this.lastSyncAt > 0;
         const payload = { date: this.date };
         if (useIncremental) {
+          // 增量场景只传 lastSyncAt，后端返回变更集。
           payload.lastSyncAt = this.lastSyncAt;
           payload.limit = 50;
         }
@@ -278,6 +286,7 @@ export default {
         }
         uni.showToast({ title: '已开始服务', icon: 'success' });
       } catch (err) {
+        // 422 表示状态已变化或不允许操作，提示后不再二次报错。
         if (err && err.code === 422) {
           uni.showToast({ title: '当前状态不允许操作', icon: 'none' });
           return;

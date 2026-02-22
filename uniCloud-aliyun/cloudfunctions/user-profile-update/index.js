@@ -1,19 +1,25 @@
 // 账号资料更新：支持账号名（username）与头像
 const { withResponse, requireRole, ApiError } = require('sb-common');
 
+// 文本清洗：去首尾空格并限制最大长度，避免超长昵称污染展示/索引字段。
 function sanitizeText(value) {
   const text = String(value || '').trim();
   if (!text) return '';
   return text.slice(0, 20);
 }
 
+// 更新个人资料：
+// - 支持 username/name（统一落到 username）和 avatar；
+// - 根据角色同步 name 字段，确保前台展示命名规则一致。
 exports.main = withResponse(async (event, context) => {
   const user = await requireRole(['user', 'admin', 'barber'], event, context);
   const userId = user._id || user.uid || user.userId;
 
+  // 兼容前端不同字段命名：username 与 name 二选一取值。
   const username = sanitizeText((event && event.username) || (event && event.name));
   const avatar = String((event && event.avatar) || '').trim();
 
+  // 至少要更新一个字段，避免空请求无意义写库。
   if (!username && !avatar) {
     throw new ApiError(400, 'username or avatar is required');
   }
@@ -23,6 +29,7 @@ exports.main = withResponse(async (event, context) => {
     updatedAt: Date.now()
   };
   if (username) {
+    // username 全局唯一（当前实现未按门店分域），冲突则返回 409。
     const existedRes = await db.collection('users')
       .where({ username })
       .limit(1)
@@ -31,7 +38,8 @@ exports.main = withResponse(async (event, context) => {
     if (existed && existed._id !== userId) {
       throw new ApiError(409, 'username already exists');
     }
-    // 用户名可修改，但昵称按角色规则生成
+    // 用户名可修改，但昵称按角色规则生成：
+    // admin 昵称默认=门店名；barber 昵称默认=门店名_账号名；普通用户昵称=账号名。
     updateData.username = username;
     if (user.role === 'admin' || user.role === 'barber') {
       const storeId = user.storeId || '';
@@ -50,10 +58,12 @@ exports.main = withResponse(async (event, context) => {
       updateData.name = username;
     }
   }
+  // 头像允许独立更新，不依赖 username。
   if (avatar) updateData.avatar = avatar;
 
   await db.collection('users').doc(userId).update(updateData);
 
+  // 回读最新用户信息，确保返回值与数据库最终状态一致。
   const userRes = await db.collection('users').doc(userId).field({
     _id: true,
     username: true,
@@ -65,6 +75,7 @@ exports.main = withResponse(async (event, context) => {
   }).get();
   const latest = (userRes.data && userRes.data[0]) || {};
 
+  // 返回规范化结构，避免前端再做空值兜底。
   return {
     user: {
       _id: latest._id || userId,

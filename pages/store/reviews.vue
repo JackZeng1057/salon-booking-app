@@ -63,13 +63,22 @@
 import { fetchStoreDetail } from '../../api/store';
 import { fetchStoreReviews, normalizeReviewImages, resolveReviewImageUrls } from '../../api/review';
 
+/**
+ * 门店评价页（用户侧）
+ * 功能：
+ * 1) 展示门店评分概览
+ * 2) 按“好评/差评/有图”等条件筛选
+ * 3) 分页浏览与图片预览
+ */
 export default {
   data() {
     return {
+      // 当前门店基础信息
       storeId: '',
       storeName: '',
       storeRating: 0,
       reviewCount: 0,
+      // 评价筛选标签
       filters: [
         { label: '全部', value: 'all' },
         { label: '好评', value: 'good' },
@@ -77,19 +86,23 @@ export default {
         { label: '有图', value: 'withImages' }
       ],
       filterType: 'all',
+      // 评价列表与分页状态
       reviews: [],
       page: 1,
       pageSize: 10,
       hasMore: true,
+      // 加载态：loading 用于首屏，loadingMore 用于加载更多按钮
       loading: false,
       loadingMore: false
     };
   },
   computed: {
+    // 头部评分显示文本
     scoreText() {
       const score = Number(this.storeRating || 0);
       return score > 0 ? score.toFixed(1) : '暂无';
     },
+    // 评价总数显示文本
     totalCountText() {
       const count = Number(this.reviewCount || 0);
       return count > 0 ? `${count}条评价` : '暂无评价';
@@ -109,6 +122,7 @@ export default {
     this.loadMore();
   },
   methods: {
+    // 拉取门店评分、名称等概览信息
     async loadStoreMeta() {
       if (!this.storeId) return;
       try {
@@ -119,6 +133,7 @@ export default {
         this.reviewCount = Number((store && store.rating && store.rating.count) || 0);
       } catch (err) {}
     },
+    // 加载评价列表（reset=true 时重置分页）
     async loadReviews(reset = false) {
       if (!this.storeId || this.loading || (!reset && !this.hasMore)) return;
       let ok = true;
@@ -149,6 +164,7 @@ export default {
       }
       return ok;
     },
+    // 追加加载下一页
     async loadMore() {
       if (this.loading || this.loadingMore || !this.hasMore) return;
       this.loadingMore = true;
@@ -164,14 +180,17 @@ export default {
         this.loadingMore = false;
       }
     },
+    // 切换筛选并重置列表
     changeFilter(value) {
       if (this.filterType === value || this.loading) return;
       this.filterType = value;
       this.loadReviews(true);
     },
+    // 统一读取评价图片数组（兼容不同字段结构）
     getImages(review) {
       return normalizeReviewImages(review);
     },
+    // 预览评价图片
     previewReviewImage(review, index) {
       const images = this.getImages(review);
       if (!images.length) return;
@@ -181,10 +200,12 @@ export default {
         urls: images
       });
     },
+    // 评分格式化为 1 位小数
     formatScore(rating) {
       if (!rating) return '5.0';
       return Number(rating.overall || rating || 5).toFixed(1);
     },
+    // 时间戳转展示文本
     formatTime(timestamp) {
       if (!timestamp) return '';
       const date = new Date(timestamp);
@@ -195,6 +216,7 @@ export default {
       const mm = String(date.getMinutes()).padStart(2, '0');
       return `${y}-${m}-${d} ${hh}:${mm}`;
     },
+    // 统一读取商家回复内容
     getReplyText(review) {
       const reply = review && review.reply;
       if (!reply) return '';

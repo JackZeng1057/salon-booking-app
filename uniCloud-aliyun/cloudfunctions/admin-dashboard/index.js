@@ -3,12 +3,14 @@ const { withResponse, requireRole, getChinaDateString, autoCancelOverdueBookedOr
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// 校验并标准化日期输入
 function normalizeDate(dateText) {
   const raw = String(dateText || '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
   return getChinaDateString();
 }
 
+// 根据模式构建统计日期范围（日/周）
 function buildRange(anchorDate, mode) {
   if (mode !== 'week') {
     return {
@@ -32,6 +34,7 @@ function buildRange(anchorDate, mode) {
   };
 }
 
+// 拉取指定日期下门店全部订单（分页遍历）
 async function fetchAllOrdersByDate(db, storeId, date) {
   const PAGE_SIZE = 500;
   const MAX_PAGES = 50;
@@ -52,6 +55,7 @@ async function fetchAllOrdersByDate(db, storeId, date) {
   return list;
 }
 
+// 拉取门店全部评价（用于趋势统计）
 async function fetchAllReviewsByStore(db, storeId) {
   const PAGE_SIZE = 500;
   const MAX_PAGES = 100;
@@ -72,6 +76,7 @@ async function fetchAllReviewsByStore(db, storeId) {
   return list;
 }
 
+// 订单计数聚合
 function calcCounters(orders) {
   const counters = {
     total: 0,
@@ -91,6 +96,7 @@ function calcCounters(orders) {
   return counters;
 }
 
+// 计数转比例（完成率/取消率/爽约率）
 function calcRates(counters) {
   const total = Number((counters && counters.total) || 0);
   if (!total) {
@@ -107,6 +113,7 @@ function calcRates(counters) {
   };
 }
 
+// 按理发师维度聚合统计
 function calcBarberStats(orders) {
   const map = new Map();
   (orders || []).forEach((item) => {
@@ -129,6 +136,7 @@ function calcBarberStats(orders) {
   return Array.from(map.values()).sort((a, b) => Number(b.finished || 0) - Number(a.finished || 0));
 }
 
+// 评价趋势聚合：按天统计均分与条数
 function calcReviewTrend(dates, reviews) {
   const dateSet = new Set(dates || []);
   const sumMap = {};
@@ -185,6 +193,7 @@ exports.main = withResponse(async (event, context) => {
 
   const dayOrdersMap = {};
   const allOrders = [];
+  // 按范围日期聚合订单趋势原始数据
   for (const currentDate of range.dates) {
     const dayOrders = await fetchAllOrdersByDate(db, storeId, currentDate);
     dayOrdersMap[currentDate] = dayOrders;
@@ -194,6 +203,7 @@ exports.main = withResponse(async (event, context) => {
   const counters = calcCounters(allOrders);
   const rates = calcRates(counters);
   const barberStats = calcBarberStats(allOrders);
+  // 订单趋势按日输出
   const orderTrend = range.dates.map((currentDate) => {
     const dayOrders = dayOrdersMap[currentDate] || [];
     const dayCounters = calcCounters(dayOrders);

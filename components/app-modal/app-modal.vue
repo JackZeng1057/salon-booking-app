@@ -38,29 +38,39 @@
 </template>
 
 <script>
+/**
+ * 通用模态框组件
+ * 通过 props 控制展示、按钮文案、危险态按钮样式与是否允许点击遮罩关闭。
+ */
 export default {
   name: 'AppModal',
   props: {
+    // 是否显示弹窗
     visible: {
       type: Boolean,
       default: false
     },
+    // 标题文案
     title: {
       type: String,
       default: ''
     },
+    // 副标题文案
     subtitle: {
       type: String,
       default: ''
     },
+    // 是否显示右上角关闭按钮
     showClose: {
       type: Boolean,
       default: false
     },
+    // 是否显示底部按钮区（或由 footer 插槽自定义）
     showFooter: {
       type: Boolean,
       default: true
     },
+    // 是否显示取消按钮
     showCancel: {
       type: Boolean,
       default: true
@@ -85,27 +95,33 @@ export default {
       type: Boolean,
       default: false
     },
+    // 点击遮罩是否关闭
     maskClosable: {
       type: Boolean,
       default: true
     }
   },
   computed: {
+    // 是否传入了 footer 插槽（传入后可覆盖默认按钮区）
     hasFooterSlot() {
       return !!this.$slots.footer;
     }
   },
   methods: {
+    // 遮罩点击回调
     onMaskTap() {
       if (!this.maskClosable) return;
       this.$emit('close');
     },
+    // 关闭按钮回调
     onCloseTap() {
       this.$emit('close');
     },
+    // 取消按钮回调
     onCancelTap() {
       this.$emit('cancel');
     },
+    // 确认按钮回调
     onConfirmTap() {
       this.$emit('confirm');
     }

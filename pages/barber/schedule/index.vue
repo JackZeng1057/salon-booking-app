@@ -125,6 +125,7 @@
 // 理发师排班页：设置当天/未来排班并生成可预约时段
 // - 保存排班并生成时段数据
 // - 保存后按服务统计“可预约时间段”用于快速自检
+// 页面目标：让理发师在一个页面内完成“排班设置 + 结果校验 + 后续跳转”。
 import { setBarberSchedule, fetchBarberSlots } from '../../../api/barber';
 import { fetchStoreServices, fetchStoreDetail } from '../../../api/store';
 import { me } from '../../../api/auth';
@@ -144,9 +145,11 @@ function pad2(n) {
   return String(n).padStart(2, '0');
 }
 
+// picker 选项常量：0-23 点、0-59 分。
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => pad2(i));
 const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => pad2(i));
 
+// 把 HH:mm 解析为 picker 索引 [hourIndex, minuteIndex]，非法值回退到 09:00。
 function parseTimeToPickerValue(value) {
   const text = String(value || '').trim();
   const matched = text.match(/^(\d{2}):(\d{2})$/);
@@ -218,6 +221,7 @@ export default {
     this.loadPreviewSlots();
   },
   methods: {
+    // 若用户信息缺少 storeName，则按 storeId 主动补齐，避免页面显示“门店ID”。
     async resolveStoreName(user) {
       if (!user) return;
       const rawName = String(user.storeName || '').trim();
@@ -250,6 +254,7 @@ export default {
       } catch (err) {}
       await this.resolveStoreName(this.currentUser);
     },
+    // 加载未读消息数用于头部徽标。
     async loadUnreadCount() {
       try {
         this.unreadCount = await getUnreadCount();
@@ -297,6 +302,7 @@ export default {
       const minute = MINUTE_OPTIONS[Number(value[1] || 0)] || '00';
       this[this.timePickerKey] = `${hour}:${minute}`;
       this.cancelTimePicker();
+      // 时间变化后刷新预览时段，便于实时观察可预约区间。
       this.loadPreviewSlots();
     },
     // 是否生成未来 7 天
@@ -330,6 +336,9 @@ export default {
       }
       return list;
     },
+    // 加载预览时段：
+    // - 优先取真实服务时段；
+    // - 取不到时回退到本地推导时段，保障页面可用。
     async loadPreviewSlots() {
       const barberId = this.currentUser && (this.currentUser._id || this.currentUser.uid || this.currentUser.userId);
       const storeId = this.currentUser && this.currentUser.storeId;
@@ -405,6 +414,7 @@ export default {
         const generatedDates = (res && Array.isArray(res.generatedDates) && res.generatedDates.length > 0)
           ? res.generatedDates
           : [this.date];
+        // 按“排班实际生成日期”做统计，避免遗漏未来天数。
         await this.loadServiceSummaries(generatedDates, {
           _id: (res && res.serviceId) || '',
           name: (res && res.serviceName) || ''

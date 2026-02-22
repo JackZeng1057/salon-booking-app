@@ -81,20 +81,32 @@ import { authStore } from '../../../store/auth';
 import { callCloud } from '../../../api/client';
 import { syncCriticalSystemNotifications } from '../../../utils/system-notify';
 
+/**
+ * 修改密码页面
+ * 安全策略：
+ * 1) 必须先绑定手机号
+ * 2) 通过短信验证码校验身份
+ * 3) 新密码需满足基础长度校验
+ */
 export default {
   data() {
     return {
+      // 用户信息（主要读取绑定手机号）
       user: authStore.state.user || {},
+      // 验证码相关
       code: '',
       demoCode: '',
       countdown: 0,
       timer: null,
+      // 密码输入
       newPassword: '',
       confirmPassword: '',
+      // 提交中状态
       saving: false
     };
   },
   computed: {
+    // 提交前置校验：手机号、验证码、密码长度与二次输入一致
     canSubmit() {
       if (!this.user.phone) return false;
       if (!/^\d{6}$/.test(this.code)) return false;
@@ -111,6 +123,7 @@ export default {
     if (this.timer) clearInterval(this.timer);
   },
   methods: {
+    // 拉取最新用户信息，确保手机号状态准确
     async loadMe() {
       try {
         const data = await me();
@@ -120,6 +133,7 @@ export default {
         uni.showToast({ title: err.message || '获取用户失败', icon: 'none' });
       }
     },
+    // 使用当前绑定手机号发送“重置密码”验证码
     async sendCode() {
       if (!this.user.phone) {
         uni.showToast({ title: '请先绑定手机号', icon: 'none' });
@@ -145,6 +159,7 @@ export default {
         uni.showToast({ title: err.message || '发送失败', icon: 'none' });
       }
     },
+    // 调用后端重置密码接口，成功后清空表单并刷新关键通知
     async handleSubmit() {
       if (!this.canSubmit) return;
       this.saving = true;

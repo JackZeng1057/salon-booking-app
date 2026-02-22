@@ -1,6 +1,7 @@
 // 店家查看理发师申请列表（仅本店）
 const { withResponse, requireRole, ApiError, ERROR_CODES } = require('sb-common');
 
+// 状态参数归一化：支持 ALL/PENDING/APPROVED/REJECTED
 function normalizeStatus(raw) {
   const text = String(raw || '').trim().toUpperCase();
   if (!text) return 'PENDING';
@@ -9,6 +10,10 @@ function normalizeStatus(raw) {
   return 'PENDING';
 }
 
+/**
+ * 理发师申请列表查询云函数
+ * 仅门店管理员可访问本店申请记录。
+ */
 exports.main = withResponse(async (event, context) => {
   const admin = await requireRole(['admin'], event, context);
   const storeId = String((admin && admin.storeId) || '').trim();
@@ -23,6 +28,7 @@ exports.main = withResponse(async (event, context) => {
   const status = normalizeStatus(event && event.status);
 
   const db = uniCloud.database();
+  // 基础筛选：本店 + barber 申请记录
   const where = {
     storeId,
     pendingRole: 'barber'
@@ -31,6 +37,7 @@ exports.main = withResponse(async (event, context) => {
     where.approvalStatus = status;
   }
 
+  // 并行获取分页列表与待审核数量
   const [listRes, pendingCountRes] = await Promise.all([
     db
       .collection('users')

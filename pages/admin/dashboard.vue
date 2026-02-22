@@ -94,6 +94,7 @@
 // 门店看板页：按日/周展示经营统计、理发师表现与评价趋势
 import { fetchDashboard } from '../../api/admin';
 
+// Date -> YYYY-MM-DD
 function toDateString(date) {
 	const y = date.getFullYear();
 	const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -101,6 +102,7 @@ function toDateString(date) {
 	return `${y}-${m}-${d}`;
 }
 
+// 汇总计数默认值
 function emptyCounters() {
 	return {
 		total: 0,
@@ -111,6 +113,7 @@ function emptyCounters() {
 	};
 }
 
+// 比率默认值
 function emptyRates() {
 	return {
 		finishRate: 0,
@@ -119,6 +122,10 @@ function emptyRates() {
 	};
 }
 
+/**
+ * 管理员看板页
+ * 支持日/周模式切换，展示订单指标、理发师统计及评价趋势。
+ */
 export default {
 	data() {
 		return {
@@ -142,6 +149,7 @@ export default {
 		};
 	},
 	computed: {
+		// 统计范围文案
 		rangeText() {
 			const startDate = this.range && this.range.startDate ? this.range.startDate : '';
 			const endDate = this.range && this.range.endDate ? this.range.endDate : '';
@@ -149,6 +157,7 @@ export default {
 			if (!endDate || startDate === endDate) return startDate;
 			return `${startDate} 至 ${endDate}`;
 		},
+		// 合并订单趋势与评价趋势，统一输出给模板
 		mergedTrend() {
 			const reviewMap = {};
 			(this.reviewTrend || []).forEach((item) => {
@@ -165,6 +174,7 @@ export default {
 				};
 			});
 		},
+		// 计算区间内评价加权均分
 		reviewSummaryText() {
 			const list = this.reviewTrend || [];
 			let count = 0;
@@ -188,19 +198,23 @@ export default {
 		this.loadDashboard();
 	},
 	methods: {
+		// 日期选择器回调
 		onDateChange(e) {
 			this.date = e.detail.value || '';
 			this.loadDashboard();
 		},
+		// 切换日/周看板模式
 		switchMode(mode) {
 			if (mode === this.mode) return;
 			this.mode = mode;
 			this.loadDashboard();
 		},
+		// 比率格式化
 		formatRate(rate) {
 			const value = Number(rate || 0);
 			return `${(value * 100).toFixed(1)}%`;
 		},
+		// 评价趋势展示格式
 		formatReview(avg, count) {
 			const reviewCount = Number(count || 0);
 			if (!reviewCount) return '暂无';

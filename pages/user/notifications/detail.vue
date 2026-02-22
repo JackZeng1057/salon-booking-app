@@ -29,9 +29,14 @@
 </template>
 
 <script>
+/**
+ * 消息详情页
+ * 通过路由参数 payload（URL 编码的 JSON 字符串）接收消息对象并展示。
+ */
 export default {
   data() {
     return {
+      // 详情默认结构，避免模板取值时出现 undefined
       detail: {
         _id: '',
         title: '',
@@ -44,6 +49,7 @@ export default {
     };
   },
   onLoad(options) {
+    // payload 由消息列表页传入，内容为 encodeURIComponent(JSON.stringify(detail))
     const payload = options && options.payload;
     if (!payload) return;
     try {
@@ -54,6 +60,7 @@ export default {
     }
   },
   methods: {
+    // 根据通知类型返回图标名称与颜色
     getNotificationIconMeta(type) {
       const normalized = String(type || '').toLowerCase();
       const iconMap = {
@@ -67,6 +74,7 @@ export default {
       };
       return iconMap[normalized] || { name: 'mailbox', color: '#64748b' };
     },
+    // 通知类型映射为中文展示文案
     formatType(type) {
       const normalized = String(type || '').toLowerCase();
       const typeMap = {
@@ -80,6 +88,7 @@ export default {
       };
       return typeMap[normalized] || '系统通知';
     },
+    // 时间戳格式化为 yyyy-MM-dd HH:mm
     formatTime(timestamp) {
       if (!timestamp) return '';
       const date = new Date(timestamp);

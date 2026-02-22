@@ -25,6 +25,7 @@
 <script>
 import AppIcon from '../app-icon/app-icon.vue';
 
+// 用户端底部导航配置：key 用于高亮判断，path 对应 tabBar 页面路径
 const TABS = [
   { key: 'home', label: '首页', icon: 'home', path: '/pages/user/home/index' },
   { key: 'agent', label: 'AI顾问', icon: 'sparkles', path: '/pages/user/agent/index' },
@@ -32,12 +33,17 @@ const TABS = [
   { key: 'settings', label: '我的', icon: 'user', path: '/pages/user/settings/index' }
 ];
 
+/**
+ * 自定义底部导航栏
+ * 说明：项目采用自定义视觉样式，因此页面中主动隐藏系统 tabbar 并挂载本组件。
+ */
 export default {
   name: 'BottomTabBar',
   components: {
     AppIcon
   },
   props: {
+    // 当前激活 tab 的 key
     current: {
       type: String,
       default: 'home'
@@ -51,11 +57,13 @@ export default {
     };
   },
   computed: {
+    // 统一清洗当前 key，避免空白字符导致高亮异常
     currentKey() {
       return String(this.current || '').trim();
     }
   },
   methods: {
+    // 切换 tab（当前页重复点击不触发跳转）
     switchTab(item) {
       if (!item || !item.path) return;
       if (item.key === this.currentKey) return;

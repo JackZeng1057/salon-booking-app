@@ -1,5 +1,6 @@
 const { withResponse, ApiError, ERROR_CODES, requireRole, logAudit, logOrderEvent } = require('sb-common');
 
+// 历史数据兼容：旧订单状态可能存中文，统一映射为英文枚举以便后续状态机判断。
 function normalizeStatus(status) {
   const map = {
     已预约: 'BOOKED',
@@ -12,18 +13,25 @@ function normalizeStatus(status) {
   return map[status] || status;
 }
 
+// 把“预约日期 + 开始时间”按中国时区转换成时间戳（毫秒）。
+// 传入非法值时返回 0，上层按“可取消”兜底，不让解析问题误伤用户操作。
 function toChinaTimestamp(date, time) {
   if (!date || !time) return 0;
   const ms = new Date(`${date}T${time}:00+08:00`).getTime();
   return Number.isFinite(ms) ? ms : 0;
 }
 
+// 取消窗口判断：
+// - 开始前允许取消；
+// - 开始后在 cancelWindowMin 分钟内仍允许取消（避免到店操作与取消操作短时冲突）。
 function inCancelWindow(order, now, cancelWindowMin) {
   const startMs = toChinaTimestamp(order.date, order.startTime);
   if (!startMs) return true;
   return now <= startMs + cancelWindowMin * 60 * 1000;
 }
 
+// 取消后通知相关方（顾客/理发师/门店管理员）。
+// 说明：通知失败不应影响主事务，因此由调用方在外层吞错。
 async function notifyCancelStakeholders(db, payload = {}) {
   const {
     orderId = '',
@@ -40,7 +48,7 @@ async function notifyCancelStakeholders(db, payload = {}) {
   const reasonText = reason ? `，原因：${reason}` : '';
   const timeText = `${date} ${startTime}`.trim();
 
-  // 通知顾客
+  // 通知顾客：区分“门店代取消”和“用户自行取消”的文案。
   if (userId) {
     const content = operatorRole === 'admin'
       ? `门店已取消您 ${timeText} 的预约${reasonText}。`
@@ -59,6 +67,7 @@ async function notifyCancelStakeholders(db, payload = {}) {
   }
 
   // 通知理发师
+  // 若理发师就是操作人（如理发师端取消），则跳过避免收到自己触发的提醒。
   if (barberId && barberId !== operatorId) {
     const content = operatorRole === 'admin'
       ? `门店已取消 ${timeText} 的预约${reasonText}。`
@@ -76,7 +85,7 @@ async function notifyCancelStakeholders(db, payload = {}) {
     });
   }
 
-  // 通知门店管理员
+  // 通知门店管理员：店内其他管理员需要同步取消状态，便于前台协同。
   if (!storeId) return;
   const adminRes = await db
     .collection('users')
@@ -114,6 +123,7 @@ exports.main = withResponse(async (event, context) => {
 
   const orderId = (event && event.orderId) || '';
   const reason = (event && event.reason) || '';
+  // 允许前端配置窗口（默认 5 分钟），并做非负保护。
   const cancelWindowMin = Math.max(Number((event && event.cancelWindowMin) || 5), 0);
 
   if (!orderId) {
@@ -125,6 +135,7 @@ exports.main = withResponse(async (event, context) => {
   const db = uniCloud.database();
   const _ = db.command;
 
+  // 读取订单最小字段集：只取取消判断与通知所需字段，减少读放大。
   const orderRes = await db
     .collection('orders')
     .doc(orderId)
@@ -143,6 +154,9 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(404, 'order not found');
   }
 
+  // 权限控制：
+  // - user 只能取消自己的订单；
+  // - admin 只能取消自己门店的订单。
   if (actorRole === 'user' && order.userId !== actorId) {
     throw new ApiError(ERROR_CODES.FORBIDDEN, 'forbidden');
   }
@@ -166,12 +180,14 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'status_not_allowed');
   }
 
+  // 超过可取消时间窗口直接拒绝，避免服务已开始太久后仍撤单。
   const now = Date.now();
   if (!inCancelWindow(order, now, cancelWindowMin)) {
     throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'cancel_window_expired');
   }
 
   try {
+    // 并发保护：where 条件包含状态，确保只有 BOOKED 状态可转 CANCELLED。
     const updateRes = await db
       .collection('orders')
       .where({ _id: orderId, status: _.in(['BOOKED', '已预约']) })
@@ -185,6 +201,7 @@ exports.main = withResponse(async (event, context) => {
       throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'status_not_allowed');
     }
 
+    // 释放对应时段占用，恢复为可预约。
     await db
       .collection('time_slots')
       .where({ barberId: order.barberId, date: order.date, orderId })
@@ -214,6 +231,7 @@ exports.main = withResponse(async (event, context) => {
       requestId
     });
   } catch (err) {
+    // 主事务异常时记录审计日志，便于回溯谁在何时取消失败。
     await logAudit(db, {
       actorId,
       role: actorRole,
@@ -228,6 +246,7 @@ exports.main = withResponse(async (event, context) => {
   }
 
   try {
+    // 通知属于“附加流程”，失败仅记录日志，不影响取消结果返回。
     await notifyCancelStakeholders(db, {
       orderId,
       storeId: order.storeId || '',

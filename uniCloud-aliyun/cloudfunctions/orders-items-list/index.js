@@ -12,6 +12,7 @@ exports.main = withResponse(async (event, context) => {
   const userId = user._id || user.uid || user.userId;
   const role = user.role || user.type || '';
 
+  // 先校验订单归属，再查询明细，避免越权读数据
   const orderRes = await db
     .collection('orders')
     .doc(orderId)
@@ -32,6 +33,7 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(ERROR_CODES.FORBIDDEN, 'forbidden');
   }
 
+  // 返回订单明细项（创建时间正序）
   const res = await db
     .collection('order_items')
     .where({ orderId })

@@ -96,24 +96,41 @@ import { getCache } from '../../../utils/cache';
 import { formatOrderStatus } from '../../../utils/status';
 import BottomTabBar from '../../../components/bottom-tab-bar/bottom-tab-bar.vue';
 
+/**
+ * 用户订单页（我的预约）
+ * 核心能力：
+ * 1) 按状态分页查看订单
+ * 2) 支持缓存 + 增量同步降低首屏等待
+ * 3) 已完成/已取消订单支持左滑删除
+ */
 export default {
   components: {
     BottomTabBar
   },
   data() {
     return {
+      // 列表加载状态
       loading: false,
+      // 订单列表
       orders: [],
+      // 当前筛选状态（空字符串表示全部）
       status: '',
+      // 分页参数
       page: 1,
       pageSize: 10,
       hasMore: true,
+      // 增量同步游标（由后端返回）
       lastSyncAt: 0,
+      // 左滑动作区宽度（rpx）
       actionWidth: 160,
+      // 每行左滑偏移量缓存：{ [orderId]: number }
       swipeOffsets: {},
+      // 当前展开的左滑行 ID
       swipeOpenId: '',
+      // 触摸起始坐标
       touchStartX: 0,
       touchStartY: 0,
+      // 通用确认弹窗状态
       confirmDialog: {
         visible: false,
         title: '',
@@ -122,6 +139,7 @@ export default {
         confirmType: 'primary'
       },
       confirmDialogResolver: null,
+      // 顶部状态筛选项
       statusOptions: [
         { label: '全部', value: '' },
         { label: '已预约', value: 'BOOKED' },
@@ -149,17 +167,20 @@ export default {
     this.loadOrders();
   },
   methods: {
+    // 内层滚动触底加载下一页
     onListScrollToLower() {
       if (this.loading || !this.hasMore) return;
       this.page += 1;
       this.loadOrders();
     },
+    // 使用自定义底栏时隐藏系统 tabbar
     hideNativeTabBar() {
       try {
         uni.hideTabBar({ animation: false });
       } catch (e) {}
     },
     formatOrderStatus,
+    // 兼容旧中文状态与新状态码
     normalizeStatus(status) {
       const map = {
         已预约: 'BOOKED',
@@ -171,6 +192,7 @@ export default {
       };
       return map[status] || status;
     },
+    // 状态文案映射为样式 class
     getStatusClass(status) {
       const normalized = this.normalizeStatus(status);
       if (normalized === 'BOOKED' || normalized === 'ARRIVED' || normalized === 'IN_SERVICE') {
@@ -184,6 +206,7 @@ export default {
       }
       return 'is-default';
     },
+    // 仅“已到店”状态展示排队等待提示
     waitHint(order) {
       const status = this.normalizeStatus(order && order.status);
       if (status !== 'ARRIVED') return '';
@@ -192,16 +215,20 @@ export default {
       if (!Number.isFinite(ahead) || !Number.isFinite(waitMin)) return '';
       return `当前等位：前方 ${Math.max(ahead, 0)} 人，预计等待约 ${Math.max(waitMin, 0)} 分钟`;
     },
+    // 已取消/已完成订单支持左滑删除
     canSwipeDelete(order) {
       const status = this.normalizeStatus(order && order.status);
       return status === 'CANCELLED' || status === 'FINISHED';
     },
+    // 读取单行左滑偏移
     getSwipeOffset(orderId) {
       return this.swipeOffsets[orderId] || 0;
     },
+    // 设置单行左滑偏移（保持响应式）
     setSwipeOffset(orderId, value) {
       this.$set(this.swipeOffsets, orderId, value);
     },
+    // 关闭指定行的左滑状态
     closeSwipe(orderId) {
       if (!orderId) return;
       this.setSwipeOffset(orderId, 0);
@@ -209,11 +236,13 @@ export default {
         this.swipeOpenId = '';
       }
     },
+    // 打开当前行前，先关闭其他已展开行
     resetSwipe(exceptId) {
       if (this.swipeOpenId && this.swipeOpenId !== exceptId) {
         this.closeSwipe(this.swipeOpenId);
       }
     },
+    // 根据偏移值生成位移动画样式
     getSwipeStyle(order) {
       if (!this.canSwipeDelete(order)) return {};
       const offset = this.getSwipeOffset(order._id);
@@ -221,6 +250,7 @@ export default {
         transform: `translateX(${offset}rpx)`
       };
     },
+    // 记录触摸起点
     onTouchStart(e, order) {
       if (!this.canSwipeDelete(order)) return;
       const touch = e.touches && e.touches[0];
@@ -229,6 +259,7 @@ export default {
       this.touchStartY = touch.clientY;
       this.resetSwipe(order._id);
     },
+    // 仅处理水平位移，限制最大左滑距离
     onTouchMove(e, order) {
       if (!this.canSwipeDelete(order)) return;
       const touch = e.touches && e.touches[0];
@@ -239,6 +270,7 @@ export default {
       const offset = Math.max(Math.min(deltaX, 0), -this.actionWidth);
       this.setSwipeOffset(order._id, offset);
     },
+    // 根据阈值决定保持展开或回弹关闭
     onTouchEnd(e, order) {
       if (!this.canSwipeDelete(order)) return;
       const offset = this.getSwipeOffset(order._id);
@@ -249,6 +281,7 @@ export default {
         this.closeSwipe(order._id);
       }
     },
+    // 删除前二次确认，成功后本地移除
     async confirmDelete(order) {
       if (!this.canSwipeDelete(order)) return;
       const confirmed = await this.openConfirmDialog({
@@ -267,9 +300,11 @@ export default {
         uni.showToast({ title: err.message || '删除失败', icon: 'none' });
       }
     },
+    // 与订单 API 缓存 key 保持一致
     getCacheKey() {
       return `orders-mine:${this.status || ''}:${this.page || 1}:${this.pageSize || 10}`;
     },
+    // 合并增量订单并按更新时间倒序
     mergeOrders(list) {
       const map = new Map(this.orders.map((o) => [o._id, o]));
       list.forEach((item) => {
@@ -279,6 +314,7 @@ export default {
       });
       return Array.from(map.values()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     },
+    // 使用 lastSyncAt 增量拉取最新订单变更
     async syncIncremental() {
       if (!this.lastSyncAt) return;
       try {
@@ -290,6 +326,7 @@ export default {
         this.lastSyncAt = (data && data.lastSyncAt) || this.lastSyncAt;
       } catch (err) {}
     },
+    // 加载订单：支持重置、缓存预热、分页加载
     async loadOrders(reset = false) {
       if (!this.hasMore && !reset) return;
       if (reset) {
@@ -333,6 +370,7 @@ export default {
         this.loading = false;
       }
     },
+    // 切换筛选后重置分页并刷新列表
     changeStatus(value) {
       if (this.status === value) return;
       this.status = value;
@@ -341,10 +379,12 @@ export default {
       this.lastSyncAt = 0;
       this.loadOrders(true);
     },
+    // 跳转订单详情
     goDetail(id) {
       if (!id) return;
       uni.navigateTo({ url: `/pages/order/detail?id=${id}` });
     },
+    // 打开确认弹窗并返回 Promise<boolean>
     openConfirmDialog(options = {}) {
       if (this.confirmDialogResolver) {
         this.confirmDialogResolver(false);
@@ -365,6 +405,7 @@ export default {
         this.confirmDialogResolver = resolve;
       });
     },
+    // 关闭确认弹窗并回写结果
     closeConfirmDialog(result) {
       const resolver = this.confirmDialogResolver;
       this.confirmDialogResolver = null;
@@ -373,9 +414,11 @@ export default {
         resolver(!!result);
       }
     },
+    // 取消回调
     handleConfirmDialogCancel() {
       this.closeConfirmDialog(false);
     },
+    // 确认回调
     handleConfirmDialogConfirm() {
       this.closeConfirmDialog(true);
     }

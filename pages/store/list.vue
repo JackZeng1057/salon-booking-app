@@ -126,27 +126,44 @@
 <script>
 import { fetchStores } from '../../api/store';
 
+/**
+ * 门店列表页
+ * 功能：
+ * 1) 搜索门店
+ * 2) 排序/评分/距离筛选
+ * 3) 展示营业状态、评分与基础信息
+ */
 export default {
   data() {
     return {
+      // 门店列表数据
       stores: [],
+      // 首次/刷新加载状态
       loading: false,
       loaded: false,
+      // 搜索关键词
       keyword: '',
+      // 筛选面板展开状态
       showFilter: false,
+      // 当前排序方式
       sortBy: 'default',
+      // 排序配置项
       sortOptions: [
         { label: '默认排序', value: 'default' },
         { label: '距离最近', value: 'distance' },
         { label: '评分最高', value: 'rating' },
         { label: '价格优先', value: 'price' }
       ],
+      // 筛选项配置
       ratingOptions: [5, 4, 3],
       distanceOptions: [1, 3, 5],
+      // 当前筛选值
       minRating: null,
       maxDistance: null,
+      // 用户定位坐标（用于距离筛选/显示）
       userLat: null,
       userLng: null,
+      // 门店封面兜底图
       defaultCover:
         'https://images.unsplash.com/photo-1521590832896-7ea20ade7336?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
     };
@@ -164,6 +181,7 @@ export default {
     this.loadStores({ noCache: true });
   },
   methods: {
+    // 获取当前位置，成功后重新加载门店列表
     getUserLocation() {
       uni.getLocation({
         type: 'gcj02',
@@ -174,30 +192,38 @@ export default {
         }
       });
     },
+    // 搜索框回车触发查询
     handleSearch() {
       this.loadStores();
     },
+    // 切换筛选面板显隐
     toggleFilter() {
       this.showFilter = !this.showFilter;
     },
+    // 选择排序方式
     selectSort(value) {
       this.sortBy = value;
     },
+    // 设置最小评分筛选
     selectRating(rating) {
       this.minRating = rating;
     },
+    // 设置最大距离筛选（公里）
     selectDistance(distance) {
       this.maxDistance = distance;
     },
+    // 重置筛选条件为默认值
     resetFilters() {
       this.sortBy = 'default';
       this.minRating = null;
       this.maxDistance = null;
     },
+    // 应用筛选并刷新列表
     applyFilters() {
       this.showFilter = false;
       this.loadStores();
     },
+    // 拉取门店数据并按规则排序展示
     async loadStores(options = {}) {
       this.loading = true;
       try {
@@ -224,27 +250,32 @@ export default {
         this.loading = false;
       }
     },
+    // 评分格式化
     formatRating(store) {
       if (!store.rating || !store.rating.overall) return '5.0';
       return Number(store.rating.overall).toFixed(1);
     },
+    // 距离格式化（km/m）
     formatDistance(distance) {
       if (distance === null || distance === undefined) return '';
       if (distance < 1) return `${Math.round(distance * 1000)}m`;
       return `${Number(distance).toFixed(1)}km`;
     },
+    // 评价数量格式化（大于千用 k）
     formatReviewCount(store) {
       if (!store.rating || !store.rating.count) return '暂无评价';
       const count = Number(store.rating.count || 0);
       if (count >= 1000) return `评价 ${(count / 1000).toFixed(1)}k`;
       return `评价 ${count}`;
     },
+    // 获取今天营业时间文本（工作日/周末）
     getTodayHours(store) {
       if (!store || !store.businessHours) return '未设置';
       const day = new Date().getDay();
       const source = day === 0 || day === 6 ? store.businessHours.weekend : store.businessHours.weekday;
       return source || '未设置';
     },
+    // 将营业时间文本解析为分钟区间
     parseBusinessRange(rangeText) {
       const text = String(rangeText || '').trim();
       if (!text) return null;
@@ -262,6 +293,7 @@ export default {
         end: endHour * 60 + endMinute
       };
     },
+    // 根据当前时间判断门店营业状态
     getBusinessStatus(store) {
       const todayHours = this.getTodayHours(store);
       const range = this.parseBusinessRange(todayHours);
@@ -273,17 +305,20 @@ export default {
       }
       return minutes >= range.start && minutes <= range.end ? 'open' : 'closed';
     },
+    // 营业状态文案
     getBusinessStatusText(store) {
       const status = this.getBusinessStatus(store);
       if (status === 'open') return '营业中';
       if (status === 'closed') return '休息中';
       return '待设置';
     },
+    // 卡片标签：优先使用门店 tags，否则回退为状态 + 起价
     getCardTags(store) {
       const tags = Array.isArray(store && store.tags) ? store.tags.filter((t) => !!t).slice(0, 2) : [];
       if (tags.length > 0) return tags;
       return [this.getBusinessStatusText(store), `¥${Number((store && store.minPrice) || 0) || '面议'}起`];
     },
+    // 跳转门店详情
     goDetail(id) {
       if (!id) return;
       uni.navigateTo({ url: `/pages/store/detail?id=${id}` });

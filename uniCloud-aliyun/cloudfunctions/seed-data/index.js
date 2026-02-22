@@ -3,6 +3,7 @@ const { withResponse, requireRole } = require('sb-common');
 
 const passwordHash123456 = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92';
 
+// 若指定 _id 已存在则直接复用，否则按固定 _id 新增文档
 async function ensureDocById(db, collection, id, data) {
   const res = await db.collection(collection).doc(id).get();
   const existed = res.data && res.data[0];
@@ -11,6 +12,7 @@ async function ensureDocById(db, collection, id, data) {
   return id;
 }
 
+// 按 username 幂等创建用户（已存在则返回原用户 ID）
 async function ensureUserByUsername(db, username, data) {
   const res = await db.collection('users').where({ username }).limit(1).get();
   if (res.data && res.data[0]) return res.data[0]._id;
@@ -18,6 +20,10 @@ async function ensureUserByUsername(db, username, data) {
   return addRes.id || (addRes.ids && addRes.ids[0]) || '';
 }
 
+/**
+ * 演示数据初始化入口
+ * 仅管理员可调用，用于快速生成门店、服务、账号样例。
+ */
 exports.main = withResponse(async (event, context) => {
   await requireRole(['admin'], event, context);
 

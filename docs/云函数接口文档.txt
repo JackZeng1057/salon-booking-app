@@ -1,0 +1,92 @@
+美发预约系统-云函数接口说明（项目内稿）
+
+一、怎么理解“接口”
+本项目后端不是传统 REST 路由，而是 uniCloud 云函数。
+前端统一调用方式：callCloud(functionName, payload)
+
+调用入口：
+- /Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app/api/client.js
+
+统一返回结构：
+- code（0=成功）
+- message
+- data
+- requestId
+
+常见业务错误码：401 / 403 / 409 / 422
+
+--------------------------------------------------
+二、按模块列出主要云函数
+--------------------------------------------------
+
+[认证与用户]
+- auth-register：注册
+- auth-login：登录
+- auth-me：获取当前用户
+- user-bind-phone：绑定手机号
+- user-profile-update：更新个人资料
+
+[门店与服务]
+- stores-list：门店列表
+- stores-detail：门店详情
+- stores-services：门店服务
+- stores-barbers：门店理发师
+- store-update-profile：门店资料维护
+- barber-services-set：设置理发师服务项
+
+[订单核心]
+- orders-create：创建预约
+- orders-mine：我的订单
+- orders-detail：订单详情
+- orders-cancel：取消订单
+- orders-reschedule：改期
+- orders-verify：到店核验（BOOKED -> ARRIVED）
+- orders-start-service：开始服务（ARRIVED -> IN_SERVICE）
+- orders-finish-service：完成服务（IN_SERVICE -> FINISHED）
+- orders-no-show：标记爽约（BOOKED -> NO_SHOW）
+- orders-delete：删除订单（业务侧可见删除）
+- orders-store-list：门店订单列表
+- orders-barber-list：理发师订单列表
+- orders-items-list：订单明细
+- orders-events-list：订单事件日志
+
+[评价与售后]
+- reviews-create：创建评价
+- reviews-list：门店评价列表
+- reviews-by-order：按订单查评价
+- reviews-mine：我的评价
+- reviews-delete：删除评价
+- aftersales-create：提交售后
+- aftersales-store-list：门店售后列表
+- aftersales-reply：售后回复
+
+[通知/排班/管理]
+- notifications-list：通知列表
+- notifications-mark-read：标记已读
+- notifications-delete：删除通知
+- barber-schedule-set：设置排班
+- barber-slots-get：查询时段
+- admin-dashboard：管理端统计
+- barber-applications-list：理发师申请列表
+- barber-application-review：理发师申请审核
+- seed-data：初始化测试数据
+
+--------------------------------------------------
+三、几个答辩会问到的关键约束
+--------------------------------------------------
+
+1) 订单状态机
+- 标准：BOOKED -> ARRIVED -> IN_SERVICE -> FINISHED
+- 现在已收口：BOOKED 不能直接开始服务
+
+2) 等位与等待时长
+- 在 orders-store-list / orders-mine / orders-detail 返回
+- 字段：queueAheadCount, queueWaitMin
+
+3) 文档维护方式
+- 新增云函数时：补这份清单
+- 改状态机时：同步改云函数注释 + 测试结论 + 数据库文档
+
+备注：
+如评审坚持 REST 口径，可解释为：
+POST /cloud/{functionName} -> callCloud(functionName, payload)

@@ -47,6 +47,7 @@ import { fetchStoreServices, fetchStoreBarbers, setStoreBarberServices } from '.
 import { me } from '../../../api/auth';
 import { authStore } from '../../../store/auth';
 
+// 归一化 ID 数组：去空、去重、转字符串
 function normalizeIds(list) {
   if (!Array.isArray(list)) return [];
   const seen = new Set();
@@ -60,15 +61,26 @@ function normalizeIds(list) {
   return result;
 }
 
+/**
+ * 理发师服务绑定页（管理员）
+ * 用于为每位理发师配置“可承接服务项目”。
+ */
 export default {
   data() {
     return {
+      // 页面加载态
       loading: false,
+      // 保存提交态
       saving: false,
+      // 当前管理员所属门店 ID
       storeId: '',
+      // 门店服务列表
       services: [],
+      // 门店理发师列表
       barbers: [],
+      // 选中关系映射：{ barberId: serviceIds[] }
       selectedMap: {},
+      // 默认头像兜底图
       defaultAvatar: 'https://dummyimage.com/100x100/efefef/999&text=B'
     };
   },
@@ -76,6 +88,7 @@ export default {
     this.loadData();
   },
   methods: {
+    // 获取并确保当前账号的 storeId
     async ensureStoreId() {
       let user = authStore.state.user || {};
       if (!user.storeId) {
@@ -85,6 +98,7 @@ export default {
       }
       return user.storeId || '';
     },
+    // 加载服务与理发师数据，并初始化已选关系
     async loadData() {
       this.loading = true;
       try {
@@ -123,10 +137,12 @@ export default {
         this.loading = false;
       }
     },
+    // 判断某理发师是否已绑定某服务
     hasService(barberId, serviceId) {
       const ids = this.selectedMap[barberId] || [];
       return ids.includes(serviceId);
     },
+    // 切换服务选中状态
     toggleService(barberId, serviceId) {
       const list = normalizeIds(this.selectedMap[barberId] || []);
       const idx = list.findIndex((id) => id === serviceId);
@@ -140,18 +156,21 @@ export default {
         [barberId]: list
       };
     },
+    // 清空某理发师的全部服务绑定
     clearBarber(barberId) {
       this.selectedMap = {
         ...this.selectedMap,
         [barberId]: []
       };
     },
+    // 构建提交参数
     buildAssignments() {
       return this.barbers.map((barber) => ({
         barberId: barber._id,
         serviceIds: normalizeIds(this.selectedMap[barber._id] || [])
       }));
     },
+    // 保存绑定关系到后端
     async saveAssignments() {
       if (this.saving) return;
       if (!this.storeId) {

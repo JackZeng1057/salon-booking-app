@@ -23,17 +23,27 @@
 // 售后申请页：选择类型并提交描述
 import { createAftersale } from '../../api/order';
 
+/**
+ * 提交售后页面（用户侧）
+ * 入口参数：orderId
+ * 流程：选择类型 -> 填写描述 -> 提交售后申请
+ */
 export default {
   data() {
     return {
+      // 当前订单 ID（由路由传入）
       orderId: '',
+      // 售后类型选项
       typeOptions: [
         { label: '服务问题', value: 'SERVICE' },
         { label: '迟到/爽约', value: 'NO_SHOW' },
         { label: '其他', value: 'OTHER' }
       ],
+      // 当前选中类型索引
       typeIndex: 0,
+      // 描述内容
       content: '',
+      // 提交中状态
       loading: false
     };
   },
@@ -41,9 +51,11 @@ export default {
     this.orderId = (options && options.orderId) || '';
   },
   methods: {
+    // 切换售后类型
     onTypeChange(e) {
       this.typeIndex = Number(e.detail.value || 0);
     },
+    // 提交售后申请
     async handleSubmit() {
       if (!this.orderId) return;
       this.loading = true;

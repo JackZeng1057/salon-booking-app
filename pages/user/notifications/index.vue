@@ -107,16 +107,22 @@
 
 <script>
 // 通知列表页：筛选未读、标记已读与跳转
+// 页面能力：
+// - 支持分页加载、仅未读筛选；
+// - 支持侧滑删除；
+// - 点击后先读后跳，确保未读数准确。
 import { fetchNotifications, markNotificationsRead, deleteNotification } from '../../../api/notifications';
 
 export default {
   data() {
     return {
       notifications: [],
+      // 后端返回的未读总数，用于头部按钮/角标展示
       unreadCount: 0,
       unreadOnly: false,
       loading: false,
       markAllLoading: false,
+      // 侧滑删除配置（rpx）
       actionWidth: 160,
       swipeOffsets: {},
       swipeOpenId: '',
@@ -126,6 +132,7 @@ export default {
       page: 1,
       pageSize: 20,
       hasMore: true,
+      // 通用确认弹窗状态
       confirmDialog: {
         visible: false,
         title: '',
@@ -147,6 +154,7 @@ export default {
     // 加载通知列表：支持刷新与分页
     async loadNotifications(refresh = false) {
       if (refresh) {
+        // 刷新时重置分页与侧滑状态，避免旧状态残留。
         this.page = 1;
         this.notifications = [];
         this.hasMore = true;
@@ -170,6 +178,7 @@ export default {
         }
 
         this.unreadCount = res.unreadCount || 0;
+        // 单页未满说明没有更多数据。
         this.hasMore = newNotifications.length >= this.pageSize;
       } catch (err) {
         uni.showToast({
@@ -228,6 +237,7 @@ export default {
       if (!touch) return;
       const deltaX = touch.clientX - this.touchStartX;
       const deltaY = touch.clientY - this.touchStartY;
+      // 仅处理横向滑动，避免与纵向滚动冲突。
       if (Math.abs(deltaY) > Math.abs(deltaX)) return;
       const offset = Math.max(Math.min(deltaX, 0), -this.actionWidth);
       this.setSwipeOffset(notif._id, offset);
@@ -269,6 +279,7 @@ export default {
       this.markAllLoading = true;
       const prevUnread = this.unreadCount;
       const prevList = this.notifications.map((item) => ({ ...item }));
+      // 先做乐观更新，提高交互响应速度；失败再回滚。
       this.unreadCount = 0;
       this.notifications = this.notifications.map((item) => ({ ...item, isRead: true }));
       try {
@@ -299,6 +310,7 @@ export default {
           notif.isRead = true;
           this.unreadCount = Math.max(0, this.unreadCount - 1);
         } catch (err) {
+          // 标记已读失败不阻断跳转，避免用户被困在当前页。
           console.error('mark read error:', err);
         }
       }
@@ -366,6 +378,7 @@ export default {
       return `${year}-${month}-${day}`;
     },
     openConfirmDialog(options = {}) {
+      // 防止并发弹窗：若已有 resolver 先关闭旧弹窗 promise。
       if (this.confirmDialogResolver) {
         this.confirmDialogResolver(false);
         this.confirmDialogResolver = null;

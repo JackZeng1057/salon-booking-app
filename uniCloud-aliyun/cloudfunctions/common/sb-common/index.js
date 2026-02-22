@@ -12,6 +12,7 @@ const password = require('./password');
 const barberServices = require('./barberServices');
 const queue = require('./queue');
 
+// 聚合导出：云函数通过 require('sb-common') 一次性拿到全部公共能力
 module.exports = {
   ...response,
   ...errors,

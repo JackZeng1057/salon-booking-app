@@ -1,14 +1,25 @@
 import { authStore } from '../store/auth';
 
+/**
+ * 云函数客户端统一封装
+ * 目标：
+ * 1) 自动携带登录 token
+ * 2) 统一翻译后端/网络错误为中文可读文案
+ * 3) 保留 requestId 便于线上排障
+ */
+
+// 从错误文本中提取 requestId（后端常以 [requestId:xxx] 形式拼接）
 function extractRequestId(text) {
   const m = String(text || '').match(/\[requestId:([^\]]+)\]/);
   return m ? m[1] : '';
 }
 
+// 清理错误消息中的 requestId 后缀，避免直接暴露给终端用户
 function stripRequestId(text) {
   return String(text || '').replace(/\s*\[requestId:[^\]]+\]\s*/g, '').trim();
 }
 
+// 错误文案翻译器：先走精确映射，再走模式匹配与状态码兜底
 function translateErrorMessage(message, code) {
   const pure = stripRequestId(message);
   const lower = pure.toLowerCase();
@@ -99,9 +110,11 @@ function translateErrorMessage(message, code) {
   return pure || '请求失败，请稍后重试';
 }
 
-// 云函数调用封装：自动携带令牌并统一错误处理
+// 云函数调用入口：统一注入 token、超时与错误对象结构
 export async function callCloud(name, data = {}, options = {}) {
+  // 克隆入参，避免污染调用方对象
   const payload = { ...data };
+  // 已登录时自动透传 token
   if (authStore.state.token) {
     payload.token = authStore.state.token;
   }
@@ -114,6 +127,7 @@ export async function callCloud(name, data = {}, options = {}) {
       timeout: Number(options.timeout || 15000)
     });
   } catch (e) {
+    // 网络层异常：构造统一 Error 对象，附带 code/data/requestId
     const requestId = (e && e.requestId) || extractRequestId(e && e.message);
     const readable = translateErrorMessage(e && e.message, e && e.code);
     const err = new Error(readable);
@@ -123,10 +137,12 @@ export async function callCloud(name, data = {}, options = {}) {
     throw err;
   }
 
+  // 云函数未返回 result，视为服务异常
   const result = res && res.result;
   if (!result) {
     throw new Error('服务无响应，请稍后重试');
   }
+  // 业务层非 0 code，转为统一异常抛出
   if (result.code !== 0) {
     const requestId = result.requestId || '';
     const readable = translateErrorMessage(result.message, result.code);
@@ -137,5 +153,6 @@ export async function callCloud(name, data = {}, options = {}) {
     throw err;
   }
 
+  // 成功时仅返回 data，页面层不感知 result 包装结构
   return result.data;
 }

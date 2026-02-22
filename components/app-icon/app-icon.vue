@@ -3,7 +3,16 @@
 </template>
 
 <script>
+/**
+ * SVG 图标组件
+ * 通过内置 ICON_PATHS 生成 data URI，避免额外静态文件请求。
+ * 约定：
+ * - `name` 对应 ICON_PATHS key；
+ * - 所有图标统一 24x24 视口；
+ * - 由 `color/strokeWidth` 控制线条风格，便于主题统一。
+ */
 const ICON_PATHS = {
+  // 导航类
   home: `
     <path d="M3 9.5L12 3l9 6.5"/>
     <path d="M5 10.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9.5"/>
@@ -45,6 +54,7 @@ const ICON_PATHS = {
     <path d="m6 6 12 12"/>
     <path d="m18 6-12 12"/>
   `,
+  // 位置/门店类
   'map-pin': `
     <path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z"/>
     <circle cx="12" cy="11" r="2.2"/>
@@ -62,6 +72,7 @@ const ICON_PATHS = {
   phone: `
     <path d="M5.3 3.8h3.1l1 2.8-1.6 1.6a14 14 0 0 0 7.2 7.2l1.6-1.6 2.8 1v3.1c0 .8-.7 1.5-1.5 1.5A14.5 14.5 0 0 1 3.8 5.3c0-.8.7-1.5 1.5-1.5Z"/>
   `,
+  // 通用业务类
   file: `
     <path d="M8 3.5h6l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 7 20V5A1.5 1.5 0 0 1 8.5 3.5Z"/>
     <path d="M14 3.5V8h4"/>
@@ -102,6 +113,7 @@ const ICON_PATHS = {
     <path d="M9.8 19h4.4"/>
     <path d="M10.5 21h3"/>
   `,
+  // 状态反馈类
   'check-circle': `
     <circle cx="12" cy="12" r="9"/>
     <path d="m8.5 12 2.2 2.2 4.8-4.8"/>
@@ -116,6 +128,7 @@ const ICON_PATHS = {
     <path d="M12 9v4.5"/>
     <path d="M12 16.5h.01"/>
   `,
+  // 表单辅助类
   eye: `
     <path d="M2.8 12s3.3-5.5 9.2-5.5 9.2 5.5 9.2 5.5-3.3 5.5-9.2 5.5S2.8 12 2.8 12Z"/>
     <circle cx="12" cy="12" r="2.6"/>
@@ -132,36 +145,44 @@ export default {
   name: 'AppIcon',
   data() {
     return {
+      // 用于 rpx -> px 换算，默认按 375 设计宽度兜底
       viewportWidth: 375
     };
   },
   props: {
+    // 图标名称（未命中时回退 file 图标）
     name: {
       type: String,
       default: ''
     },
+    // 线条颜色
     color: {
       type: String,
       default: '#64748B'
     },
+    // 图标尺寸，可传数值（配合 sizeUnit）或字符串（如 24px/28rpx）
     size: {
       type: [Number, String],
       default: 32
     },
+    // 数值 size 的单位，默认 rpx
     sizeUnit: {
       type: String,
       default: 'rpx'
     },
+    // rpx 的视觉放大系数，用于不同机型下补偿细线图标观感
     rpxBoost: {
       type: [Number, String],
       default: 1.16
     },
+    // SVG 描边宽度
     strokeWidth: {
       type: [Number, String],
       default: 2
     }
   },
   created() {
+    // 获取真实窗口宽度，提升 rpx 图标在不同设备上的一致性
     try {
       const info = uni.getSystemInfoSync ? uni.getSystemInfoSync() : null;
       const width = Number((info && info.windowWidth) || 0);
@@ -171,11 +192,13 @@ export default {
     } catch (e) {}
   },
   computed: {
+    // rpx 放大系数归一化
     normalizedBoost() {
       const boost = Number(this.rpxBoost);
       if (!Number.isFinite(boost) || boost <= 0) return 1;
       return boost;
     },
+    // 统一计算最终图标尺寸样式（支持 "24px"/"24rpx" 或数值+单位）
     iconStyle() {
       const sizeText = String(this.size || '').trim();
       const matched = sizeText.match(/^(-?\d+(?:\.\d+)?)([a-z%]+)$/i);
@@ -183,6 +206,7 @@ export default {
         const rawSize = Number(matched[1]) || 0;
         const unit = String(matched[2] || '').toLowerCase();
         if (unit === 'rpx') {
+          // rpx -> px：按 750 设计稿宽度换算，并乘以补偿系数。
           const pxSize = Math.max(
             1,
             Math.round((rawSize * this.viewportWidth * this.normalizedBoost) / 750)
@@ -198,6 +222,7 @@ export default {
         };
       }
       if (/[a-z%]+$/i.test(sizeText)) {
+        // 如 "1.5rem" / "100%" 这类已带单位值，原样透传。
         return {
           width: sizeText,
           height: sizeText
@@ -220,6 +245,7 @@ export default {
         height: `${size}${unit}`
       };
     },
+    // 组装 SVG 源并编码为 data URI
     iconSrc() {
       const paths = ICON_PATHS[this.name] || ICON_PATHS.file;
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${this.color}" stroke-width="${this.strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
