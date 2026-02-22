@@ -133,9 +133,7 @@ function writeReport(consistency, benches) {
   // 输出结构化文本，便于直接纳入测试章节
   const reportPath = path.resolve(__dirname, '../../docs/数据与性能基础测试结果.txt');
   const lines = [];
-  lines.push('美发预约系统-数据与性能基础测试结果');
-  lines.push('');
-  lines.push(`测试时间：${new Date().toISOString()}`);
+  lines.push('理发预约系统-数据与性能基础测试结果');
   lines.push('');
   lines.push('一、数据一致性检查');
   lines.push(`- 最终订单状态：${consistency.finalStatus}`);

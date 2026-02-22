@@ -137,9 +137,8 @@ function writeReport(envelopeRows, flowResult) {
   const failCount = envelopeRows.length - passCount;
 
   const lines = [];
-  lines.push('美发预约系统-接口联调测试结果');
+  lines.push('理发预约系统-接口联调测试结果');
   lines.push('');
-  lines.push(`扫描时间：${new Date().toISOString()}`);
   lines.push(`统一返回结构扫描：总计 ${envelopeRows.length}，通过 ${passCount}，失败 ${failCount}`);
   lines.push(`核心链路联调：${flowResult.pass ? '通过' : '失败'}`);
   lines.push('');

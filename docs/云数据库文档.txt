@@ -1,4 +1,4 @@
-美发预约系统-云数据库说明（项目内版本）
+理发预约系统-云数据库说明（项目内版本）
 
 0. 说明
 - 数据库目录：/Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app/uniCloud-aliyun/database

@@ -1,6 +1,4 @@
-美发预约系统-数据与性能基础测试结果
-
-测试时间：2026-02-22T04:25:39.298Z
+理发预约系统-数据与性能基础测试结果
 
 一、数据一致性检查
 - 最终订单状态：FINISHED
@@ -8,9 +6,9 @@
 - 审计日志条数：3
 
 二、轻量性能基线（队列计算）
-- 数据量 500：buildQueueHintMap=3.449ms，attachQueueHints=0.067ms，总计=3.516ms
-- 数据量 2000：buildQueueHintMap=5.891ms，attachQueueHints=0.022ms，总计=5.913ms
-- 数据量 5000：buildQueueHintMap=12.583ms，attachQueueHints=0.028ms，总计=12.611ms
+- 数据量 500：buildQueueHintMap=4.179ms，attachQueueHints=0.076ms，总计=4.255ms
+- 数据量 2000：buildQueueHintMap=6.043ms，attachQueueHints=0.025ms，总计=6.068ms
+- 数据量 5000：buildQueueHintMap=13.61ms，attachQueueHints=0.031ms，总计=13.641ms
 
 三、说明
 - 该测试为项目阶段性的基础性能验证，不等同于生产压测。

@@ -1,4 +1,4 @@
-美发预约系统 数据库交付与索引核对清单
+理发预约系统 数据库交付与索引核对清单
 
 A. 交付文件清单（必须）
 1) uniCloud-aliyun/database/*.schema.json
