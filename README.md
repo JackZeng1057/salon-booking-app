@@ -70,7 +70,6 @@
 ### 3.1 目标运行端
 - App（Android / iOS）
 - H5
-- 小程序（微信/支付宝/百度/头条配置段已存在）
 
 ### 3.2 App 关键能力（`manifest.json`）
 - Android：`targetSdkVersion = 34`，`minSdkVersion = 21`
@@ -225,82 +224,82 @@ salon-booking-app/
 #### 7.1.2 业务云函数（按模块分组）
 
 认证与账号：
-- `auth-register`
-- `auth-login`
-- `auth-me`
-- `user-bind-phone`
-- `user-profile-update`
-- `password-reset`
-- `sms-send-code`
-- `sms-verify-code`
+- `auth-register`：账号注册；创建用户、写入初始角色与资料，返回登录态信息。
+- `auth-login`：账号登录；校验用户名密码，签发 token 并返回用户信息。
+- `auth-me`：获取当前登录用户；用于前端刷新会话与角色信息。
+- `user-bind-phone`：绑定手机号；校验验证码后将手机号写入当前账号。
+- `user-profile-update`：更新个人资料；支持昵称/头像等用户展示信息更新。
+- `password-reset`：重置密码；基于短信验证码重设账号密码。
+- `sms-send-code`：发送短信验证码；用于注册、找回密码、绑定手机号流程。
+- `sms-verify-code`：校验短信验证码；返回验证码是否有效及可继续后续操作。
 
 门店与理发师：
-- `stores-list`
-- `stores-detail`
-- `stores-services`
-- `stores-barbers`
-- `store-update-profile`
-- `barber-schedule-set`
-- `barber-slots-get`
-- `barber-services-set`
-- `barber-applications-list`
-- `barber-application-review`
-- `barbers-manage`
+- `stores-list`：门店列表查询；支持关键词、分页、排序与筛选。
+- `stores-detail`：门店详情查询；返回门店基础信息、规则与展示字段。
+- `stores-services`：门店服务项目查询；返回该门店可预约服务列表。
+- `stores-barbers`：门店理发师查询；返回门店下可预约理发师列表。
+- `store-update-profile`：门店资料更新；管理员修改门店信息、营业配置等。
+- `barber-schedule-set`：排班设置；保存理发师某日工作时段并生成可约时间窗。
+- `barber-slots-get`：时段查询；按理发师+日期(+服务)返回可预约 slots。
+- `barber-services-set`：理发师服务项配置；维护理发师可提供的服务范围。
+- `barber-applications-list`：理发师申请列表；管理员查看待审核/已审核申请。
+- `barber-application-review`：理发师申请审核；通过或拒绝申请并更新状态。
+- `barbers-manage`：理发师管理；提供列表、重命名、移除等管理动作。
 
 订单与履约：
-- `orders-create`
-- `orders-detail`
-- `orders-mine`
-- `orders-barber-list`
-- `orders-store-list`
-- `orders-verify`
-- `orders-start-service`
-- `orders-finish-service`
-- `orders-cancel`
-- `orders-reschedule`
-- `orders-no-show`
-- `orders-delete`
-- `orders-items-list`
-- `orders-events-list`
+- `orders-create`：创建预约订单；校验时段冲突并生成核验码、订单事件。
+- `orders-detail`：订单详情；返回订单主信息、排队估算与关联展示数据。
+- `orders-mine`：用户订单列表；按用户查询订单并支持状态/分页过滤。
+- `orders-barber-list`：理发师订单列表；按理发师视角拉取当日或指定日期订单。
+- `orders-store-list`：门店订单列表；按门店视角拉取订单并用于管理员工作台。
+- `orders-verify`：到店核验；通过核验码将状态由 `BOOKED` 更新为 `ARRIVED`。
+- `orders-start-service`：开始服务；将状态由 `ARRIVED` 更新为 `IN_SERVICE`。
+- `orders-finish-service`：完成服务；将状态由 `IN_SERVICE` 更新为 `FINISHED`。
+- `orders-cancel`：取消订单；在允许窗口内将订单改为 `CANCELLED` 并记录原因。
+- `orders-reschedule`：订单改期；变更日期时段并记录改期事件、通知相关角色。
+- `orders-no-show`：标记爽约；将未到店订单更新为 `NO_SHOW`。
+- `orders-delete`：删除订单；执行业务可见性删除（非物理硬删除语义）。
+- `orders-items-list`：订单明细项；查询单笔订单下的服务项目明细。
+- `orders-events-list`：订单事件流；查询状态流转与关键操作日志。
 
 评价与售后：
-- `reviews-list`
-- `reviews-create`
-- `reviews-by-order`
-- `reviews-mine`
-- `reviews-delete`
-- `aftersales-create`
-- `aftersales-store-list`
-- `aftersales-reply`
+- `reviews-list`：门店评价列表；按门店/筛选条件返回评价数据。
+- `reviews-create`：创建评价；提交评分、文字、图片并回写门店评分统计。
+- `reviews-by-order`：按订单查询评价；判断该订单是否已评价及评价详情。
+- `reviews-mine`：我的评价列表；按当前用户查询历史评价。
+- `reviews-delete`：删除评价；移除评价并同步更新门店评分汇总。
+- `aftersales-create`：创建售后单；用户提交问题类型、描述与订单关联信息。
+- `aftersales-store-list`：门店售后列表；管理员查看待处理/处理中/已完成售后。
+- `aftersales-reply`：售后回复处理；门店侧回复并推进售后状态。
 
 通知与运营：
-- `notifications-list`
-- `notifications-mark-read`
-- `notifications-delete`
-- `notifications-create`
-- `admin-dashboard`
+- `notifications-list`：通知列表查询；支持分页、未读筛选与未读数统计。
+- `notifications-mark-read`：通知已读；支持单条或批量标记已读。
+- `notifications-delete`：删除通知；删除用户通知记录。
+- `notifications-create`：创建通知；供业务云函数内部调用生成站内通知。
+- `admin-dashboard`：管理看板统计；汇总订单量、转化、状态分布等运营指标。
 
 扩展与初始化：
-- `ai-service-advisor`
-- `seed-data`
+- `ai-service-advisor`：AI 服务顾问；根据文本/图片输入推荐适合服务项目。
+- `seed-data`：初始化演示数据；批量写入示例用户、门店、服务、排班等测试数据。
 
 ### 7.2 数据库目录 `uniCloud-aliyun/database/`
 
 #### 7.2.1 Schema（14 个）
-- `users.schema.json`
-- `stores.schema.json`
-- `services.schema.json`
-- `barber_schedules.schema.json`
-- `time_slots.schema.json`
-- `orders.schema.json`
-- `order_items.schema.json`
-- `order_events.schema.json`
-- `reviews.schema.json`
-- `aftersales.schema.json`
-- `notifications.schema.json`
-- `sms_codes.schema.json`
-- `auth_tokens.schema.json`
-- `audit_logs.schema.json`
+- `users.schema.json`：用户主表；存储账号、密码摘要、角色、手机号、头像、昵称等身份信息。
+- `stores.schema.json`：门店主表；存储门店名称、地址、营业时间、规则、联系方式等。
+- `services.schema.json`：服务项目表；存储服务名称、时长、价格、所属门店与上架状态。
+- `barber_schedules.schema.json`：理发师排班表；存储理发师某日工作起止时段与排班状态。
+- `time_slots.schema.json`：预约时段表；存储可预约时间片、占用状态、关联理发师/服务信息。
+- `orders.schema.json`：订单主表；存储预约单核心字段（状态、核验码、时间、角色关联等）。
+- `order_items.schema.json`：订单明细表；存储订单内服务项、单价、数量与小计信息。
+- `order_events.schema.json`：订单事件日志表；记录状态流转与关键操作审计轨迹。
+- `reviews.schema.json`：评价表；存储评分、文本、图片、评价人与被评价门店/订单关联。
+- `aftersales.schema.json`：售后表；存储售后类型、诉求内容、处理进度与回复记录。
+- `notifications.schema.json`：通知表；存储站内通知内容、已读状态、接收用户与业务关联。
+- `sms_codes.schema.json`：短信验证码表；存储验证码、手机号、用途、过期时间与校验状态。
+- `auth_tokens.schema.json`：登录令牌表；存储 token、用户关联、有效期与会话元数据。
+- `audit_logs.schema.json`：审计日志表；记录后台关键操作、操作者、时间、目标对象与变更内容。
 
 #### 7.2.2 JQL 脚本
 - `seed-users.jql`
@@ -387,6 +386,7 @@ salon-booking-app/
 ### 11.4 App 打包
 - 通过 HBuilderX 云打包或本地打包
 - 打包结果输出在 `unpackage/release/`
+- apk安装包在`unpackage/release/apk`
 
 ## 12. 测试命令
 
