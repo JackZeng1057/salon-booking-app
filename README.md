@@ -1,4 +1,4 @@
-# 理发预约系统（正式版）
+# 理发预约系统
 
 基于 `uni-app + uniCloud` 的多角色理发预约系统，包含用户端、理发师端、管理员端三条业务主线，覆盖注册登录、预约下单、到店核验、服务流转、评价售后、通知触达和运营管理。
 
@@ -17,51 +17,13 @@
 - 强约束：必须先核验到店（`ARRIVED`）后才能开始服务（`IN_SERVICE`）。
 - 统一返回结构：`{ code, message, data, requestId }`。
 
-## 2. 技术栈与运行形态（完整版）
+## 2. 技术栈与运行形态
 
-### 2.1 技术栈矩阵
-
-| 层级 | 技术/组件 | 在本项目中的作用 |
-| --- | --- | --- |
-| 客户端框架 | `uni-app` + `Vue 3`（`manifest.json` 中 `vueVersion: "3"`） | 承载 H5 / App / 小程序多端页面与交互。 |
-| 页面组织 | `pages.json` 路由 + `*.vue` 单文件组件 | 页面注册、导航配置、tabBar 配置。 |
-| 全局状态 | `store/auth.js`（自定义轻量 store） | 管理 token / user / role 与持久化恢复。 |
-| 接口层 | `api/*.js` + `api/client.js` | 统一 `callCloud` 调用、错误处理、缓存失效策略。 |
-| 服务端形态 | `uniCloud` 云函数（阿里云） | 所有业务接口均由云函数提供。 |
-| 云函数公共模块 | `common/sb-common` | 统一响应、鉴权、错误、审计、排队、时段、自动取消等通用逻辑。 |
-| 数据库 | `uniCloud MongoDB` + `*.schema.json` | 业务数据建模与约束（用户、门店、订单、评价、通知等）。 |
-| 配置管理 | `uni-config-center`（uni 模块） | 云函数配置文件管理能力（依赖模块已纳入 `uni_modules`）。 |
-| 身份相关模块 | `uni-id-common`（uni 模块） | uniCloud 身份能力公共依赖。 |
-| 本地通知 | `uni` 通知 API + `plus.push`（App 端） | 关键消息系统通知推送与渠道管理。 |
-| AI 能力 | `ai-service-advisor` 云函数 | 文本/图片输入的服务推荐。 |
-| 短信能力 | `sms-send-code` / `sms-verify-code` 云函数 | 注册/找回/绑定手机号流程。 |
-| 自动化测试 | Node.js 脚本（`tests/`） | 白盒、接口契约、基础性能脚本化回归。 |
-| 构建工具 | HBuilderX + uni-app 打包链路 | 本地调试、云函数上传、App/H5/小程序打包。 |
-
-### 2.2 语言与文件类型
-
-| 类型 | 说明 |
-| --- | --- |
-| JavaScript (`.js`) | 前端逻辑、API 封装、云函数与测试脚本。 |
-| Vue SFC (`.vue`) | 页面与组件。 |
-| JSON (`.json`) | 应用配置、云函数配置、数据库导出数据。 |
-| Schema JSON (`*.schema.json`) | uniCloud 数据库集合结构定义。 |
-| JQL (`.jql`) | 数据初始化与查询脚本。 |
-| Markdown / TXT | 项目文档、报告与说明文本。 |
-
-### 2.3 目标平台与运行端
-
-| 运行端 | 说明 |
-| --- | --- |
-| App（Android / iOS） | `manifest.json` 已配置 App-Plus 能力、图标、权限与 Push/定位等模块。 |
-| H5 | 通过 uni-app H5 目标运行。 |
-| 小程序 | 已包含 `mp-weixin` / `mp-alipay` / `mp-baidu` / `mp-toutiao` 配置段。 |
-
-### 2.4 App 端关键系统能力（来自 `manifest.json`）
-
-- Android 打包参数：`targetSdkVersion=34`，`minSdkVersion=21`，ABI：`armeabi-v7a`、`arm64-v8a`。
-- 已声明能力：`Push`、`Geolocation`、`Camera`、`Contacts`、`Fingerprint`。
-- 已声明主要权限：通知权限、振动、网络状态、定位、相机、唤醒锁等。
+- 前端：`uni-app`（`App.vue + pages/*.vue`），入口文件为 `main.js`。
+- 全局状态：轻量 `authStore`（`store/auth.js`），不依赖 Vuex。
+- 服务端：`uniCloud` 云函数（阿里云空间）+ 公共模块 `sb-common`。
+- 数据层：uniCloud MongoDB（Schema 文件在 `uniCloud-aliyun/database/*.schema.json`）。
+- 自动化脚本：Node.js（`tests/` 目录）。
 
 ## 3. 仓库总览（顶层目录）
 
@@ -87,36 +49,6 @@ salon-booking-app/
 ├── uni.scss
 └── uni.promisify.adaptor.js
 ```
-
-### 3.1 顶层目录职责明细（补充）
-
-| 路径 | 类型 | 说明 |
-| --- | --- | --- |
-| `.git/` | 目录 | Git 版本控制元数据。 |
-| `.hbuilderx/` | 目录 | HBuilderX 本地启动与运行配置（如 `launch.json`）。 |
-| `api/` | 目录 | 前端 API 层，封装所有云函数调用。 |
-| `components/` | 目录 | 通用 UI / 交互组件。 |
-| `docs/` | 目录 | 项目文档、接口文档、测试报告。 |
-| `pages/` | 目录 | 业务页面目录。 |
-| `static/` | 目录 | 静态资源（logo、tabbar 图标等）。 |
-| `store/` | 目录 | 全局状态目录。 |
-| `tests/` | 目录 | 本地自动化测试脚本。 |
-| `uniCloud-aliyun/` | 目录 | uniCloud 云函数与数据库 schema/jql。 |
-| `uni_modules/` | 目录 | uni 官方模块依赖（`uni-config-center`、`uni-id-common`）。 |
-| `unpackage/` | 目录 | 构建产物目录（按当前交付策略保留）。 |
-| `utils/` | 目录 | 前端通用工具函数。 |
-| `云数据库json文件夹/` | 目录 | 数据库 JSON 导出文件。 |
-| `文本/` | 目录 | 需求/说明类文本资料。 |
-| `.gitignore` | 文件 | Git 忽略规则（构建产物、本地配置等）。 |
-| `App.vue` | 文件 | 应用生命周期入口。 |
-| `main.js` | 文件 | 应用启动入口。 |
-| `pages.json` | 文件 | 路由与导航配置。 |
-| `manifest.json` | 文件 | 多端构建配置。 |
-| `index.html` | 文件 | H5 入口模板。 |
-| `uni.scss` | 文件 | 全局样式变量。 |
-| `uni.promisify.adaptor.js` | 文件 | uni API Promise 兼容。 |
-| `androidPrivacy.json` | 文件 | Android 隐私声明配置。 |
-| `README.md` | 文件 | 项目总说明文档。 |
 
 ## 4. 根文件说明（关键入口）
 
@@ -369,54 +301,6 @@ salon-booking-app/
 | `云数据库json文件夹/` | 数据库 JSON 导出文件（交付资料）。 |
 | `unpackage/` | 编译构建产物（当前仓库按交付策略保留）。 |
 
-### 8.1 `docs/` 文件清单
-
-| 文件 | 说明 |
-| --- | --- |
-| `docs/云函数接口文档.md` | 云函数接口文档（Markdown 版）。 |
-| `docs/云函数接口文档.txt` | 云函数接口文档（文本版）。 |
-| `docs/云数据库文档.md` | 数据库结构文档（Markdown 版）。 |
-| `docs/云数据库文档.txt` | 数据库结构文档（文本版）。 |
-| `docs/测试结论.md` | 测试结论（Markdown 版）。 |
-| `docs/测试结论.txt` | 测试结论（文本版）。 |
-| `docs/测试总报告.txt` | 综合测试报告。 |
-| `docs/白盒测试记录.txt` | 白盒测试执行记录。 |
-| `docs/接口联调测试结果.txt` | 接口联调执行结果。 |
-| `docs/数据与性能基础测试结果.txt` | 数据一致性与性能基础测试结果。 |
-| `docs/数据库交付与索引核对清单.txt` | 数据库交付检查清单。 |
-| `docs/数据库复现教程.txt` | 数据库复现操作说明。 |
-
-### 8.2 资源与模块目录清单
-
-| 路径 | 说明 |
-| --- | --- |
-| `static/logo.png` | 应用 logo。 |
-| `static/tabbar/*.png` | 底部导航图标（默认态/激活态）。 |
-| `uni_modules/uni-config-center/` | uniCloud 配置中心模块。 |
-| `uni_modules/uni-id-common/` | uniCloud 身份相关公共模块。 |
-| `unpackage/release/` | 打包输出（如 APK 产物）。 |
-| `unpackage/res/icons/` | App 图标资源。 |
-
-### 8.3 交付数据目录清单
-
-| 路径 | 说明 |
-| --- | --- |
-| `云数据库json文件夹/users.json` | 用户数据导出。 |
-| `云数据库json文件夹/stores.json` | 门店数据导出。 |
-| `云数据库json文件夹/services.json` | 服务数据导出。 |
-| `云数据库json文件夹/barber_schedules.json` | 排班数据导出。 |
-| `云数据库json文件夹/time_slots.json` | 时段数据导出。 |
-| `云数据库json文件夹/orders.json` | 订单主表数据导出。 |
-| `云数据库json文件夹/order_items.json` | 订单明细数据导出。 |
-| `云数据库json文件夹/order_events.json` | 订单事件数据导出。 |
-| `云数据库json文件夹/reviews.json` | 评价数据导出。 |
-| `云数据库json文件夹/aftersales.json` | 售后数据导出。 |
-| `云数据库json文件夹/notifications.json` | 通知数据导出。 |
-| `云数据库json文件夹/sms_codes.json` | 验证码数据导出。 |
-| `云数据库json文件夹/auth_tokens.json` | 登录 token 数据导出。 |
-| `云数据库json文件夹/audit_logs.json` | 审计日志数据导出。 |
-| `文本/项目完整功能与设计复刻说明.txt` | 项目需求与复刻说明。 |
-
 ## 9. 运行与部署指南
 
 ### 9.1 环境准备
@@ -462,7 +346,7 @@ node tests/run-all-tests.js
 - `docs/数据库交付与索引核对清单.txt`
 - `docs/数据库复现教程.txt`
 
-## 13. 交付说明（正式版）
+## 13. 交付说明
 
 - 本仓库按“完整交付”策略保留源代码、文档、数据库 JSON、以及构建产物目录。
 - 若用于二次开发，建议基于本 README 的目录职责表先定位修改范围，再进行功能扩展。
