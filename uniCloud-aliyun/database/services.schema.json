@@ -32,13 +32,21 @@
 			"bsonType": "number",
 			"description": "服务价格"
 		},
-		"duration": {
-			"bsonType": "int",
-			"description": "服务时长（分钟）"
-		},
-		"createdAt": {
-			"bsonType": "int",
-			"description": "创建时间戳"
-		}
+			"duration": {
+				"bsonType": "int",
+				"description": "服务时长（分钟）"
+			},
+			"description": {
+				"bsonType": "string",
+				"description": "服务描述"
+			},
+			"updatedAt": {
+				"bsonType": "int",
+				"description": "更新时间戳"
+			},
+			"createdAt": {
+				"bsonType": "int",
+				"description": "创建时间戳"
+			}
 	}
 }

@@ -49,17 +49,60 @@
 			"bsonType": "string",
 			"description": "显示名称"
 		},
-		"storeId": {
-			"bsonType": "string",
-			"description": "所属门店ID"
-		},
-		"avatar": {
-			"bsonType": "string",
-			"description": "头像"
-		},
-		"createdAt": {
-			"bsonType": "int",
-			"description": "创建时间戳"
-		}
+			"storeId": {
+				"bsonType": "string",
+				"description": "所属门店ID"
+			},
+			"pendingRole": {
+				"bsonType": "string",
+				"description": "待审核角色（如 barber）"
+			},
+			"approvalStatus": {
+				"bsonType": "string",
+				"description": "审核状态（PENDING/APPROVED/REJECTED）"
+			},
+			"approvalReason": {
+				"bsonType": "string",
+				"description": "审核备注"
+			},
+			"approvedAt": {
+				"bsonType": "int",
+				"description": "审核通过时间戳"
+			},
+			"approvedBy": {
+				"bsonType": "string",
+				"description": "审核人ID"
+			},
+			"rejectedAt": {
+				"bsonType": "int",
+				"description": "审核拒绝时间戳"
+			},
+			"rejectedBy": {
+				"bsonType": "string",
+				"description": "拒绝操作人ID"
+			},
+			"phone": {
+				"bsonType": "string",
+				"description": "手机号"
+			},
+			"serviceIds": {
+				"bsonType": "array",
+				"description": "理发师可服务项目ID列表",
+				"items": {
+					"bsonType": "string"
+				}
+			},
+			"avatar": {
+				"bsonType": "string",
+				"description": "头像"
+			},
+			"updatedAt": {
+				"bsonType": "int",
+				"description": "更新时间戳"
+			},
+			"createdAt": {
+				"bsonType": "int",
+				"description": "创建时间戳"
+			}
 	}
 }

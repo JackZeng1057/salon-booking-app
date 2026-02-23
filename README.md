@@ -286,12 +286,12 @@ salon-booking-app/
 ### 7.2 数据库目录 `uniCloud-aliyun/database/`
 
 #### 7.2.1 Schema（14 个）
-- `users.schema.json`：用户主表；存储账号、密码摘要、角色、手机号、头像、昵称等身份信息。
-- `stores.schema.json`：门店主表；存储门店名称、地址、营业时间、规则、联系方式等。
-- `services.schema.json`：服务项目表；存储服务名称、时长、价格、所属门店与上架状态。
+- `users.schema.json`：用户主表；存储账号、密码摘要、角色、手机号、头像、昵称、审核状态与理发师服务绑定等信息。
+- `stores.schema.json`：门店主表；存储门店名称、地址、营业时间、规则、联系方式，以及理发师服务绑定开关等。
+- `services.schema.json`：服务项目表；存储服务名称、时长、价格、描述与所属门店。
 - `barber_schedules.schema.json`：理发师排班表；存储理发师某日工作起止时段与排班状态。
 - `time_slots.schema.json`：预约时段表；存储可预约时间片、占用状态、关联理发师/服务信息。
-- `orders.schema.json`：订单主表；存储预约单核心字段（状态、核验码、时间、角色关联等）。
+- `orders.schema.json`：订单主表；存储预约单核心字段（状态、核验码、时间、角色关联、爽约与逻辑删除标记等）。
 - `order_items.schema.json`：订单明细表；存储订单内服务项、单价、数量与小计信息。
 - `order_events.schema.json`：订单事件日志表；记录状态流转与关键操作审计轨迹。
 - `reviews.schema.json`：评价表；存储评分、文本、图片、评价人与被评价门店/订单关联。

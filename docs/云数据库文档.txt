@@ -14,9 +14,9 @@
 - 通知与审计：notifications, audit_logs
 
 2) 核心表简述
-- users：账号信息（角色、门店归属）
-- stores：门店基础资料、营业信息、规则和评分
-- services：门店服务项目与价格时长
+- users：账号信息（角色、门店归属、审核状态、手机号、理发师服务绑定）
+- stores：门店基础资料、营业信息、规则和评分（含理发师服务绑定开关）
+- services：门店服务项目与价格时长（含描述与更新时间）
 - barber_schedules：理发师日排班
 - time_slots：预约时段库存（AVAILABLE/BOOKED）
 - orders：订单主表（状态机核心）
@@ -31,6 +31,11 @@
 - 标准：BOOKED -> ARRIVED -> IN_SERVICE -> FINISHED
 - 异常：BOOKED -> CANCELLED，BOOKED -> NO_SHOW
 - 现在已收口：orders-start-service 只允许 ARRIVED -> IN_SERVICE
+
+补充：orders 当前还包含以下治理字段
+- autoCancelledAt（历史兼容）
+- deletedByUser / deletedByUserAt（用户侧逻辑删除）
+- deletedByStore / deletedByStoreAt（门店侧逻辑删除）
 
 4) 等位与等待时长
 - 输出字段：queueAheadCount, queueWaitMin

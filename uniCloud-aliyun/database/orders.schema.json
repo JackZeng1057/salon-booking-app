@@ -39,7 +39,7 @@
 			"name": "idx_orders_verify_code"
 		}
 	],
-	"properties": {
+		"properties": {
 		"_id": {
 			"description": "ID，系统自动生成"
 		},
@@ -131,14 +131,34 @@
 			"bsonType": "int",
 			"description": "爽约时间戳"
 		},
-		"noShowReason": {
-			"bsonType": "string",
-			"description": "爽约原因"
-		},
-		"createdAt": {
-			"bsonType": "int",
-			"description": "创建时间戳"
-		},
+			"noShowReason": {
+				"bsonType": "string",
+				"description": "爽约原因"
+			},
+			"autoCancelledAt": {
+				"bsonType": "int",
+				"description": "自动超时处理时间戳（兼容历史字段）"
+			},
+			"deletedByUser": {
+				"bsonType": "bool",
+				"description": "用户侧逻辑删除标记"
+			},
+			"deletedByUserAt": {
+				"bsonType": "int",
+				"description": "用户侧逻辑删除时间戳"
+			},
+			"deletedByStore": {
+				"bsonType": "bool",
+				"description": "门店侧逻辑删除标记"
+			},
+			"deletedByStoreAt": {
+				"bsonType": "int",
+				"description": "门店侧逻辑删除时间戳"
+			},
+			"createdAt": {
+				"bsonType": "int",
+				"description": "创建时间戳"
+			},
 		"updatedAt": {
 			"bsonType": "int",
 			"description": "更新时间戳"

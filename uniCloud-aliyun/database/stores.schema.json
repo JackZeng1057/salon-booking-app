@@ -140,14 +140,22 @@
 				}
 			}
 		},
-		"minPrice": {
-			"bsonType": "int",
-			"description": "起步价(用于价格筛选)",
-			"default": 0
-		},
-		"createdAt": {
-			"bsonType": "int",
-			"description": "创建时间戳"
-		}
+			"minPrice": {
+				"bsonType": "int",
+				"description": "起步价(用于价格筛选)",
+				"default": 0
+			},
+			"barberServiceAssignmentEnabled": {
+				"bsonType": "bool",
+				"description": "是否启用理发师服务显式绑定"
+			},
+			"updatedAt": {
+				"bsonType": "int",
+				"description": "更新时间戳"
+			},
+			"createdAt": {
+				"bsonType": "int",
+				"description": "创建时间戳"
+			}
 	}
 }
