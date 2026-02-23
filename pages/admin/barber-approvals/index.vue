@@ -1,43 +1,57 @@
 <template>
   <view class="page">
-    <app-nav :showTitle="true" title="理发师审核" />
-    <view class="hero-card">
-      <text class="hero-subtitle">统一审核理发师入驻申请并管理状态</text>
-    </view>
-
-    <view v-if="loading" class="hint">加载中...</view>
-    <view v-else-if="list.length === 0" class="hint">暂无申请</view>
-
-    <view v-else class="list">
-      <view v-for="item in list" :key="item._id" class="card">
-        <view class="header-row">
-          <view class="identity">
-            <image class="avatar" :src="item.avatar || defaultAvatar" mode="aspectFill" />
-            <view class="meta">
-              <text class="name">{{ item.name || item.username }}</text>
-              <text class="sub">账号：{{ item.username || '-' }}</text>
-              <text class="sub">手机号：{{ item.phone || '未绑定' }}</text>
-            </view>
-          </view>
-          <text class="status-tag" :class="statusClass(item.approvalStatus)">
-            {{ formatStatus(item.approvalStatus) }}
-          </text>
-        </view>
-
-        <view class="time-row">
-          <text>申请时间：{{ formatTime(item.createdAt) }}</text>
-        </view>
-
-        <view v-if="item.approvalStatus === 'REJECTED' && item.approvalReason" class="reason-row">
-          <text>拒绝原因：{{ item.approvalReason }}</text>
-        </view>
-
-        <view v-if="item.approvalStatus === 'PENDING'" class="actions">
-          <button class="action-btn reject" @click="handleReview(item, 'REJECT')">拒绝</button>
-          <button class="action-btn approve" @click="handleReview(item, 'APPROVE')">通过</button>
-        </view>
+    <view class="page-header">
+      <app-nav :showTitle="true" title="理发师审核" />
+      <view class="hero-card">
+        <text class="hero-subtitle">统一审核理发师入驻申请并管理状态</text>
       </view>
     </view>
+
+    <scroll-view class="page-scroll" scroll-y>
+      <view v-if="loading" class="hint">加载中...</view>
+      <view v-else-if="list.length === 0" class="hint">暂无申请</view>
+
+      <view v-else class="list">
+        <view v-for="item in list" :key="item._id" class="card">
+          <view class="header-row">
+            <view class="identity">
+              <image
+                v-if="normalizeAvatar(item.avatar)"
+                class="avatar"
+                :src="normalizeAvatar(item.avatar)"
+                mode="aspectFill"
+                @error="onAvatarError(item._id)"
+              />
+              <view v-else class="avatar avatar-fallback">
+                <text class="avatar-text">{{ avatarInitial(item) }}</text>
+              </view>
+              <view class="meta">
+                <text class="name">{{ item.name || item.username }}</text>
+                <text class="sub">账号：{{ item.username || '-' }}</text>
+                <text class="sub">手机号：{{ item.phone || '未绑定' }}</text>
+              </view>
+            </view>
+            <text class="status-tag" :class="statusClass(item.approvalStatus)">
+              {{ formatStatus(item.approvalStatus) }}
+            </text>
+          </view>
+
+          <view class="time-row">
+            <text>申请时间：{{ formatTime(item.createdAt) }}</text>
+          </view>
+
+          <view v-if="item.approvalStatus === 'REJECTED' && item.approvalReason" class="reason-row">
+            <text>拒绝原因：{{ item.approvalReason }}</text>
+          </view>
+
+          <view v-if="item.approvalStatus === 'PENDING'" class="actions">
+            <button class="action-btn reject" @click="handleReview(item, 'REJECT')">拒绝</button>
+            <button class="action-btn approve" @click="handleReview(item, 'APPROVE')">通过</button>
+          </view>
+        </view>
+      </view>
+      <view class="scroll-bottom-gap"></view>
+    </scroll-view>
 
     <app-modal
       :visible="confirmDialog.visible"
@@ -72,8 +86,6 @@ export default {
       reviewing: false,
       // 申请列表
       list: [],
-      // 默认头像
-      defaultAvatar: 'https://dummyimage.com/100x100/efefef/999&text=B',
       // 通用确认弹窗状态
       confirmDialog: {
         visible: false,
@@ -92,6 +104,29 @@ export default {
     this.loadList();
   },
   methods: {
+    normalizeAvatar(avatar) {
+      const value = String(avatar || '').trim();
+      if (!value) return '';
+      const lowered = value.toLowerCase();
+      if (lowered === 'default' || lowered === 'null' || lowered === 'undefined') return '';
+      return value;
+    },
+    avatarName(item) {
+      return String((item && (item.name || item.username)) || '理发师').trim();
+    },
+    avatarInitial(item) {
+      const text = this.avatarName(item);
+      const first = text.slice(0, 1);
+      return /^[a-z]$/i.test(first) ? first.toUpperCase() : first;
+    },
+    onAvatarError(userId) {
+      const id = String(userId || '');
+      if (!id) return;
+      this.list = (this.list || []).map((item) => {
+        if (String(item && item._id) !== id) return item;
+        return { ...item, avatar: '' };
+      });
+    },
     // 拉取申请列表（当前仅展示待审核）
     async loadList() {
       this.loading = true;
@@ -196,9 +231,22 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: calc(118rpx + 20px) 28rpx 0;
   background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.page-header {
+  flex-shrink: 0;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 18rpx;
 }
 
 .hero-card {
@@ -252,6 +300,20 @@ export default {
   height: 88rpx;
   border-radius: 44rpx;
   background: #f3f4f6;
+  flex-shrink: 0;
+}
+
+.avatar-fallback {
+  background: #0f172a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-text {
+  font-size: 34rpx;
+  font-weight: 700;
 }
 
 .meta {
@@ -334,5 +396,9 @@ export default {
   color: #334155;
   font-size: 27rpx;
   line-height: 1.6;
+}
+
+.scroll-bottom-gap {
+  height: 24rpx;
 }
 </style>

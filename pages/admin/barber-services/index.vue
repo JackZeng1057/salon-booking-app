@@ -1,40 +1,54 @@
 <template>
   <view class="page">
-    <app-nav :showTitle="true" title="理发师项目设置" />
-    <view class="hero-card">
-      <text class="hero-subtitle">为门店理发师配置可承接的服务项目</text>
+    <view class="page-header">
+      <app-nav :showTitle="true" title="理发师项目设置" />
+      <view class="hero-card">
+        <text class="hero-subtitle">为门店理发师配置可承接的服务项目</text>
+      </view>
     </view>
 
-    <view v-if="loading" class="hint">加载中...</view>
-    <view v-else-if="services.length === 0" class="hint">当前门店暂无服务项目，请先到门店设置里新增服务</view>
-    <view v-else-if="barbers.length === 0" class="hint">当前门店暂无理发师</view>
+    <scroll-view class="page-scroll" scroll-y>
+      <view v-if="loading" class="hint">加载中...</view>
+      <view v-else-if="services.length === 0" class="hint">当前门店暂无服务项目，请先到门店设置里新增服务</view>
+      <view v-else-if="barbers.length === 0" class="hint">当前门店暂无理发师</view>
 
-    <view v-else class="list">
-      <view v-for="barber in barbers" :key="barber._id" class="card">
-        <view class="header">
-          <view class="identity">
-            <image class="avatar" :src="barber.avatar || defaultAvatar" mode="aspectFill" />
-            <view class="meta">
-              <text class="name">{{ barber.username || barber.name || '理发师' }}</text>
-              <text class="sub">账号：{{ barber.username || '-' }}</text>
+      <view v-else class="list">
+        <view v-for="barber in barbers" :key="barber._id" class="card">
+          <view class="header">
+            <view class="identity">
+              <image
+                v-if="normalizeAvatar(barber.avatar)"
+                class="avatar"
+                :src="normalizeAvatar(barber.avatar)"
+                mode="aspectFill"
+                @error="onAvatarError(barber._id)"
+              />
+              <view v-else class="avatar avatar-fallback">
+                <text class="avatar-text">{{ avatarInitial(barber) }}</text>
+              </view>
+              <view class="meta">
+                <text class="name">{{ barber.username || barber.name || '理发师' }}</text>
+                <text class="sub">账号：{{ barber.username || '-' }}</text>
+              </view>
             </view>
+            <text class="clear" @click="clearBarber(barber._id)">清空</text>
           </view>
-          <text class="clear" @click="clearBarber(barber._id)">清空</text>
-        </view>
 
-        <view class="chips">
-          <view
-            v-for="service in services"
-            :key="service._id"
-            class="chip"
-            :class="{ active: hasService(barber._id, service._id) }"
-            @click="toggleService(barber._id, service._id)"
-          >
-            {{ service.name }}
+          <view class="chips">
+            <view
+              v-for="service in services"
+              :key="service._id"
+              class="chip"
+              :class="{ active: hasService(barber._id, service._id) }"
+              @click="toggleService(barber._id, service._id)"
+            >
+              {{ service.name }}
+            </view>
           </view>
         </view>
       </view>
-    </view>
+      <view class="scroll-bottom-gap"></view>
+    </scroll-view>
 
     <view class="action-bar">
       <button class="save-btn" :loading="saving" @click="saveAssignments">保存配置</button>
@@ -79,15 +93,36 @@ export default {
       // 门店理发师列表
       barbers: [],
       // 选中关系映射：{ barberId: serviceIds[] }
-      selectedMap: {},
-      // 默认头像兜底图
-      defaultAvatar: 'https://dummyimage.com/100x100/efefef/999&text=B'
+      selectedMap: {}
     };
   },
   onShow() {
     this.loadData();
   },
   methods: {
+    normalizeAvatar(avatar) {
+      const value = String(avatar || '').trim();
+      if (!value) return '';
+      const lowered = value.toLowerCase();
+      if (lowered === 'default' || lowered === 'null' || lowered === 'undefined') return '';
+      return value;
+    },
+    avatarName(item) {
+      return String((item && (item.username || item.name)) || '理发师').trim();
+    },
+    avatarInitial(item) {
+      const text = this.avatarName(item);
+      const first = text.slice(0, 1);
+      return /^[a-z]$/i.test(first) ? first.toUpperCase() : first;
+    },
+    onAvatarError(barberId) {
+      const id = String(barberId || '');
+      if (!id) return;
+      this.barbers = (this.barbers || []).map((item) => {
+        if (String(item && item._id) !== id) return item;
+        return { ...item, avatar: '' };
+      });
+    },
     // 获取并确保当前账号的 storeId
     async ensureStoreId() {
       let user = authStore.state.user || {};
@@ -195,9 +230,22 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: calc(118rpx + 20px) 28rpx 0;
   background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.page-header {
+  flex-shrink: 0;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 18rpx;
 }
 
 .hero-card {
@@ -252,6 +300,20 @@ export default {
   height: 84rpx;
   border-radius: 42rpx;
   background: #f2f4f8;
+  flex-shrink: 0;
+}
+
+.avatar-fallback {
+  background: #0f172a;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-text {
+  font-size: 34rpx;
+  font-weight: 700;
 }
 
 .meta {
@@ -298,11 +360,13 @@ export default {
 }
 
 .action-bar {
-  position: sticky;
-  bottom: 0;
-  margin-top: 18rpx;
-  padding: 16rpx 0 6rpx;
+  flex-shrink: 0;
+  padding: 14rpx 0 10rpx;
   background: linear-gradient(to bottom, rgba(246, 247, 251, 0), rgba(246, 247, 251, 1) 30%);
+}
+
+.scroll-bottom-gap {
+  height: 24rpx;
 }
 
 .save-btn {

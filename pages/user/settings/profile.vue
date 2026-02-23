@@ -1,11 +1,14 @@
 <template>
   <view class="page">
-    <app-nav :showTitle="true" title="修改账号名/头像" />
-    <view class="hero-card">
-      <text class="hero-subtitle">昵称按角色规则自动生成</text>
+    <view class="page-header">
+      <app-nav :showTitle="true" title="修改账号名/头像" />
+      <view class="hero-card">
+        <text class="hero-subtitle">昵称按角色规则自动生成</text>
+      </view>
     </view>
 
-    <view class="card">
+    <scroll-view class="page-scroll" scroll-y>
+      <view class="card">
       <view class="field">
         <text class="label">头像</text>
         <view class="avatar-row">
@@ -34,7 +37,9 @@
       >
         保存
       </button>
-    </view>
+      </view>
+      <view class="scroll-bottom-gap"></view>
+    </scroll-view>
   </view>
 </template>
 
@@ -183,9 +188,22 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: calc(118rpx + 20px) 28rpx 0;
   background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.page-header {
+  flex-shrink: 0;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 18rpx;
 }
 
 .hero-card {
@@ -292,5 +310,9 @@ export default {
 .submit-btn.disabled {
   background: #c7ced9;
   color: rgba(255, 255, 255, 0.82);
+}
+
+.scroll-bottom-gap {
+  height: 24rpx;
 }
 </style>

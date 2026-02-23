@@ -2,37 +2,47 @@
 	// 应用入口：负责初始化登录态与基础生命周期钩子
 	import { authStore } from './store/auth'
 	import { syncCriticalSystemNotifications } from './utils/system-notify'
-	const SYSTEM_NOTIFY_POLL_MS = 30000
+	const SYSTEM_NOTIFY_FOREGROUND_POLL_MS = 30000
+	const SYSTEM_NOTIFY_BACKGROUND_POLL_MS = 90000
 
 	export default {
 		data() {
 			return {
-				systemNotifyTimer: null
+				systemNotifyTimer: null,
+				systemNotifyPollMs: 0
 			}
 		},
 		onLaunch: function() {
 			// 启动时恢复登录态，避免重复登录造成读操作升高
 			authStore.init()
 			syncCriticalSystemNotifications({ force: true, skipGuides: true })
+			this.startSystemNotifyPolling(SYSTEM_NOTIFY_FOREGROUND_POLL_MS)
 		},
 		onShow: function() {
 			syncCriticalSystemNotifications({ force: true, skipGuides: true })
-			this.startSystemNotifyPolling()
+			this.startSystemNotifyPolling(SYSTEM_NOTIFY_FOREGROUND_POLL_MS)
 		},
 		onHide: function() {
-			this.stopSystemNotifyPolling()
+			// 进入后台后仍维持低频轮询，尽量保证后台也能触发系统悬浮通知。
+			// 注意：若系统冻结/杀进程（尤其 iOS），仅靠本地轮询无法保证触达，需服务端推送兜底。
+			syncCriticalSystemNotifications({ force: true, skipGuides: true })
+			this.startSystemNotifyPolling(SYSTEM_NOTIFY_BACKGROUND_POLL_MS)
 		},
 		methods: {
-			startSystemNotifyPolling() {
-				if (this.systemNotifyTimer) return
+			startSystemNotifyPolling(intervalMs) {
+				const nextMs = Number(intervalMs) > 0 ? Number(intervalMs) : SYSTEM_NOTIFY_FOREGROUND_POLL_MS
+				if (this.systemNotifyTimer && this.systemNotifyPollMs === nextMs) return
+				this.stopSystemNotifyPolling()
+				this.systemNotifyPollMs = nextMs
 				this.systemNotifyTimer = setInterval(() => {
 					syncCriticalSystemNotifications({ skipGuides: true })
-				}, SYSTEM_NOTIFY_POLL_MS)
+				}, nextMs)
 			},
 			stopSystemNotifyPolling() {
 				if (!this.systemNotifyTimer) return
 				clearInterval(this.systemNotifyTimer)
 				this.systemNotifyTimer = null
+				this.systemNotifyPollMs = 0
 			}
 		}
 	}

@@ -1,62 +1,67 @@
 <template>
   <view class="page">
-    <app-nav :showTitle="true" title="理发师管理" />
-    <view class="hero-card">
-      <text class="hero-subtitle">可统一管理门店理发师账号名与在店状态</text>
-    </view>
-
-    <view v-if="loading" class="hint">加载中...</view>
-    <view v-else-if="list.length === 0" class="hint">当前门店暂无理发师</view>
-
-    <view v-else class="list">
-      <view v-for="item in list" :key="item._id" class="card">
-        <view class="header-row">
-          <image
-            v-if="normalizeAvatar(item.avatar)"
-            class="avatar"
-            :src="normalizeAvatar(item.avatar)"
-            mode="aspectFill"
-            @error="onAvatarError(item._id)"
-          />
-          <view v-else class="avatar avatar-fallback" :style="avatarStyle(item)">
-            <text class="avatar-text">{{ avatarInitial(item) }}</text>
-          </view>
-          <view class="meta">
-            <text class="name">{{ item.username || item.name || '理发师' }}</text>
-            <text class="sub">手机号：{{ item.phone || '未绑定' }}</text>
-          </view>
-        </view>
-
-        <view class="edit-row">
-          <input
-            class="name-input"
-            :value="draftMap[item._id] || ''"
-            maxlength="20"
-            placeholder="请输入师傅名（账号名）"
-            @input="onDraftInput(item._id, $event)"
-          />
-          <button
-            class="save-btn"
-            size="mini"
-            :loading="!!savingMap[item._id]"
-            @click="renameBarber(item)"
-          >
-            改名
-          </button>
-        </view>
-
-        <view class="action-row">
-          <button
-            class="remove-btn"
-            size="mini"
-            :loading="!!removingMap[item._id]"
-            @click="removeBarber(item)"
-          >
-            移出门店
-          </button>
-        </view>
+    <view class="page-header">
+      <app-nav :showTitle="true" title="理发师管理" />
+      <view class="hero-card">
+        <text class="hero-subtitle">可统一管理门店理发师账号名与在店状态</text>
       </view>
     </view>
+
+    <scroll-view class="page-scroll" scroll-y>
+      <view v-if="loading" class="hint">加载中...</view>
+      <view v-else-if="list.length === 0" class="hint">当前门店暂无理发师</view>
+
+      <view v-else class="list">
+        <view v-for="item in list" :key="item._id" class="card">
+          <view class="header-row">
+            <image
+              v-if="normalizeAvatar(item.avatar)"
+              class="avatar"
+              :src="normalizeAvatar(item.avatar)"
+              mode="aspectFill"
+              @error="onAvatarError(item._id)"
+            />
+            <view v-else class="avatar avatar-fallback">
+              <text class="avatar-text">{{ avatarInitial(item) }}</text>
+            </view>
+            <view class="meta">
+              <text class="name">{{ item.username || item.name || '理发师' }}</text>
+              <text class="sub">手机号：{{ item.phone || '未绑定' }}</text>
+            </view>
+          </view>
+
+          <view class="edit-row">
+            <input
+              class="name-input"
+              :value="draftMap[item._id] || ''"
+              maxlength="20"
+              placeholder="请输入师傅名（账号名）"
+              @input="onDraftInput(item._id, $event)"
+            />
+            <button
+              class="save-btn"
+              size="mini"
+              :loading="!!savingMap[item._id]"
+              @click="renameBarber(item)"
+            >
+              改名
+            </button>
+          </view>
+
+          <view class="action-row">
+            <button
+              class="remove-btn"
+              size="mini"
+              :loading="!!removingMap[item._id]"
+              @click="removeBarber(item)"
+            >
+              移出门店
+            </button>
+          </view>
+        </view>
+      </view>
+      <view class="scroll-bottom-gap"></view>
+    </scroll-view>
   </view>
 </template>
 
@@ -89,23 +94,6 @@ export default {
     },
     avatarInitial(item) {
       return this.avatarName(item).slice(0, 1).toUpperCase();
-    },
-    avatarStyle(item) {
-      const seed = this.avatarName(item);
-      let hash = 0;
-      for (let i = 0; i < seed.length; i += 1) {
-        hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-      }
-      const palettes = [
-        { bg: '#E0E7FF', fg: '#3730A3' },
-        { bg: '#DBEAFE', fg: '#1D4ED8' },
-        { bg: '#D1FAE5', fg: '#047857' },
-        { bg: '#FCE7F3', fg: '#BE185D' },
-        { bg: '#FEF3C7', fg: '#B45309' },
-        { bg: '#E2E8F0', fg: '#334155' }
-      ];
-      const picked = palettes[hash % palettes.length];
-      return { backgroundColor: picked.bg, color: picked.fg };
     },
     onAvatarError(barberId) {
       const id = String(barberId || '');
@@ -201,9 +189,22 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: calc(118rpx + 20px) 28rpx 0;
   background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.page-header {
+  flex-shrink: 0;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 18rpx;
 }
 
 .hero-card {
@@ -253,6 +254,8 @@ export default {
 }
 
 .avatar-fallback {
+  background: #0f172a;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -328,5 +331,8 @@ export default {
   border: 1rpx solid #fecaca;
   background: #fff1f2;
 }
-</style>
 
+.scroll-bottom-gap {
+  height: 24rpx;
+}
+</style>

@@ -18,6 +18,37 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
   return R * c;
 }
 
+function toFiniteNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function toPositivePrice(value) {
+  const n = toFiniteNumber(value);
+  return n !== null && n > 0 ? n : null;
+}
+
+async function resolveEffectiveMinPrice(db, store) {
+  const directPrice = toPositivePrice(store && store.minPrice);
+  let serviceMinPrice = null;
+  try {
+    const serviceRes = await db
+      .collection('services')
+      .where({ storeId: store && store._id })
+      .field({ price: true })
+      .orderBy('price', 'asc')
+      .limit(1)
+      .get();
+    const first = serviceRes && serviceRes.data && serviceRes.data[0];
+    serviceMinPrice = toPositivePrice(first && first.price);
+  } catch (e) {
+    serviceMinPrice = null;
+  }
+  if (directPrice === null) return serviceMinPrice;
+  if (serviceMinPrice === null) return directPrice;
+  return Math.min(directPrice, serviceMinPrice);
+}
+
 // 获取门店列表 - 支持搜索、筛选、排序
 exports.main = withResponse(async (event, context) => {
   const db = uniCloud.database();
@@ -39,6 +70,7 @@ exports.main = withResponse(async (event, context) => {
   
   // 排序参数：distance（距离）/ rating（评分）/ price（价格）/ default（默认）
   const sortBy = (event && event.sortBy) || 'default';
+  const shouldUseEffectivePrice = sortBy === 'price' || !!maxPrice;
   
   // 用户位置 (用于距离筛选和排序)
   const userLat = event && event.userLat ? Number(event.userLat) : null;
@@ -97,19 +129,53 @@ exports.main = withResponse(async (event, context) => {
   // 排序
   if (sortBy === 'rating') {
     query = query.orderBy('rating.overall', 'desc');
-  } else if (sortBy === 'price') {
-    query = query.orderBy('minPrice', 'asc');
   } else {
     // 默认按创建时间
     query = query.orderBy('createdAt', 'desc');
   }
 
   // 分页
-  query = query.skip((safePage - 1) * safeSize).limit(safeSize);
+  if (shouldUseEffectivePrice) {
+    query = query.limit(500);
+  } else {
+    query = query.skip((safePage - 1) * safeSize).limit(safeSize);
+  }
 
   // 执行查询
   const res = await query.get();
   let stores = res.data || [];
+
+  // 价格排序/筛选：优先使用门店 minPrice，缺失时回退到服务最低价。
+  if (shouldUseEffectivePrice) {
+    const priceList = await Promise.all(
+      stores.map(async (store) => {
+        const effectiveMinPrice = await resolveEffectiveMinPrice(db, store);
+        return {
+          ...store,
+          minPrice: effectiveMinPrice !== null ? effectiveMinPrice : (store && store.minPrice)
+        };
+      })
+    );
+    stores = priceList;
+    if (maxPrice) {
+      stores = stores.filter((store) => {
+        const p = toFiniteNumber(store && store.minPrice);
+        return p !== null && p <= maxPrice;
+      });
+    }
+    if (sortBy === 'price') {
+      stores.sort((a, b) => {
+        const pa = toFiniteNumber(a && a.minPrice);
+        const pb = toFiniteNumber(b && b.minPrice);
+        if (pa === null && pb === null) return String((a && a.name) || '').localeCompare(String((b && b.name) || ''));
+        if (pa === null) return 1;
+        if (pb === null) return -1;
+        if (pa !== pb) return pa - pb;
+        return String((a && a.name) || '').localeCompare(String((b && b.name) || ''));
+      });
+    }
+    stores = stores.slice((safePage - 1) * safeSize, safePage * safeSize);
+  }
 
   // 计算距离并筛选
   if (userLat && userLng) {

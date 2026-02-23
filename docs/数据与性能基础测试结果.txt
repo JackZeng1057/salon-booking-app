@@ -6,9 +6,9 @@
 - 审计日志条数：3
 
 二、轻量性能基线（队列计算）
-- 数据量 500：buildQueueHintMap=3.479ms，attachQueueHints=0.071ms，总计=3.55ms
-- 数据量 2000：buildQueueHintMap=6.654ms，attachQueueHints=0.026ms，总计=6.68ms
-- 数据量 5000：buildQueueHintMap=14.992ms，attachQueueHints=0.035ms，总计=15.027ms
+- 数据量 500：buildQueueHintMap=4.396ms，attachQueueHints=0.092ms，总计=4.488ms
+- 数据量 2000：buildQueueHintMap=6.547ms，attachQueueHints=0.029ms，总计=6.576ms
+- 数据量 5000：buildQueueHintMap=14.472ms，attachQueueHints=0.036ms，总计=14.508ms
 
 三、说明
 - 该测试为项目阶段性的基础性能验证，不等同于生产压测。

@@ -1,8 +1,9 @@
 <template>
   <view class="store-list-page">
-    <app-nav :showTitle="true" title="选择门店" />
+    <view class="page-header">
+      <app-nav :showTitle="true" title="选择门店" />
 
-    <view class="tools-wrap">
+      <view class="tools-wrap">
       <view class="search-box">
         <app-icon class="search-icon-svg" name="search" color="#94A3B8" :size="30" :stroke-width="2.1" />
         <input
@@ -22,11 +23,11 @@
       </view>
     </view>
 
-    <view v-if="showFilter" class="filter-panel">
+      <view v-if="showFilter" class="filter-panel">
       <view class="filter-section">
         <text class="filter-label">排序</text>
         <view class="filter-options">
-          <view
+        <view
             v-for="item in sortOptions"
             :key="item.value"
             class="filter-option"
@@ -53,28 +54,15 @@
         </view>
       </view>
 
-      <view class="filter-section">
-        <text class="filter-label">距离</text>
-        <view class="filter-options">
-          <view
-            v-for="item in distanceOptions"
-            :key="item"
-            class="filter-option"
-            :class="{ active: maxDistance === item }"
-            @click="selectDistance(item)"
-          >
-            {{ item }}km内
-          </view>
+        <view class="filter-actions">
+          <button class="reset-btn" @click="resetFilters">重置</button>
+          <button class="apply-btn" @click="applyFilters">应用</button>
         </view>
-      </view>
-
-      <view class="filter-actions">
-        <button class="reset-btn" @click="resetFilters">重置</button>
-        <button class="apply-btn" @click="applyFilters">应用</button>
       </view>
     </view>
 
-    <view v-if="loading && stores.length === 0" class="status-box">
+    <scroll-view class="page-scroll" scroll-y>
+      <view v-if="loading && stores.length === 0" class="status-box">
       <view class="spinner"></view>
       <text>正在加载门店...</text>
     </view>
@@ -83,7 +71,7 @@
       <text class="empty-text">暂时没有找到相关门店</text>
     </view>
 
-    <view v-else class="list-container">
+      <view v-else class="list-container">
       <view
         v-for="store in stores"
         :key="store._id"
@@ -93,9 +81,6 @@
       >
         <view class="cover-wrap">
           <image class="cover" :src="store.cover || defaultCover" mode="aspectFill" lazy-load />
-          <view v-if="store.distance !== null && store.distance !== undefined" class="distance-badge">
-            {{ formatDistance(store.distance) }}
-          </view>
         </view>
 
         <view class="card-main">
@@ -119,7 +104,9 @@
           </view>
         </view>
       </view>
-    </view>
+      </view>
+      <view class="scroll-bottom-gap"></view>
+    </scroll-view>
   </view>
 </template>
 
@@ -130,7 +117,7 @@ import { fetchStores } from '../../api/store';
  * 门店列表页
  * 功能：
  * 1) 搜索门店
- * 2) 排序/评分/距离筛选
+ * 2) 排序/评分筛选
  * 3) 展示营业状态、评分与基础信息
  */
 export default {
@@ -150,19 +137,13 @@ export default {
       // 排序配置项
       sortOptions: [
         { label: '默认排序', value: 'default' },
-        { label: '距离最近', value: 'distance' },
         { label: '评分最高', value: 'rating' },
         { label: '价格优先', value: 'price' }
       ],
       // 筛选项配置
       ratingOptions: [5, 4, 3],
-      distanceOptions: [1, 3, 5],
       // 当前筛选值
       minRating: null,
-      maxDistance: null,
-      // 用户定位坐标（用于距离筛选/显示）
-      userLat: null,
-      userLng: null,
       // 门店封面兜底图
       defaultCover:
         'https://images.unsplash.com/photo-1521590832896-7ea20ade7336?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
@@ -174,24 +155,12 @@ export default {
     });
   },
   onLoad() {
-    this.getUserLocation();
     this.loadStores();
   },
   onShow() {
     this.loadStores({ noCache: true });
   },
   methods: {
-    // 获取当前位置，成功后重新加载门店列表
-    getUserLocation() {
-      uni.getLocation({
-        type: 'gcj02',
-        success: (res) => {
-          this.userLat = res.latitude;
-          this.userLng = res.longitude;
-          this.loadStores();
-        }
-      });
-    },
     // 搜索框回车触发查询
     handleSearch() {
       this.loadStores();
@@ -208,15 +177,10 @@ export default {
     selectRating(rating) {
       this.minRating = rating;
     },
-    // 设置最大距离筛选（公里）
-    selectDistance(distance) {
-      this.maxDistance = distance;
-    },
     // 重置筛选条件为默认值
     resetFilters() {
       this.sortBy = 'default';
       this.minRating = null;
-      this.maxDistance = null;
     },
     // 应用筛选并刷新列表
     applyFilters() {
@@ -231,9 +195,6 @@ export default {
           keyword: this.keyword,
           sortBy: this.sortBy,
           minRating: this.minRating,
-          maxDistance: this.maxDistance,
-          userLat: this.userLat,
-          userLng: this.userLng,
           noCache: !!options.noCache
         };
         const data = await fetchStores(params);
@@ -254,12 +215,6 @@ export default {
     formatRating(store) {
       if (!store.rating || !store.rating.overall) return '5.0';
       return Number(store.rating.overall).toFixed(1);
-    },
-    // 距离格式化（km/m）
-    formatDistance(distance) {
-      if (distance === null || distance === undefined) return '';
-      if (distance < 1) return `${Math.round(distance * 1000)}m`;
-      return `${Number(distance).toFixed(1)}km`;
     },
     // 评价数量格式化（大于千用 k）
     formatReviewCount(store) {
@@ -329,19 +284,28 @@ export default {
 
 <style scoped lang="scss">
 .store-list-page {
-  min-height: 100vh;
-  padding: calc(112rpx + 20px) 20rpx 30rpx;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.page-header {
+  flex-shrink: 0;
+  padding: calc(112rpx + 20px) 20rpx 0;
 }
 
 .tools-wrap {
-  position: sticky;
-  top: 108rpx;
-  z-index: 15;
   display: flex;
   gap: 12rpx;
   padding: 8rpx 8rpx 14rpx;
   background: #f8fafc;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
 }
 
 .search-box {
@@ -519,17 +483,6 @@ export default {
   height: 100%;
 }
 
-.distance-badge {
-  position: absolute;
-  left: 10rpx;
-  top: 10rpx;
-  padding: 4rpx 10rpx;
-  border-radius: 10rpx;
-  font-size: 18rpx;
-  color: #ffffff;
-  background: rgba(15, 23, 42, 0.78);
-}
-
 .card-main {
   flex: 1;
   min-width: 0;
@@ -609,5 +562,9 @@ export default {
   border: 1rpx solid #d1fae5;
   border-radius: 999rpx;
   padding: 4rpx 10rpx;
+}
+
+.scroll-bottom-gap {
+  height: 24rpx;
 }
 </style>

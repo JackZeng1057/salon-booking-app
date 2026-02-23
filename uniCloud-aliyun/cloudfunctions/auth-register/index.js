@@ -39,7 +39,6 @@ async function createStoreByName(db, storeName) {
     phone: '',
     cover: 'https://dummyimage.com/600x400/efefef/333&text=Store',
     description: '',
-    minPrice: 0,
     location: null,
     tags: [],
     businessHours: {

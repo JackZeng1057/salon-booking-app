@@ -100,3 +100,6 @@ I. users（1个）
 - 新增字段：同步更新 schema 和本文件
 - 新增状态值：同步更新云函数状态校验和接口文档
 - 答辩前建议做一次 schema/云函数/文档三方对照
+
+附：aftersales 状态口径（当前）
+- OPEN / PROCESSING / RESOLVED / REJECTED

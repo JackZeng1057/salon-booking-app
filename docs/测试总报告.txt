@@ -1,6 +1,7 @@
 理发预约系统-测试总报告（整合版）
 
 项目路径：/Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app
+最近一次执行：2026-02-23（命令：node tests/run-all-tests.js）
 
 一、测试范围
 1) 白盒分支测试（核心业务函数）
@@ -17,9 +18,9 @@
 - 脚本：tests/interface/run-interface-contract.js
 - 命令：node tests/interface/run-interface-contract.js
 - 内容：
-  a) 47 个云函数统一返回结构扫描
+  a) 48 个云函数统一返回结构扫描
   b) 核心链路联调（verify -> start -> finish -> review）
-- 结果：通过
+- 结果：48/48 通过（fail=0）
 
 3. 数据与性能基础测试
 - 脚本：tests/perf/run-data-perf-basic.js

@@ -6,10 +6,10 @@ import { openAppConfirm } from './app-confirm';
 const CHECK_COOLDOWN_MS = 45 * 1000;
 // 每个用户单独记录“已推送过”的通知 ID，避免重复弹同一条本地通知。
 const STORAGE_KEY_PREFIX = 'systemNotifiedIds:';
-// 全局指纹：用于跨账号/跨会话去重同内容通知（兜底）。
-const GLOBAL_FINGERPRINT_STORAGE_KEY = 'systemNotifiedFingerprints';
 // 首次登录主界面的通知权限引导标记（全局一次，跨账号/跨角色）。
 const FIRST_LOGIN_PERMISSION_PROMPT_DONE_KEY = 'notificationPermissionPromptDoneOnFirstLogin';
+// 渠道修复弹窗一次性标记：全局最多弹一次，避免反复打扰。
+const CHANNEL_REPAIR_PROMPT_DONE_KEY = 'businessChannelRepairPromptDone';
 // 本地去重数据上限，防止 storage 无限增长。
 const STORAGE_LIMIT = 500;
 // 单次同步最多触发的系统通知条数，防止批量消息刷屏。
@@ -68,6 +68,7 @@ function markFirstLoginPermissionPromptDone() {
 }
 
 function shouldPromptChannelRepair() {
+  if (uni.getStorageSync(CHANNEL_REPAIR_PROMPT_DONE_KEY)) return false;
   const last = Number(uni.getStorageSync(CHANNEL_REPAIR_PROMPT_AT_KEY) || 0);
   const now = Date.now();
   // 返回 true 表示“允许再次弹修复引导”：
@@ -79,19 +80,13 @@ function shouldPromptChannelRepair() {
 function markChannelRepairPrompted() {
   // 记录本次弹窗时间，用于节流控制。
   uni.setStorageSync(CHANNEL_REPAIR_PROMPT_AT_KEY, Date.now());
+  uni.setStorageSync(CHANNEL_REPAIR_PROMPT_DONE_KEY, 1);
 }
 
 // 当前登录用户 ID（兼容不同字段命名）。
 function getCurrentUserId() {
   const user = authStore.state.user || {};
   return String(user._id || user.id || user.userId || user.uid || '').trim();
-}
-
-// 归一化当前角色：未知角色按普通用户处理，避免误推管理员级提醒。
-function getCurrentRole() {
-  const role = String(authStore.state.role || (authStore.state.user && authStore.state.user.role) || '').trim();
-  if (role === 'admin' || role === 'barber' || role === 'user') return role;
-  return 'user';
 }
 
 function getStorageKey(userId) {
@@ -122,38 +117,6 @@ function saveNotifiedIdList(userId, ids) {
   uni.setStorageSync(getStorageKey(userId), sliced);
 }
 
-// 读取全局通知指纹列表（用于跨会话去重同内容通知）。
-function loadGlobalFingerprintList() {
-  const raw = uni.getStorageSync(GLOBAL_FINGERPRINT_STORAGE_KEY);
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((text) => String(text || '').trim())
-    .filter(Boolean);
-}
-
-// 保存全局通知指纹列表：同样做去重与截断。
-function saveGlobalFingerprintList(list) {
-  const values = Array.isArray(list) ? list : [];
-  const unique = [];
-  const seen = new Set();
-  for (let i = 0; i < values.length; i += 1) {
-    const item = String(values[i] || '').trim();
-    if (!item || seen.has(item)) continue;
-    seen.add(item);
-    unique.push(item);
-  }
-  uni.setStorageSync(GLOBAL_FINGERPRINT_STORAGE_KEY, unique.slice(-STORAGE_LIMIT));
-}
-
-// 构造通知指纹：type + relatedId + title + content 组合。
-function buildNotificationFingerprint(item) {
-  const type = String((item && item.type) || '').trim();
-  const title = String((item && item.title) || '').trim();
-  const content = String((item && item.content) || '').trim();
-  const relatedId = String((item && item.relatedId) || '').trim();
-  return `${type}|${relatedId}|${title}|${content}`;
-}
-
 // 在通知页内不重复弹系统通知，避免“列表已可见还弹横幅”的打扰。
 function isNotificationPageActive() {
   const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
@@ -168,37 +131,28 @@ function isSecurityNotification(mergedText) {
 }
 
 // 判断是否“关键通知”：
-// - 全角色：取消、爽约、安全；
-// - admin/barber/user 额外按职责与标题关键词判定。
-function isCriticalNotification(item, role) {
+// 改为“业务通知均可系统触达”：
+// - 只要是业务通知类型（notifications-create 允许的类型）就推系统通知；
+// - 再用 title 关键词兜底，兼容历史数据。
+function isCriticalNotification(item) {
   const type = String((item && item.type) || '').toLowerCase();
   const title = String((item && item.title) || '');
   const content = String((item && item.content) || '');
   const merged = `${title} ${content}`;
+  const knownTypes = new Set([
+    'booking_success',
+    'reschedule',
+    'cancel',
+    'no_show',
+    'arrival_reminder',
+    'service_start',
+    'service_finish'
+  ]);
 
-  // 全角色通用：爽约、取消、账号安全
-  if (type === 'no_show' || type === 'cancel') return true;
+  if (knownTypes.has(type)) return true;
+  // 全角色通用兜底：账号安全类无论类型都要推。
   if (isSecurityNotification(merged)) return true;
-  if (type === 'reschedule' && /改期失败|改期提醒|改期成功/.test(title)) return true;
-
-  if (role === 'admin') {
-    // 门店管理员待办：新预约、理发师审核、售后处理
-    if (/新预约提醒|新的理发师申请|售后工单待处理/.test(title)) return true;
-    return false;
-  }
-
-  if (role === 'barber') {
-    // 理发师端：新预约与改期提醒、审核结果、安全类
-    if (/新预约提醒|订单改期提醒|订单改期失败/.test(title)) return true;
-    if (/理发师申请已通过|理发师申请未通过/.test(title)) return true;
-    return false;
-  }
-
-  // 普通用户：预约结果、临近到店提醒、售后关键进度、账号审核结果
-  if (/预约成功|订单改期成功|订单改期失败/.test(title)) return true;
-  if (type === 'arrival_reminder' && /10分钟|5分钟/.test(title)) return true;
-  if (/售后状态更新：未通过|售后状态更新：已解决|售后申请已提交/.test(title)) return true;
-  if (/理发师申请已通过|理发师申请未通过/.test(title)) return true;
+  if (/预约|改期|取消|爽约|售后|申请|核验|服务|到店|提醒/.test(title)) return true;
   return false;
 }
 
@@ -457,6 +411,7 @@ function ensureCriticalPushChannelNative() {
     const main = android.runtimeMainActivity();
     const nm = main.getSystemService(Context.NOTIFICATION_SERVICE);
     if (!nm) return;
+    cleanupLegacyBusinessChannels(nm);
 
     // 渠道级别必须是 IMPORTANCE_HIGH，才有机会触发悬浮通知（Heads-up）。
     const channel = new NotificationChannel(
@@ -478,6 +433,32 @@ function ensureCriticalPushChannelNative() {
     nm.createNotificationChannel(channel);
   } catch (err) {
     console.error('ensure native push channel failed:', err);
+  }
+  // #endif
+}
+
+function cleanupLegacyBusinessChannels(nm) {
+  // #ifdef APP-PLUS
+  try {
+    if (!nm || typeof nm.getNotificationChannels !== 'function' || typeof nm.deleteNotificationChannel !== 'function') return;
+    const channels = nm.getNotificationChannels();
+    if (!channels || typeof channels.size !== 'function') return;
+    const size = Number(channels.size() || 0);
+    for (let i = 0; i < size; i += 1) {
+      const item = channels.get(i);
+      if (!item || typeof item.getId !== 'function') continue;
+      const id = String(item.getId() || '');
+      if (/^salon_all_critical_v[2-9]$/.test(id)) {
+        nm.deleteNotificationChannel(id);
+        continue;
+      }
+      const name = typeof item.getName === 'function' ? String(item.getName() || '') : '';
+      if (id !== CRITICAL_CHANNEL_ID && /消息推送/.test(name)) {
+        nm.deleteNotificationChannel(id);
+      }
+    }
+  } catch (err) {
+    console.error('cleanup legacy business channels failed:', err);
   }
   // #endif
 }
@@ -528,11 +509,10 @@ async function maybePromptChannelRepair() {
   // 系统总通知未授权时，先不做渠道修复，避免引导顺序混乱。
   const authStatus = getNotificationAuthStatus();
   if (authStatus !== 'authorized') return;
-  // 节流控制：30 分钟内不重复弹窗。
-  if (!shouldPromptChannelRepair()) return;
   const health = readCriticalChannelHealth();
   if (!health || !health.bad) return;
 
+  if (!shouldPromptChannelRepair()) return;
   channelRepairPrompting = true;
   markChannelRepairPrompted();
   try {
@@ -578,18 +558,7 @@ function sendSystemNotification(item) {
   }
 
   // #ifdef APP-PLUS
-  const push = getPlusPushModule();
-  if (!push || typeof push.createMessage !== 'function') return;
-  try {
-    push.createMessage(content, payload, {
-      title,
-      sound: 'system',
-      vibrate: true,
-      cover: true
-    });
-  } catch (err) {
-    console.error('create system notification failed:', err);
-  }
+  // 不回退 plus.push.createMessage，避免通知落到系统默认“消息推送”类别。
   // #endif
 }
 
@@ -623,15 +592,14 @@ export async function maybePromptNotificationPermissionOnFirstLogin() {
 
   firstLoginPrompting = true;
   try {
+    // 严格一次性：只要进入本次引导流程就立刻落盘，后续不再自动弹。
+    // 包括弹窗宿主未就绪、用户取消、系统拒绝等情况，都视作“已处理”。
+    markFirstLoginPermissionPromptDone();
     const confirmed = await openAppConfirm({
       title: '开启通知权限',
       content: '请开启系统通知权限，才能接收预约变更、取消、爽约等重要提醒。',
       confirmText: '去授权'
     });
-    // Host 未就绪/弹窗未成功显示时，不落盘，后续 onShow 可重试。
-    if (confirmed === null) return;
-    // 只要成功展示并完成一次用户决策（确认/取消），后续都不再重复弹。
-    markFirstLoginPermissionPromptDone();
     if (confirmed !== true) return;
     await requestSystemNotificationPermission();
   } finally {
@@ -690,8 +658,6 @@ export async function syncCriticalSystemNotifications(options = {}) {
 
   const userId = getCurrentUserId();
   if (!userId) return;
-  const role = getCurrentRole();
-
   checking = true;
   lastCheckedAt = now;
   try {
@@ -711,9 +677,6 @@ export async function syncCriticalSystemNotifications(options = {}) {
     const oldIds = loadNotifiedIdList(userId);
     const notifiedSet = new Set(oldIds);
     const willPersist = [...oldIds];
-    const oldFingerprints = loadGlobalFingerprintList();
-    const fingerprintSet = new Set(oldFingerprints);
-    const willPersistFingerprints = [...oldFingerprints];
 
     let pushed = 0;
     for (let i = 0; i < list.length; i += 1) {
@@ -722,12 +685,8 @@ export async function syncCriticalSystemNotifications(options = {}) {
       if (!id) continue;
       // 已推送过相同通知 ID 则跳过。
       if (notifiedSet.has(id)) continue;
-      const fingerprint = buildNotificationFingerprint(item);
-      if (!fingerprint) continue;
-      // 同内容指纹去重：避免后端重复入库导致重复推送。
-      if (fingerprintSet.has(fingerprint)) continue;
       // 仅关键通知触发系统级提醒。
-      if (!isCriticalNotification(item, role)) continue;
+      if (!isCriticalNotification(item)) continue;
       const createdAt = Number(item.createdAt || 0);
       // 超时消息不走系统通知，仅保留站内查看。
       if (createdAt > 0 && now - createdAt > IMPORTANT_WINDOW_MS) continue;
@@ -736,13 +695,10 @@ export async function syncCriticalSystemNotifications(options = {}) {
       sendSystemNotification(item);
       notifiedSet.add(id);
       willPersist.push(id);
-      fingerprintSet.add(fingerprint);
-      willPersistFingerprints.push(fingerprint);
       pushed += 1;
     }
 
     saveNotifiedIdList(userId, willPersist);
-    saveGlobalFingerprintList(willPersistFingerprints);
   } catch (err) {
     console.error('sync critical system notifications failed:', err);
   } finally {

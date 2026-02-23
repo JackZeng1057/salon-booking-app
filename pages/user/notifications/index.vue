@@ -1,6 +1,8 @@
 <template>
   <view class="page">
-    <app-nav :showTitle="true" title="消息通知" />
+    <view class="page-header">
+      <app-nav :showTitle="true" title="消息通知" />
+    </view>
     <view class="filter-row">
       <view class="filter-tabs">
         <view
@@ -28,68 +30,71 @@
       </view>
     </view>
 
-    <!-- 加载状态 -->
-    <view v-if="loading && notifications.length === 0" class="status-box">
-      <view class="spinner"></view>
-      <text>加载中...</text>
-    </view>
+    <scroll-view class="page-scroll" scroll-y>
+      <!-- 加载状态 -->
+      <view v-if="loading && notifications.length === 0" class="status-box">
+        <view class="spinner"></view>
+        <text>加载中...</text>
+      </view>
 
-    <!-- 空状态 -->
-    <view v-else-if="notifications.length === 0" class="status-box">
-      <text class="empty-icon">📭</text>
-      <text class="empty-text">{{ unreadOnly ? '暂无未读消息' : '暂无消息' }}</text>
-    </view>
+      <!-- 空状态 -->
+      <view v-else-if="notifications.length === 0" class="status-box">
+        <text class="empty-icon">📭</text>
+        <text class="empty-text">{{ unreadOnly ? '暂无未读消息' : '暂无消息' }}</text>
+      </view>
 
-    <!-- 通知列表 -->
-    <view v-else class="notifications-list">
-      <view
-        v-for="notif in notifications"
-        :key="notif._id"
-        class="swipe-row"
-        :class="{ 'swipe-open': getSwipeOffset(notif._id) < 0 }"
-        @touchstart="onTouchStart($event, notif)"
-        @touchmove="onTouchMove($event, notif)"
-        @touchend="onTouchEnd($event, notif)"
-      >
+      <!-- 通知列表 -->
+      <view v-else class="notifications-list">
         <view
-          v-if="getSwipeOffset(notif._id) < 0"
-          class="swipe-actions"
-          :style="{ width: actionWidth + 'rpx' }"
+          v-for="notif in notifications"
+          :key="notif._id"
+          class="swipe-row"
+          :class="{ 'swipe-open': getSwipeOffset(notif._id) < 0 }"
+          @touchstart="onTouchStart($event, notif)"
+          @touchmove="onTouchMove($event, notif)"
+          @touchend="onTouchEnd($event, notif)"
         >
-          <view class="swipe-delete" @click.stop="confirmDelete(notif)">删除</view>
-        </view>
-        <view class="swipe-content" :style="getSwipeStyle(notif)">
           <view
-            class="notification-card"
-            :class="{ unread: !notif.isRead }"
-            @click="handleNotificationClick(notif)"
+            v-if="getSwipeOffset(notif._id) < 0"
+            class="swipe-actions"
+            :style="{ width: actionWidth + 'rpx' }"
           >
-            <view class="notif-icon">
-              <app-icon
-                :name="getNotificationIconMeta(notif.type).name"
-                :color="getNotificationIconMeta(notif.type).color"
-                :size="52"
-                :stroke-width="2.2"
-              />
-            </view>
-            <view class="notif-content">
-              <view class="notif-header">
-                <text class="notif-title">{{ notif.title }}</text>
-                <text v-if="!notif.isRead" class="unread-dot"></text>
+            <view class="swipe-delete" @click.stop="confirmDelete(notif)">删除</view>
+          </view>
+          <view class="swipe-content" :style="getSwipeStyle(notif)">
+            <view
+              class="notification-card"
+              :class="{ unread: !notif.isRead }"
+              @click="handleNotificationClick(notif)"
+            >
+              <view class="notif-icon">
+                <app-icon
+                  :name="getNotificationIconMeta(notif.type).name"
+                  :color="getNotificationIconMeta(notif.type).color"
+                  :size="52"
+                  :stroke-width="2.2"
+                />
               </view>
-              <text class="notif-text">{{ notif.content }}</text>
-              <text class="notif-time">{{ formatTime(notif.createdAt) }}</text>
+              <view class="notif-content">
+                <view class="notif-header">
+                  <text class="notif-title">{{ notif.title }}</text>
+                  <text v-if="!notif.isRead" class="unread-dot"></text>
+                </view>
+                <text class="notif-text">{{ notif.content }}</text>
+                <text class="notif-time">{{ formatTime(notif.createdAt) }}</text>
+              </view>
+              <view class="notif-arrow">›</view>
             </view>
-            <view class="notif-arrow">›</view>
           </view>
         </view>
-      </view>
 
-      <!-- 加载更多 -->
-      <view v-if="hasMore" class="load-more" @click="loadMore">
-        <text>{{ loadingMore ? '加载中...' : '加载更多' }}</text>
+        <!-- 加载更多 -->
+        <view v-if="hasMore" class="load-more" @click="loadMore">
+          <text>{{ loadingMore ? '加载中...' : '加载更多' }}</text>
+        </view>
       </view>
-    </view>
+      <view class="scroll-bottom-gap"></view>
+    </scroll-view>
 
     <app-modal
       :visible="confirmDialog.visible"
@@ -414,9 +419,26 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: calc(118rpx + 20px) 28rpx 0;
   background: #f8fafc;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.page-header {
+  flex-shrink: 0;
+  background: #f8fafc;
+  z-index: 20;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 10rpx;
+  height: 0;
 }
 
 .filter-row {
@@ -424,7 +446,8 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 12rpx;
-  margin-bottom: 16rpx;
+  margin-top: 8rpx;
+  margin-bottom: 8rpx;
 }
 
 .mark-all-btn {
@@ -649,5 +672,9 @@ export default {
   color: #334155;
   font-size: 27rpx;
   line-height: 1.6;
+}
+
+.scroll-bottom-gap {
+  height: 24rpx;
 }
 </style>

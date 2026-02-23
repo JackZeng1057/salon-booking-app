@@ -44,7 +44,9 @@ export function formatSlotStatus(status) {
 }
 
 export function formatAftersaleStatus(status) {
-  return AFTERSALE_STATUS_TEXT[status] || status || '';
+  if (!status) return '';
+  const normalized = String(status).toUpperCase();
+  return AFTERSALE_STATUS_TEXT[normalized] || status || '';
 }
 
 export function formatAftersaleType(type) {

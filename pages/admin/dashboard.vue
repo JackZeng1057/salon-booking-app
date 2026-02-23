@@ -1,25 +1,28 @@
 <template>
 	<view class="page">
-		<app-nav :showTitle="true" title="门店看板" />
-		<view class="hero-card">
-			<text class="hero-subtitle">实时掌握订单趋势与核心经营指标</text>
+		<view class="page-header">
+			<app-nav :showTitle="true" title="门店看板" />
+			<view class="hero-card">
+				<text class="hero-subtitle">实时掌握订单趋势与核心经营指标</text>
+			</view>
 		</view>
 
-		<view class="field">
-			<text class="label">{{ mode === 'week' ? '锚点日期（统计近7天）' : '日期' }}</text>
-			<modern-date-picker :value="date" @change="onDateChange">
-				<view class="picker-value">{{ date }}</view>
-			</modern-date-picker>
-		</view>
+		<scroll-view class="page-scroll" scroll-y>
+			<view class="field">
+				<text class="label">{{ mode === 'week' ? '锚点日期（统计近7天）' : '日期' }}</text>
+				<modern-date-picker :value="date" @change="onDateChange">
+					<view class="picker-value">{{ date }}</view>
+				</modern-date-picker>
+			</view>
 
-		<view class="mode-tabs">
-			<view class="mode-tab" :class="{ active: mode === 'day' }" @click="switchMode('day')">日看板</view>
-			<view class="mode-tab" :class="{ active: mode === 'week' }" @click="switchMode('week')">周看板</view>
-		</view>
-		<text class="range-tip">统计范围：{{ rangeText }}</text>
+			<view class="mode-tabs">
+				<view class="mode-tab" :class="{ active: mode === 'day' }" @click="switchMode('day')">日看板</view>
+				<view class="mode-tab" :class="{ active: mode === 'week' }" @click="switchMode('week')">周看板</view>
+			</view>
+			<text class="range-tip">统计范围：{{ rangeText }}</text>
 
-		<view v-if="loading" class="hint">加载中...</view>
-		<view v-else class="card">
+			<view v-if="loading" class="hint">加载中...</view>
+			<view v-else class="card">
 			<view class="grid">
 				<view class="grid-item">
 					<text class="grid-label">总单量</text>
@@ -86,7 +89,9 @@
 					</view>
 				</view>
 			</view>
-		</view>
+			</view>
+			<view class="scroll-bottom-gap"></view>
+		</scroll-view>
 	</view>
 </template>
 
@@ -244,9 +249,22 @@ export default {
 
 <style scoped lang="scss">
 .page {
-	min-height: 100vh;
-	padding: calc(118rpx + 20px) 28rpx 26rpx;
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	padding: calc(118rpx + 20px) 28rpx 0;
 	background: #f8fafc;
+	box-sizing: border-box;
+}
+
+.page-header {
+	flex-shrink: 0;
+}
+
+.page-scroll {
+	flex: 1;
+	min-height: 0;
+	margin-top: 16rpx;
 }
 
 .hero-card {
@@ -441,5 +459,9 @@ export default {
 .meta {
 	color: $uni-text-color-grey;
 	font-size: $uni-font-size-sm;
+}
+
+.scroll-bottom-gap {
+	height: 24rpx;
 }
 </style>

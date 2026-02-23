@@ -27,11 +27,11 @@
 - user-profile-update：更新个人资料
 
 [门店与服务]
-- stores-list：门店列表
+- stores-list：门店列表（支持 sortBy=default/rating/price/distance；价格排序/筛选按有效最低价）
 - stores-detail：门店详情
 - stores-services：门店服务
 - stores-barbers：门店理发师
-- store-update-profile：门店资料维护
+- store-update-profile：门店资料维护（services 非空且价格>0；提交后同步门店 minPrice）
 - barber-services-set：设置理发师服务项
 
 [订单核心]
@@ -57,7 +57,7 @@
 - reviews-mine：我的评价
 - reviews-delete：删除评价
 - aftersales-create：提交售后
-- aftersales-store-list：门店售后列表
+- aftersales-store-list：门店售后列表（支持 OPEN/PROCESSING/RESOLVED/REJECTED，兼容中文状态）
 - aftersales-reply：售后回复
 
 [通知/排班/管理]

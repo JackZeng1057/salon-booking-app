@@ -1,8 +1,9 @@
 <template>
   <view class="page">
-    <app-nav :showBack="false" />
+    <view class="page-header">
+      <app-nav :showBack="false" />
 
-    <view class="hero-card">
+      <view class="hero-card">
       <view class="hero-head">
         <view class="hero-user">
           <image
@@ -25,67 +26,71 @@
           </view>
         </view>
       </view>
-      <view class="auto-row">
-        <view class="auto-left">
-          <app-icon name="calendar" color="#059669" :size="18" :stroke-width="2.1" />
-          <text class="auto-text">自动生成未来 7 天排班</text>
+        <view class="auto-row">
+          <view class="auto-left">
+            <app-icon name="calendar" color="#059669" :size="18" :stroke-width="2.1" />
+            <text class="auto-text">自动生成未来 7 天排班</text>
+          </view>
+          <switch :checked="generateFuture" @change="onFutureChange" />
         </view>
-        <switch :checked="generateFuture" @change="onFutureChange" />
       </view>
     </view>
 
-    <view class="date-strip">
-      <scroll-view class="day-scroll" scroll-x>
-        <view class="day-row">
-          <view
-            v-for="item in weekDays"
-            :key="item.date"
-            class="day-pill"
-            :class="{ active: item.date === date }"
-            @click="selectDate(item.date)"
-          >
-            <text class="day-week">{{ item.week }}</text>
-            <text class="day-day">{{ item.day }}</text>
+    <scroll-view class="page-scroll" scroll-y>
+      <view class="date-strip">
+        <scroll-view class="day-scroll" scroll-x>
+          <view class="day-row">
+            <view
+              v-for="item in weekDays"
+              :key="item.date"
+              class="day-pill"
+              :class="{ active: item.date === date }"
+              @click="selectDate(item.date)"
+            >
+              <text class="day-week">{{ item.week }}</text>
+              <text class="day-day">{{ item.day }}</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <view class="panel">
+        <view class="panel-head">
+          <text class="panel-title">{{ date }} 排班</text>
+          <view class="legend">
+            <view class="legend-item"><text class="dot dot-a"></text><text>可预约</text></view>
+            <view class="legend-item"><text class="dot dot-d"></text><text>休息</text></view>
+            <view class="legend-item"><text class="dot dot-b"></text><text>已约</text></view>
           </view>
         </view>
-      </scroll-view>
-    </view>
 
-    <view class="panel">
-      <view class="panel-head">
-        <text class="panel-title">{{ date }} 排班</text>
-        <view class="legend">
-          <view class="legend-item"><text class="dot dot-a"></text><text>可预约</text></view>
-          <view class="legend-item"><text class="dot dot-d"></text><text>休息</text></view>
-          <view class="legend-item"><text class="dot dot-b"></text><text>已约</text></view>
+        <view class="time-range">
+          <view class="time-chip" @tap="openTimePicker('workStart')">开始 {{ workStart }}</view>
+          <view class="time-chip" @tap="openTimePicker('workEnd')">结束 {{ workEnd }}</view>
+        </view>
+
+        <view class="slot-grid">
+          <view
+            v-for="slot in previewSlots"
+            :key="slot.time"
+            class="slot-item"
+            :class="[slotClass(slot.status), { 'slot-past': isPastSlot(slot) }]"
+            @click="togglePreviewSlot(slot)"
+          >
+            <text>{{ slot.time }}</text>
+            <view v-if="slot.status === 'AVAILABLE' && !isPastSlot(slot)" class="corner"></view>
+          </view>
+        </view>
+
+        <view v-if="result" class="result">
+          <text class="result-title">{{ Number(result.createdCount || 0) > 0 ? '生成成功' : '已设置排班' }}</text>
+          <text class="result-tip">
+            当前可预约 {{ Number(result.totalBookableCount || (Number(result.createdCount || 0) + Number(result.existedCount || 0))) }} 段
+          </text>
         </view>
       </view>
-
-      <view class="time-range">
-        <view class="time-chip" @tap="openTimePicker('workStart')">开始 {{ workStart }}</view>
-        <view class="time-chip" @tap="openTimePicker('workEnd')">结束 {{ workEnd }}</view>
-      </view>
-
-      <view class="slot-grid">
-        <view
-          v-for="slot in previewSlots"
-          :key="slot.time"
-          class="slot-item"
-          :class="[slotClass(slot.status), { 'slot-past': isPastSlot(slot) }]"
-          @click="togglePreviewSlot(slot)"
-        >
-          <text>{{ slot.time }}</text>
-          <view v-if="slot.status === 'AVAILABLE' && !isPastSlot(slot)" class="corner"></view>
-        </view>
-      </view>
-
-      <view v-if="result" class="result">
-        <text class="result-title">{{ Number(result.createdCount || 0) > 0 ? '生成成功' : '已设置排班' }}</text>
-        <text class="result-tip">
-          当前可预约 {{ Number(result.totalBookableCount || (Number(result.createdCount || 0) + Number(result.existedCount || 0))) }} 段
-        </text>
-      </view>
-    </view>
+      <view class="scroll-bottom-gap"></view>
+    </scroll-view>
 
     <button class="submit submit-floating" type="primary" :loading="loading" @click="handleSubmit">
       保存今日排班
@@ -586,9 +591,23 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: 108rpx 20rpx 340rpx;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 108rpx 20rpx 0;
   background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.page-header {
+  flex-shrink: 0;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 12rpx;
+  padding-bottom: 340rpx;
 }
 
 .hero-card {
@@ -696,6 +715,10 @@ export default {
   font-size: 22rpx;
   color: #334155;
   font-weight: 600;
+}
+
+.scroll-bottom-gap {
+  height: 24rpx;
 }
 
 .title {

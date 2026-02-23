@@ -1,11 +1,14 @@
 <template>
   <view class="page">
-    <app-nav :showTitle="true" title="修改密码" />
-    <view class="hero-card">
-      <text class="hero-subtitle">通过绑定手机号验证码完成修改</text>
+    <view class="page-header">
+      <app-nav :showTitle="true" title="修改密码" />
+      <view class="hero-card">
+        <text class="hero-subtitle">通过绑定手机号验证码完成修改</text>
+      </view>
     </view>
 
-    <view class="card">
+    <scroll-view class="page-scroll" scroll-y>
+      <view class="card">
       <view class="field">
         <text class="label">当前绑定手机号</text>
         <text class="phone-text">{{ user.phone || '未绑定手机号' }}</text>
@@ -71,7 +74,9 @@
           更新密码
         </button>
       </template>
-    </view>
+      </view>
+      <view class="scroll-bottom-gap"></view>
+    </scroll-view>
   </view>
 </template>
 
@@ -187,9 +192,22 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: calc(118rpx + 20px) 28rpx 0;
   background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.page-header {
+  flex-shrink: 0;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 18rpx;
 }
 
 .hero-card {
@@ -316,5 +334,9 @@ export default {
 .submit-btn.disabled {
   background: #c7ced9;
   color: rgba(255, 255, 255, 0.82);
+}
+
+.scroll-bottom-gap {
+  height: 24rpx;
 }
 </style>

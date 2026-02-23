@@ -1,11 +1,14 @@
 <template>
   <view class="page">
-    <app-nav :showTitle="true" title="消息详情" />
-    <view class="hero-card">
-      <text class="hero-subtitle">{{ formatTime(detail.createdAt) }}</text>
+    <view class="page-header">
+      <app-nav :showTitle="true" title="消息详情" />
+      <view class="hero-card">
+        <text class="hero-subtitle">{{ formatTime(detail.createdAt) }}</text>
+      </view>
     </view>
 
-    <view class="card">
+    <scroll-view class="page-scroll" scroll-y>
+      <view class="card">
       <view class="top-row">
         <view class="icon-wrap">
           <app-icon
@@ -21,10 +24,12 @@
         </view>
       </view>
 
-      <view class="content-box">
-        <text class="content">{{ detail.content || '暂无内容' }}</text>
+        <view class="content-box">
+          <text class="content">{{ detail.content || '暂无内容' }}</text>
+        </view>
       </view>
-    </view>
+      <view class="scroll-bottom-gap"></view>
+    </scroll-view>
   </view>
 </template>
 
@@ -105,9 +110,22 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: calc(118rpx + 20px) 28rpx 0;
   background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.page-header {
+  flex-shrink: 0;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 18rpx;
 }
 
 .hero-card {
@@ -178,5 +196,9 @@ export default {
   color: $uni-text-color;
   font-size: $uni-font-size-base;
   line-height: 1.7;
+}
+
+.scroll-bottom-gap {
+  height: 24rpx;
 }
 </style>

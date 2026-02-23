@@ -28,7 +28,7 @@
 | 全局状态 | `store/auth.js`（轻量 store） | 管理 token、用户、角色与持久化 |
 | API 层 | `api/*.js` + `api/client.js` | 统一 `callCloud` 调用、错误处理、缓存失效 |
 | UI 组件 | `components/*` | 统一导航、弹窗、日期选择、图标、底部栏 |
-| 通知能力 | `uni` 通知 API + `plus.push` | App 端系统通知引导、渠道、去重推送 |
+| 通知能力 | `uni` 通知 API + Android NotificationChannel | App 端系统通知引导、渠道修复与去重推送 |
 
 ### 2.2 云端技术栈
 
@@ -234,11 +234,11 @@ salon-booking-app/
 - `sms-verify-code`：校验短信验证码；返回验证码是否有效及可继续后续操作。
 
 门店与理发师：
-- `stores-list`：门店列表查询；支持关键词、分页、排序与筛选。
+- `stores-list`：门店列表查询；支持关键词、分页、排序（默认/评分/价格），价格排序与筛选会按门店有效最低价计算。
 - `stores-detail`：门店详情查询；返回门店基础信息、规则与展示字段。
 - `stores-services`：门店服务项目查询；返回该门店可预约服务列表。
 - `stores-barbers`：门店理发师查询；返回门店下可预约理发师列表。
-- `store-update-profile`：门店资料更新；管理员修改门店信息、营业配置等。
+- `store-update-profile`：门店资料更新；管理员修改门店信息、营业配置等，服务列表提交时会校验价格并同步门店起价。
 - `barber-schedule-set`：排班设置；保存理发师某日工作时段并生成可约时间窗。
 - `barber-slots-get`：时段查询；按理发师+日期(+服务)返回可预约 slots。
 - `barber-services-set`：理发师服务项配置；维护理发师可提供的服务范围。
@@ -269,7 +269,7 @@ salon-booking-app/
 - `reviews-mine`：我的评价列表；按当前用户查询历史评价。
 - `reviews-delete`：删除评价；移除评价并同步更新门店评分汇总。
 - `aftersales-create`：创建售后单；用户提交问题类型、描述与订单关联信息。
-- `aftersales-store-list`：门店售后列表；管理员查看待处理/处理中/已完成售后。
+- `aftersales-store-list`：门店售后列表；管理员查看待处理/处理中/已解决/未通过售后（状态大小写与中文别名兼容）。
 - `aftersales-reply`：售后回复处理；门店侧回复并推进售后状态。
 
 通知与运营：

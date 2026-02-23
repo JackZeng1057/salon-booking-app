@@ -1,8 +1,7 @@
 <template>
   <view class="pricing-page">
-    <app-nav :showTitle="true" title="价目表" />
-
-    <view class="pricing-content">
+    <view class="page-header">
+      <app-nav :showTitle="true" title="价目表" />
       <view class="hero-card">
         <text class="hero-title">透明报价</text>
         <text class="hero-subtitle">所有项目明码标价，预约前先看清楚价格与时长</text>
@@ -21,29 +20,34 @@
           </view>
         </view>
       </scroll-view>
+    </view>
 
-      <view v-if="loading" class="hint">加载中...</view>
-      <view v-else-if="filteredServices.length === 0" class="hint">暂无价目数据</view>
+    <scroll-view class="page-scroll" scroll-y>
+      <view class="pricing-content">
+        <view v-if="loading" class="hint">加载中...</view>
+        <view v-else-if="filteredServices.length === 0" class="hint">暂无价目数据</view>
 
-      <view v-else class="pricing-list">
-        <view v-for="item in filteredServices" :key="item.id" class="service-card">
-          <view class="service-main">
-            <text class="service-name">{{ item.name }}</text>
-            <text class="service-desc">{{ item.desc }}</text>
+        <view v-else class="pricing-list">
+          <view v-for="item in filteredServices" :key="item.id" class="service-card">
+            <view class="service-main">
+              <text class="service-name">{{ item.name }}</text>
+              <text class="service-desc">{{ item.desc }}</text>
 
-            <view class="service-tags">
-              <text v-for="tag in item.tags" :key="tag" class="service-tag">{{ tag }}</text>
+              <view class="service-tags">
+                <text v-for="tag in item.tags" :key="tag" class="service-tag">{{ tag }}</text>
+              </view>
+            </view>
+
+            <view class="service-side">
+              <text class="service-price">¥{{ item.price }}</text>
+              <text class="service-duration">{{ item.duration }}分钟</text>
+              <view class="book-btn" @click="goCreateOrder(item)">去预约</view>
             </view>
           </view>
-
-          <view class="service-side">
-            <text class="service-price">¥{{ item.price }}</text>
-            <text class="service-duration">{{ item.duration }}分钟</text>
-            <view class="book-btn" @click="goCreateOrder(item)">去预约</view>
-          </view>
         </view>
+        <view class="scroll-bottom-gap"></view>
       </view>
-    </view>
+    </scroll-view>
   </view>
 </template>
 
@@ -143,12 +147,26 @@ export default {
 
 <style scoped lang="scss">
 .pricing-page {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.page-header {
+  flex-shrink: 0;
+  padding: calc(118rpx + 20px) 28rpx 0;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 18rpx;
 }
 
 .pricing-content {
-  padding: calc(118rpx + 20px) 28rpx 32rpx;
+  padding: 0 28rpx 0;
 }
 
 .hero-card {
@@ -216,6 +234,10 @@ export default {
   color: #94a3b8;
   font-size: 24rpx;
   padding: 36rpx 0;
+}
+
+.scroll-bottom-gap {
+  height: 24rpx;
 }
 
 .service-card {

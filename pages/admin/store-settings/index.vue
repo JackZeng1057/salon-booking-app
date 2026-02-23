@@ -1,17 +1,20 @@
 <template>
   <view class="page">
-    <app-nav :showTitle="true" title="门店信息设置" />
-    <view class="hero-card">
-      <text class="hero-subtitle">管理员可维护地址、标签、服务、营业时间和预约规则</text>
+    <view class="page-header">
+      <app-nav :showTitle="true" title="门店信息设置" />
+      <view class="hero-card">
+        <text class="hero-subtitle">管理员可维护地址、标签、服务、营业时间和预约规则</text>
+      </view>
     </view>
 
-    <view v-if="loading" class="card hint-card">加载中...</view>
+    <scroll-view class="page-scroll" scroll-y>
+      <view v-if="loading" class="card hint-card">加载中...</view>
 
-    <view v-else class="card">
-      <view class="field">
-        <text class="label">门店名称</text>
-        <input class="input" v-model="form.name" placeholder="请输入门店名称" />
-      </view>
+      <view v-else class="card">
+        <view class="field">
+          <text class="label">门店名称</text>
+          <input class="input" v-model="form.name" placeholder="请输入门店名称" />
+        </view>
 
       <view class="field">
         <text class="label">门店封面</text>
@@ -111,12 +114,13 @@
         <textarea class="textarea" v-model="form.cancelRule" maxlength="300" placeholder="例如：预约前2小时可免费取消" />
       </view>
 
-      <view class="field">
-        <text class="label">改期规则</text>
-        <textarea class="textarea" v-model="form.rescheduleRule" maxlength="300" placeholder="例如：每单可改期1次" />
+        <view class="field">
+          <text class="label">改期规则</text>
+          <textarea class="textarea" v-model="form.rescheduleRule" maxlength="300" placeholder="例如：每单可改期1次" />
+        </view>
       </view>
-
-    </view>
+      <view class="scroll-bottom-gap"></view>
+    </scroll-view>
 
     <view class="action-bar">
       <button class="save-btn" :loading="saving" @click="saveStoreProfile">保存设置</button>
@@ -353,7 +357,7 @@ export default {
           throw new Error(`第${i + 1}项服务名称不能为空`);
         }
         const price = Number(item.price);
-        if (!Number.isFinite(price) || price < 0) {
+        if (!Number.isFinite(price) || price <= 0) {
           throw new Error(`第${i + 1}项服务价格格式错误`);
         }
         const duration = Math.round(Number(item.duration));
@@ -487,9 +491,22 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: calc(118rpx + 20px) 28rpx 0;
   background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.page-header {
+  flex-shrink: 0;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 18rpx;
 }
 
 .hero-card {
@@ -694,11 +711,13 @@ export default {
 }
 
 .action-bar {
-  position: sticky;
-  bottom: 0;
-  margin-top: 16rpx;
-  padding: 16rpx 0 4rpx;
+  flex-shrink: 0;
+  padding: 14rpx 0 10rpx;
   background: linear-gradient(to bottom, rgba(246, 247, 251, 0), rgba(246, 247, 251, 0.95) 24%, rgba(246, 247, 251, 1));
+}
+
+.scroll-bottom-gap {
+  height: 24rpx;
 }
 
 .save-btn {

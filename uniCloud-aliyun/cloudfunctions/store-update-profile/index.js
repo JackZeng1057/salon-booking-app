@@ -38,7 +38,7 @@ function normalizeServiceItem(item) {
   }
 
   const price = Number(source.price);
-  if (!Number.isFinite(price) || price < 0) {
+  if (!Number.isFinite(price) || price <= 0) {
     throw new ApiError(400, 'invalid service price');
   }
 
@@ -134,6 +134,9 @@ exports.main = withResponse(async (event, context) => {
       .map((item) => normalizeServiceItem(item))
       .filter((item) => !!item)
       .slice(0, 30);
+    if (normalizedServices.length === 0) {
+      throw new ApiError(400, 'services required');
+    }
 
     // 服务项目全量同步策略：保留、更新、新增、删除
     const _ = db.command;
@@ -193,6 +196,16 @@ exports.main = withResponse(async (event, context) => {
     }
 
     servicesProcessed = true;
+    // 门店起价与服务列表保持一致，避免出现 0 元/缺失导致的排序脏数据。
+    const minServicePrice = normalizedServices.reduce((min, item) => {
+      const price = Number(item && item.price);
+      if (!Number.isFinite(price) || price <= 0) return min;
+      if (min === null || price < min) return price;
+      return min;
+    }, null);
+    if (minServicePrice !== null) {
+      updateData.minPrice = Number(minServicePrice.toFixed(2));
+    }
   }
 
   const updatedFields = Object.keys(updateData).filter((key) => key !== 'updatedAt');

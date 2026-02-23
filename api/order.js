@@ -215,8 +215,8 @@ export function createAftersale(payload) {
 // 门店售后列表
 // 入参：{ status }
 export function fetchAftersales(payload) {
-  const key = `aftersales-store-list:${payload && payload.status ? payload.status : ''}`;
-  return cachedCall(key, () => callCloud('aftersales-store-list', payload));
+  // 售后管理需要实时状态，避免本地缓存造成“全部/处理中/已解决”视图滞后
+  return callCloud('aftersales-store-list', payload);
 }
 
 // 门店处理售后

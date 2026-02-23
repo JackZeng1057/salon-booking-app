@@ -1,8 +1,7 @@
 <template>
   <view class="reviews-page">
-    <app-nav :showTitle="true" title="门店评价" />
-
-    <view class="page-content">
+    <view class="page-header">
+      <app-nav :showTitle="true" title="门店评价" />
       <view class="hero-card">
         <text class="hero-title">{{ storeName || '门店评价' }}</text>
         <view class="hero-meta">
@@ -23,7 +22,10 @@
           {{ item.label }}
         </text>
       </view>
+    </view>
 
+    <scroll-view class="page-scroll" scroll-y @scrolltolower="loadMore">
+      <view class="page-content">
       <view v-if="loading && reviews.length === 0" class="hint">评价加载中...</view>
       <view v-else-if="reviews.length === 0" class="hint">暂无评价</view>
 
@@ -55,7 +57,9 @@
       <view v-if="reviews.length > 0" class="load-more" @click="loadMore">
         <text>{{ hasMore ? (loadingMore ? '加载中...' : '加载更多') : '没有更多了' }}</text>
       </view>
-    </view>
+      <view class="scroll-bottom-gap"></view>
+      </view>
+    </scroll-view>
   </view>
 </template>
 
@@ -230,12 +234,26 @@ export default {
 
 <style scoped lang="scss">
 .reviews-page {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.page-header {
+  flex-shrink: 0;
+  padding: calc(116rpx + 20px) 20rpx 0;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 14rpx;
 }
 
 .page-content {
-  padding: calc(116rpx + 20px) 20rpx 30rpx;
+  padding: 0 20rpx 0;
 }
 
 .hero-card {
@@ -382,5 +400,9 @@ export default {
   font-size: 22rpx;
   text-align: center;
   padding: 16rpx 0;
+}
+
+.scroll-bottom-gap {
+  height: 24rpx;
 }
 </style>

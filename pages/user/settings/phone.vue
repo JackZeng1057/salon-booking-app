@@ -1,11 +1,14 @@
 <template>
   <view class="page">
-    <app-nav :showTitle="true" title="绑定/修改手机号" />
-    <view class="hero-card">
-      <text class="hero-subtitle">手机号将用于账号安全验证</text>
+    <view class="page-header">
+      <app-nav :showTitle="true" title="绑定/修改手机号" />
+      <view class="hero-card">
+        <text class="hero-subtitle">手机号将用于账号安全验证</text>
+      </view>
     </view>
 
-    <view class="profile-card">
+    <scroll-view class="page-scroll" scroll-y>
+      <view class="profile-card">
       <view class="profile-row">
         <text class="profile-label">当前账号</text>
         <text class="profile-value">{{ user.username || '-' }}</text>
@@ -16,7 +19,7 @@
       </view>
     </view>
 
-    <view class="form-card">
+      <view class="form-card">
       <view class="field">
         <text class="field-label">手机号</text>
         <input
@@ -60,7 +63,9 @@
       >
         保存手机号
       </button>
-    </view>
+      </view>
+      <view class="scroll-bottom-gap"></view>
+    </scroll-view>
   </view>
 </template>
 
@@ -179,9 +184,22 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: calc(118rpx + 20px) 28rpx 0;
   background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.page-header {
+  flex-shrink: 0;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 18rpx;
 }
 
 .hero-card {
@@ -322,5 +340,9 @@ export default {
 .submit-btn.disabled {
   background: #c7ced9;
   color: rgba(255, 255, 255, 0.82);
+}
+
+.scroll-bottom-gap {
+  height: 24rpx;
 }
 </style>

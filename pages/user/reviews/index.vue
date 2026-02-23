@@ -1,14 +1,17 @@
 <template>
   <view class="page">
-    <app-nav :showTitle="true" title="我的评价" />
-    <view class="hero-card">
-      <text class="hero-subtitle">查看历史评价与评分，支持回访与管理</text>
+    <view class="page-header">
+      <app-nav :showTitle="true" title="我的评价" />
+      <view class="hero-card">
+        <text class="hero-subtitle">查看历史评价与评分，支持回访与管理</text>
+      </view>
     </view>
 
-    <view v-if="loading && reviews.length === 0" class="hint">加载中...</view>
-    <view v-else-if="reviews.length === 0" class="hint">暂无评价记录</view>
+    <scroll-view class="page-scroll" scroll-y @scrolltolower="loadMore">
+      <view v-if="loading && reviews.length === 0" class="hint">加载中...</view>
+      <view v-else-if="reviews.length === 0" class="hint">暂无评价记录</view>
 
-    <view v-else class="list">
+      <view v-else class="list">
       <view v-for="item in reviews" :key="item._id" class="card">
         <view class="card-head">
           <text class="store">{{ item.storeName || item.storeId || '门店' }}</text>
@@ -57,10 +60,12 @@
         </view>
       </view>
 
-      <view class="load-more" @click="loadMore">
-        <text>{{ hasMore ? (loadingMore ? '加载中...' : '加载更多') : '没有更多了' }}</text>
+        <view class="load-more" @click="loadMore">
+          <text>{{ hasMore ? (loadingMore ? '加载中...' : '加载更多') : '没有更多了' }}</text>
+        </view>
       </view>
-    </view>
+      <view class="scroll-bottom-gap"></view>
+    </scroll-view>
 
     <app-modal
       :visible="confirmDialog.visible"
@@ -262,9 +267,22 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: calc(118rpx + 20px) 28rpx 0;
   background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.page-header {
+  flex-shrink: 0;
+}
+
+.page-scroll {
+  flex: 1;
+  min-height: 0;
+  margin-top: 18rpx;
 }
 
 .hero-card {
@@ -426,5 +444,9 @@ export default {
   color: $uni-text-color-placeholder;
   font-size: $uni-font-size-sm;
   padding: 12rpx 0;
+}
+
+.scroll-bottom-gap {
+  height: 24rpx;
 }
 </style>
