@@ -14,7 +14,18 @@ function nextId() {
   return `confirm-${Date.now()}-${seed}`;
 }
 
-// 打开确认弹窗，返回 Promise<boolean|null>
+/**
+ * 打开全局确认弹窗
+ * 通过 uni.$emit 驱动 app-confirm-host 组件渲染弹窗 UI，
+ * 调用方只需 await 即可得到用户操作结果，无需手动管理弹窗状态。
+ *
+ * @param {Object}  options                - 弹窗配置
+ * @param {string}  options.title          - 弹窗标题
+ * @param {string}  options.content        - 弹窗正文内容
+ * @param {string}  [options.confirmText]  - 确认按钮文案，默认 '确定'
+ * @param {string}  [options.confirmType]  - 按钮类型：'primary'（默认蓝色）| 'danger'（危险操作红色）
+ * @returns {Promise<boolean>} 用户点击确认返回 true，点击取消返回 false
+ */
 export function openAppConfirm(options = {}) {
   const id = nextId();
   return new Promise((resolve) => {
@@ -32,7 +43,14 @@ export function openAppConfirm(options = {}) {
   });
 }
 
-// 由 Host 在“取消/确认”时回写结果
+/**
+ * 由 app-confirm-host 组件在用户操作后回写弹窗结果
+ * 本函数为内部通信接口，仅供 Host 组件调用，业务页面不应直接调用。
+ *
+ * @param {string}  id     - 弹窗唯一标识（由 openAppConfirm 内部生成并随事件传出）
+ * @param {boolean} result - 用户操作结果：true=点击确认，false/falsy=点击取消
+ * @returns {void}
+ */
 export function resolveAppConfirm(id, result) {
   const key = String(id || '').trim();
   if (!key) return;

@@ -1,13 +1,17 @@
+/**
+ * notifications-delete 云函数 —— 删除（逻辑软删除）通知
+ *
+ * 【业务说明】
+ * 仅通知归属用户本人可执行删除操作，采用软删除：
+ * - 设置 isDeleted=true（前端查询默认过滤 isDeleted 记录）
+ * - 同时强制标记已读（isRead=true），避免未读计数残留脏数据
+ * - 返回 unreadReduced 供前端在本地修正未读标记数，无需重新拉取列表
+ *
+ * 【权限】
+ * - 登录用户均可调用（user / admin / barber），但只能删除自己的通知
+ */
 // 通知删除：仅允许通知归属用户删除自己的通知
 const { withResponse, requireRole, ApiError } = require('sb-common');
-
-/**
- * 删除通知云函数（逻辑删除）
- * 规则：
- * 1) 仅通知归属人可删除
- * 2) 删除时强制标记已读
- * 3) 返回 unreadReduced 供前端修正未读数
- */
 exports.main = withResponse(async (event, context) => {
   const user = await requireRole(['user', 'admin', 'barber'], event, context);
   const userId = user._id || user.uid || user.userId;

@@ -1,37 +1,48 @@
 <template>
+  <!-- 门店详情页根容器 -->
   <view class="detail-page">
+    <!-- 顶部导航栏（悬浮于 hero 图片上） -->
     <app-nav />
 
+    <!-- 加载中状态（仅首次进入且数据未返回时显示） -->
     <view v-if="loading && !store" class="hint-box">
       <text>加载中...</text>
     </view>
+    <!-- 门店不存在或接口报错的兜底状态 -->
     <view v-else-if="!store" class="hint-box">
       <text>暂无门店信息</text>
     </view>
 
+    <!-- 门店主体内容（数据加载完成后渲染） -->
     <view v-else>
+      <!-- Hero 封面图区域：全宽背景图 + 渐变蒙层提升文字可读性 -->
       <view class="hero-wrap">
         <image class="hero-image" :src="store.cover || defaultCover" mode="aspectFill" />
         <view class="hero-mask"></view>
       </view>
 
+      <!-- 底部信息浮层（白色圆角卡片，叠于 hero 图片之上） -->
       <view class="sheet">
+        <!-- 门店名称 + 地址 + 评分行 -->
         <view class="head-row">
           <view class="head-main">
             <text class="store-name">{{ store.name || '未命名门店' }}</text>
+            <!-- 地址行（含地图图标） -->
             <view class="address-line">
               <app-icon name="map-pin" color="#64748B" :size="22" :stroke-width="2.1" />
               <text class="address-text">{{ store.address || '地址待完善' }}</text>
             </view>
           </view>
-
+          <!-- 评分胶囊徽章 -->
           <view class="rating-pill">
             <text class="rating-star">★</text>
             <text class="rating-score">{{ formatRating(store) }}</text>
           </view>
         </view>
 
+        <!-- 营业时间卡片 + 导航快捷卡片（并排展示） -->
         <view class="stat-row">
+          <!-- 营业时间：工作日/周末分别显示 -->
           <view class="stat-card">
             <view class="stat-icon stat-icon-emerald">
               <app-icon name="clock" color="#059669" :size="22" :stroke-width="2.1" />
@@ -43,6 +54,7 @@
             </view>
           </view>
 
+          <!-- 导航快捷卡片：点击弹出地图 App 选择 -->
           <view class="stat-card stat-card-nav" @click="openNavigation">
             <view class="stat-icon stat-icon-blue">
               <app-icon name="compass" color="#2563EB" :size="22" :stroke-width="2.1" />
@@ -51,6 +63,7 @@
           </view>
         </view>
 
+        <!-- 联系电话卡片：有电话时可点击一键拨号 -->
         <view class="contact-card" :class="{ disabled: !getStorePhone() }" @tap="callStore" @click="callStore">
           <view class="stat-icon stat-icon-violet">
             <app-icon name="phone" color="#7C3AED" :size="22" :stroke-width="2.1" />
@@ -59,13 +72,17 @@
             <text class="contact-label">联系电话</text>
             <text class="contact-value">{{ getStorePhone() || '门店暂未设置电话' }}</text>
           </view>
+          <!-- 有电话时显示"拨打"操作链接 -->
           <text class="contact-action" @tap.stop="callStore" @click.stop="callStore">{{ getStorePhone() ? '拨打' : '' }}</text>
         </view>
 
+        <!-- 服务项目列表 -->
         <view class="section">
           <text class="section-title">服务项目</text>
 
+          <!-- 无服务时的提示文字 -->
           <view v-if="services.length === 0" class="section-hint">暂无服务项目</view>
+          <!-- 服务卡片列表：每张卡片含名称/描述/时长 + 价格/预约入口 -->
           <view v-else class="service-list">
             <view
               v-for="service in services"
@@ -73,11 +90,13 @@
               class="service-card"
               @click="goCreateOrder(service._id)"
             >
+              <!-- 服务名称、描述、时长（左侧） -->
               <view class="service-main">
                 <text class="service-name">{{ service.name }}</text>
                 <text class="service-desc">{{ service.description || '专业造型服务，按需求定制。' }}</text>
                 <text class="service-meta">{{ service.duration || 60 }} 分钟</text>
               </view>
+              <!-- 服务价格 + 预约按钮（右侧） -->
               <view class="service-side">
                 <text class="service-price">¥{{ Number(service.price || 0) }}</text>
                 <text class="service-book">预约</text>
@@ -86,10 +105,12 @@
           </view>
         </view>
 
+        <!-- 精选发型师列表 -->
         <view class="section">
           <text class="section-title">精选发型师</text>
 
           <view v-if="barbers.length === 0" class="section-hint">暂无理发师</view>
+          <!-- 理发师卡片：含头像（或字母占位）、名称、简介、预约入口 -->
           <view v-else class="barber-list">
             <view
               v-for="barber in barbers"
@@ -97,6 +118,8 @@
               class="barber-card"
               @click="goCreateOrder('')"
             >
+              <!-- 头像（有头像时显示图片，否则显示首字母占位） -->
+              <!-- 头像（有头像时显示图片，否则显示首字母占位） -->
               <image
                 v-if="barber.avatar"
                 class="barber-avatar"
@@ -104,29 +127,36 @@
                 mode="aspectFill"
                 @error="onBarberAvatarError(barber._id)"
               />
+              <!-- 首字母占位头像（读取头像失败或未设置时展示） -->
               <view v-else class="barber-avatar barber-avatar-fallback">
                 <text class="barber-avatar-text">{{ getBarberAvatarInitial(barber) }}</text>
               </view>
+              <!-- 理发师名称与简介 -->
               <view class="barber-main">
                 <text class="barber-name">{{ barber.username || barber.name || '理发师' }}</text>
                 <text class="barber-desc">{{ barber.intro || '擅长剪发/烫染，提供个性化造型建议。' }}</text>
               </view>
+              <!-- 预约文字入口（点击跳转创建预约页，不指定服务） -->
               <view class="barber-action">预约</view>
             </view>
           </view>
         </view>
 
+        <!-- 预约须知区域：三条规则（注意事项/取消规则/改期规则）以图标+文字形式呈现 -->
         <view class="section">
           <text class="section-title">预约须知</text>
           <view class="rule-list">
+            <!-- 预约注意事项（来自门店设置的 bookingRules.notice） -->
             <view class="rule-item">
               <app-icon name="file" color="#475569" :size="22" :stroke-width="2.1" />
               <text class="rule-text">{{ getBookingRuleText('notice') }}</text>
             </view>
+            <!-- 取消预约规则（bookingRules.cancelRule） -->
             <view class="rule-item">
               <app-icon name="x-circle" color="#475569" :size="22" :stroke-width="2.1" />
               <text class="rule-text">{{ getBookingRuleText('cancelRule') }}</text>
             </view>
+            <!-- 改期规则（bookingRules.rescheduleRule） -->
             <view class="rule-item">
               <app-icon name="refresh" color="#475569" :size="22" :stroke-width="2.1" />
               <text class="rule-text">{{ getBookingRuleText('rescheduleRule') }}</text>
@@ -134,10 +164,13 @@
           </view>
         </view>
 
+        <!-- 用户评价区域：带筛选（全部/好评/差评/有图） -->
         <view class="section">
           <view class="review-head">
             <text class="section-title">用户评价</text>
+            <!-- "查看全部"链接：跳转门店评价列表页（pages/store/reviews.vue） -->
             <text class="review-more" @click="goStoreReviews">查看全部</text>
+            <!-- 评价筛选 Tab：all / good / bad / withImages -->
             <view class="review-filters">
               <text
                 v-for="filter in reviewFilters"
@@ -151,15 +184,21 @@
             </view>
           </view>
 
+          <!-- 评价加载中 -->
           <view v-if="reviewsLoading" class="section-hint">评价加载中...</view>
+          <!-- 暂无评价 -->
           <view v-else-if="reviews.length === 0" class="section-hint">暂无评价</view>
+          <!-- 评价卡片列表（最多展示 10 条，更多需跳转列表页） -->
           <view v-else class="review-list">
             <view v-for="review in reviews" :key="review._id" class="review-card">
+              <!-- 评价头部：用户名 + 评分 -->
               <view class="review-top">
                 <text class="review-user">{{ review.userName || '匿名用户' }}</text>
                 <text class="review-score">★ {{ (review.rating && review.rating.overall) || 5 }}</text>
               </view>
+              <!-- 评价文字内容 -->
               <text class="review-content">{{ review.content || '用户未填写内容' }}</text>
+              <!-- 评价图片列表（cloud:// 已通过 resolveReviewImageUrls 转为临时 HTTPS 链接） -->
               <view v-if="getReviewImages(review).length > 0" class="review-images">
                 <image
                   v-for="(img, idx) in getReviewImages(review)"
@@ -170,11 +209,13 @@
                   @click="previewReviewImage(review, idx)"
                 />
               </view>
+              <!-- 评价发布时间 -->
               <text class="review-time">{{ formatReviewTime(review.createdAt) }}</text>
             </view>
           </view>
         </view>
 
+        <!-- 底部固定预约按钮（跳转至创建预约页，不预选服务） -->
         <view class="bottom-action">
           <view class="book-btn" @click="goCreateOrder('')">去预约</view>
         </view>
@@ -265,16 +306,17 @@ export default {
       if (!storeLat || !storeLng) {
         return;
       }
-      const R = 6371;
-      const dLat = ((storeLat - this.userLat) * Math.PI) / 180;
-      const dLng = ((storeLng - this.userLng) * Math.PI) / 180;
+      const R = 6371; // 地球平均半径（km）
+      const dLat = ((storeLat - this.userLat) * Math.PI) / 180;  // 纬度差转弧度
+      const dLng = ((storeLng - this.userLng) * Math.PI) / 180;  // 经度差转弧度
+      // a：Haversine 中间量（两点半弦平方夹角）
       const a =
         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos((this.userLat * Math.PI) / 180) *
           Math.cos((storeLat * Math.PI) / 180) *
           Math.sin(dLng / 2) *
           Math.sin(dLng / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); // 球面角距（弧度）
       this.distance = R * c;
     },
     // 距离格式化（<1km 显示米）

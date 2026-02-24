@@ -1,4 +1,15 @@
-const { withResponse, ApiError, ERROR_CODES, requireRole, updateStoreRating } = require('sb-common');
+/**
+ * reviews-delete 云函数 —— 删除用户自己的评价
+ *
+ * 【业务说明】
+ * 用户可在“我的评价”页面删除自己提交的评价。
+ * 删除后必须重新计算门店平均评分，
+ * 避免评分统计数据滙后。
+ *
+ * 【权限与校验】
+ * - 仅 user 角色可调用
+ * - 只能删除自己提交的评价（userId 校验）
+ */const { withResponse, ApiError, ERROR_CODES, requireRole, updateStoreRating } = require('sb-common');
 
 // 删除用户自己提交的评价
 // 关键约束：

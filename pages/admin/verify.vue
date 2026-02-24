@@ -1,9 +1,19 @@
 <template>
+  <!-- 到店核验页根容器：管理员录入 6 位核验码，确认顾客已到店 -->
   <view class="verify-page">
+    <!-- 顶部导航栏 -->
     <app-nav :showTitle="true" title="核验" />
 
+    <!-- 核验码输入卡片 -->
     <view class="input-card">
       <text class="label">输入核验码</text>
+      <!--
+        6 位数字输入框设计要点：
+        - inputmode="numeric" 在 H5 端唤起数字键盘
+        - maxlength="6" 限制最长 6 位
+        - :focus="isFocus" 通过 isFocus 变量控制聚焦，解决部分机型点击失焦问题
+        - @input 过滤非数字字符，保证输入内容始终为纯数字
+      -->
       <input
         class="input"
         :value="verifyCode"
@@ -18,18 +28,23 @@
         @blur="isFocus = false"
         @confirm="handleVerify"
       />
+      <!-- 核验按钮：加载中时禁用，防止重复提交 -->
       <button class="submit" type="primary" :loading="loading" @click="handleVerify">核验</button>
     </view>
 
+    <!-- 核验结果卡片（核验成功后显示订单快照，供现场二次确认） -->
     <view v-if="order" class="result-card">
+      <!-- 订单号 -->
       <view class="row">
         <text class="label">订单号</text>
         <text class="value">{{ order.orderNo }}</text>
       </view>
+      <!-- 当前订单状态（核验成功后变为 ARRIVED） -->
       <view class="row">
         <text class="label">状态</text>
         <text class="value">{{ formatOrderStatus(order.status) }}</text>
       </view>
+      <!-- 预约时间 -->
       <view class="row">
         <text class="label">时间</text>
         <text class="value">{{ order.date }} {{ order.startTime }}-{{ order.endTime }}</text>

@@ -1,5 +1,22 @@
+/**
+ * user-bind-phone 云函数 —— 登录用户绑定/修改手机号
+ *
+ * 【业务流程】
+ *   ① 输入新手机号与验证码（由 sms-send-code 发送）
+ *   ② 校验验证码合法性及月过期时间
+ *   ③ 检查手机号是否已被其他账号占用（防冲突）
+ *   ④ 更新用户 phone 字段
+ *   ⑤ 将验证码标记为已使用，防止重放
+ *
+ * 【注意】
+ * 复用 sms_codes.type='login'，避免修改 schema 枚举列添加新类型。
+ *
+ * 【权限】
+ * - 需要登录（requireLogin）
+ */
 const { withResponse, ApiError, ERROR_CODES, requireLogin } = require('sb-common');
 
+// 校验中国大陆手机号格式：11 位，以 1 开头，第二位 3-9
 function isValidPhone(phone) {
   return /^1[3-9]\d{9}$/.test(phone);
 }

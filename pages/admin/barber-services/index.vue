@@ -1,19 +1,26 @@
 <template>
   <view class="page">
+    <!-- 吸顶头部：导航栏 + 功能说明 Banner -->
     <view class="page-header">
       <app-nav :showTitle="true" title="理发师项目设置" />
+      <!-- 页面说明 Banner -->
       <view class="hero-card">
         <text class="hero-subtitle">为门店理发师配置可承接的服务项目</text>
       </view>
     </view>
 
     <scroll-view class="page-scroll" scroll-y>
+      <!-- 加载中占位 -->
       <view v-if="loading" class="hint">加载中...</view>
+      <!-- 无服务项目提示（需先在门店设置中新增） -->
       <view v-else-if="services.length === 0" class="hint">当前门店暂无服务项目，请先到门店设置里新增服务</view>
+      <!-- 无理发师提示 -->
       <view v-else-if="barbers.length === 0" class="hint">当前门店暂无理发师</view>
 
+      <!-- 理发师卡片列表：每张卡片对应一位理发师，包含服务项目多选标签 -->
       <view v-else class="list">
         <view v-for="barber in barbers" :key="barber._id" class="card">
+          <!-- 理发师信息行：头像 + 名称 + 账号 + 清空按钮 -->
           <view class="header">
             <view class="identity">
               <image
@@ -34,6 +41,7 @@
             <text class="clear" @click="clearBarber(barber._id)">清空</text>
           </view>
 
+          <!-- 服务项目标签组：已选中的标签高亮，点击切换选中状态 -->
           <view class="chips">
             <view
               v-for="service in services"
@@ -50,6 +58,7 @@
       <view class="scroll-bottom-gap"></view>
     </scroll-view>
 
+    <!-- 底部操作栏：统一提交所有理发师的服务配置 -->
     <view class="action-bar">
       <button class="save-btn" :loading="saving" @click="saveAssignments">保存配置</button>
     </view>

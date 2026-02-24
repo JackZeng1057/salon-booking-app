@@ -1,7 +1,42 @@
+/**
+ * @file api/review.js — 评价相关前端 API 封装
+ *
+ * 【职责定位】
+ * 封装评价的读取、图片链接转换等前端处理逻辑，
+ * 供门店评价列表页（pages/store/reviews.vue）和订单详情页使用。
+ *
+ * 【图片处理流程说明（cloud:// → 临时 URL）】
+ * uniCloud 云存储的图片以 cloud:// 协议的 fileID 存储在数据库中，
+ * 不能直接用于 <image> 标签展示。本模块通过以下两步处理：
+ *   Step 1: normalizeReviewImages(review)
+ *           兼容三种历史图片格式（数组、JSON字符串、逗号分隔字符串），
+ *           统一返回字符串数组；
+ *   Step 2: resolveReviewImageUrls(list)
+ *           批量调用 uniCloud.getTempFileURL 将 cloud:// fileID
+ *           换取带签名的临时 HTTPS 链接，追加到 review._imageUrls 字段，
+ *           不破坏原始 images 字段（保持数据可追溯性）。
+ *
+ * 【格式兼容设计背景】
+ * 早期版本将多张图片以逗号拼接或 JSON 字符串存储，
+ * 后期规范化为数组，但历史数据未做迁移，
+ * 因此 normalizeReviewImages 需要同时处理三种格式以确保向下兼容。
+ *
+ * 【错误降级策略】
+ * resolveReviewImageUrls 中，若 getTempFileURL 调用失败，
+ * 直接返回原始 reviews 列表（不抛错），
+ * 保证页面仍能正常渲染文字评价，只是图片无法显示。
+ */
 import { callCloud } from './client';
 
-// 获取门店评价列表
-// 入参示例：{ storeId, page, pageSize, sortBy }
+/**
+ * 获取门店评价列表（分页 + 排序）
+ * @param {Object} [params]             - 查询参数
+ * @param {string} [params.storeId]     - 门店 ID（不传则查全部）
+ * @param {number} [params.page]        - 当前页码，默认 1
+ * @param {number} [params.pageSize]    - 每页条数，默认 20
+ * @param {string} [params.sortBy]      - 排序方式：'latest'（最新）| 'highest'（最高分）
+ * @returns {Promise} 含 list / total / avgRating 的评价数据
+ */
 export function fetchStoreReviews(params = {}) {
   return callCloud('reviews-list', params || {});
 }

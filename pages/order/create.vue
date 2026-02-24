@@ -1,24 +1,34 @@
-<template>
+﻿<template>
+  <!-- 预约创建页根容器，paddingTop 由系统状态栏高度动态计算（适配刘海屏/异形屏） -->
   <view class="page" :style="{ paddingTop: pagePaddingTop + 'px' }">
+    <!-- 顶部导航栏 -->
     <app-nav :showTitle="true" title="创建预约" />
+
+    <!-- 吸顶区域：Banner 提示 + 预约须知，scroll 时保持固定不滚走 -->
     <view class="top-fixed">
+      <!-- 页面 Banner 卡片：简要说明操作流程 -->
       <view class="hero-card">
         <text class="hero-subtitle">确认门店服务和时段后提交预约</text>
       </view>
 
-      <!-- 规则提示 -->
+      <!-- 预约须知折叠行：显示首条规则，完整内容在弹窗中展示 -->
       <view class="rules-notice">
         <view class="rules-header">
+          <!-- 灯泡图标，视觉提示这是注意事项 -->
           <app-icon class="rules-icon-svg" name="lightbulb" color="#faad14" :size="24" :stroke-width="2.1" />
           <text class="rules-title">预约须知</text>
+          <!-- 点击"查看"展开规则弹窗 -->
           <text class="rules-action" @click="openRules">查看</text>
         </view>
+        <!-- 显示第一条规则文字（截断），引导用户阅读完整规则 -->
         <text class="rules-text">{{ displayRules }}</text>
       </view>
     </view>
 
+    <!-- 可滚动表单内容区：避免键盘弹起时内容被遮挡 -->
     <scroll-view class="content-scroll" scroll-y>
       <view class="form">
+        <!-- 步骤1：选择门店（Picker 下拉，自动加载服务/理发师/规则） -->
         <view class="field">
           <text class="label">选择门店</text>
           <picker :range="storeOptions" range-key="name" :value="storeIndex" @change="onStoreChange">
@@ -26,6 +36,7 @@
           </picker>
         </view>
 
+        <!-- 步骤2：选择服务（变更后联动过滤可用理发师列表） -->
         <view class="field">
           <text class="label">选择服务</text>
           <picker :range="serviceOptions" range-key="name" :value="serviceIndex" @change="onServiceChange">
@@ -33,15 +44,19 @@
           </picker>
         </view>
 
+        <!-- 步骤3：选择理发师（列表由门店+服务联合过滤；无可选时显示提示） -->
         <view class="field">
           <text class="label">选择理发师</text>
           <picker v-if="barberOptions.length > 0" :range="barberOptions" range-key="name" :value="barberIndex" @change="onBarberChange">
             <view class="picker-value">{{ currentBarberName }}</view>
           </picker>
+          <!-- 当前服务没有关联的理发师时的兜底提示 -->
           <view v-else class="picker-value">当前服务暂无可用理发师</view>
+          <!-- 显式绑定模式提示：管理员已配置理发师可做服务项目 -->
           <text v-if="usingAdminBarberServices" class="hint">当前已按门店配置过滤可选理发师</text>
         </view>
 
+        <!-- 步骤4：选择日期（通过 modern-date-picker 组件选取）-->
         <view class="field">
           <text class="label">选择日期</text>
           <modern-date-picker :value="date" :start="minDate" @change="onDateChange">
@@ -49,19 +64,26 @@
           </modern-date-picker>
         </view>
 
+        <!-- 步骤5：选择可预约时段 -->
         <view class="field">
           <text class="label">可预约时段</text>
+          <!-- 时段加载中状态 -->
           <view v-if="slotsLoading" class="hint">加载时段中...</view>
+          <!-- 暂无可用时段（未设置排班或当日已满） -->
           <view v-else-if="slots.length === 0" class="hint">暂无可用时段，请先设置排班或切换日期</view>
           <view v-else>
+            <!-- 智能推荐时段卡片：算法选出最优空闲窗口 + 一键选中 -->
             <view v-if="recommendedStartTime" class="recommend-box">
               <view class="recommend-main">
                 <text class="recommend-title">智能推荐</text>
                 <text class="recommend-time">{{ recommendedStartTime }}-{{ recommendedEndTime }}</text>
+                <!-- 推荐原因文案（根据当日占用率动态生成：紧张/充足/弹性） -->
                 <text class="recommend-reason">{{ recommendedReason }}</text>
               </view>
+              <!-- 一键将推荐时段写入 selectedStartTime -->
               <view class="recommend-action" @click="applyRecommendedSlot">一键选中</view>
             </view>
+            <!-- 全部可预约时段网格，点击选中对应时段 -->
             <view class="slots-grid">
               <view
                 v-for="slot in slots"
@@ -70,16 +92,20 @@
                 :class="slotClass(slot)"
                 @click="selectSlot(slot)"
               >
+                <!-- 时段起止时间显示 -->
                 <text class="slot-time">{{ slot.startTime }}-{{ slot.endTime }}</text>
+                <!-- 时段状态（可预约/已预约/已过期） -->
                 <text class="slot-status">{{ formatSlotStatus(slot.status) }}</text>
               </view>
             </view>
           </view>
         </view>
 
+        <!-- 备注输入区域（可选）：AI顾问跳转时会自动预填 aiRemark -->
         <view class="field">
           <view class="remark-header">
             <text class="label">预约备注（可选）</text>
+            <!-- AI顾问来源标记标签 -->
             <text v-if="fromAiAdvisor" class="remark-tag">来自AI顾问</text>
           </view>
           <textarea
@@ -88,9 +114,11 @@
             maxlength="120"
             placeholder="例：发质偏硬，避免漂染，想要层次感和好打理。"
           />
+          <!-- 实时字数计数 -->
           <text class="remark-count">{{ remark.length }}/120</text>
         </view>
 
+        <!-- 提交按钮：未选时段时禁用，防止空提交 -->
         <button
           class="submit"
           type="primary"
@@ -100,13 +128,16 @@
           确认预约
         </button>
 
+        <!-- 当前已选时段回显，给用户即时反馈 -->
         <view v-if="selectedStartTime" class="selected-info">
           已选时段：{{ selectedStartTime }}
         </view>
       </view>
+      <!-- 底部安全边距，防止内容被 Tab Bar 遮挡 -->
       <view class="scroll-bottom-safe"></view>
     </scroll-view>
 
+    <!-- 预约信息确认弹窗：展示门店/服务/理发师/时间/备注摘要，用户二次确认后提交 -->
     <app-modal
       :visible="showConfirm"
       title="确认预约信息"
@@ -117,6 +148,7 @@
       @cancel="closeConfirm"
       @confirm="confirmSubmit"
     >
+      <!-- 预约摘要信息列表 -->
       <view class="confirm-summary">
         <view class="confirm-row">
           <text class="confirm-label">门店</text>
@@ -134,6 +166,7 @@
           <text class="confirm-label">时间</text>
           <text class="confirm-value">{{ confirmData.time }}</text>
         </view>
+        <!-- 仅有备注时才展示此行 -->
         <view v-if="confirmData.remark" class="confirm-row">
           <text class="confirm-label">备注</text>
           <text class="confirm-value multiline">{{ confirmData.remark }}</text>
@@ -141,6 +174,7 @@
       </view>
     </app-modal>
 
+    <!-- 完整预约规则弹窗（仅关闭按钮，无取消选项） -->
     <app-modal
       :visible="showRulesModal"
       title="预约规则"
@@ -155,6 +189,49 @@
 </template>
 
 <script>
+/**
+ * @page pages/order/create.vue — 预约创建页
+ *
+ * 【页面职责】
+ * 引导用户完成 4 步预约选择流程：
+ *   Step 1: 选择门店 → 自动加载服务列表、理发师列表、门店规则
+ *   Step 2: 选择服务 → 根据当前服务过滤可执行该服务的理发师（rebuildBarberOptions）
+ *   Step 3: 选择理发师 + 日期
+ *   Step 4: 选择时段 → 加载 barber-slots-get 返回的时段列表
+ * 最终弹出确认弹窗提交给 orders-create 云函数。
+ *
+ * 【联动逻辑】
+ * 门店/服务/理发师/日期四个选择器相互联动：
+ *   - 切换门店 → 清空服务/理发师/时段，重新加载
+ *   - 切换服务 → 根据 supportedServiceIds 过滤理发师（rebuildBarberOptions）
+ *   - 切换理发师或日期 → 重新请求 barber-slots-get
+ *
+ * 【服务-理发师绑定模式（双策略）】
+ * 由 stores.barberServiceAssignmentEnabled 开关决定：
+ * - 显式绑定（true）：每个理发师在 users.serviceIds 中声明可做的服务；
+ * - 旧配对模式（false）：serviceList[i] ↔ barberList[i]，一一对应（历史兼容）。
+ * hasExplicitConfig 变量控制 usingAdminBarberServices 展示提示文字。
+ *
+ * 【时段数据流】
+ * barber-slots-get 返回 { startTime, endTime, status } 列表，
+ * applySlotExpiration() 在前端做二次判定（当天已过去的时段标记 EXPIRED），
+ * 与云函数的判定双保险，防止时段请求后到提交前的情况下时段过期但未刷新。
+ *
+ * 【智能推荐时段（refreshRecommendedSlot）】
+ * 从可用时段中用打分算法挑选"最优"时段推荐给用户：
+ * - 优先选前后有空档的时段（不易因相邻理发师被占用引发尴尬）；
+ * - 对靠近午休和营业结束的时段施加边缘惩罚；
+ * - 偏移 14:00 中间时段的时间距离作为均衡项。
+ * 推荐文案根据当日占用率动态生成（紧张/充足/弹性文案三档）。
+ *
+ * 【AI 顾问入口（fromAiAdvisor）】
+ * AI 顾问页推荐服务后，通过 navigateTo 携带 storeId/serviceId/aiRemark 参数跳转此页，
+ * 页面 onLoad 读取后自动预填服务和备注，fromAiAdvisor 标记在 UI 中展示"来自AI顾问"标签。
+ *
+ * 【提交防重设计】
+ * confirmSelection() 提交前再次检查 targetSlot.status（防止弹窗打开后时段被他人抢占），
+ * 提交成功后跳转订单详情页，并通过 clearOrderCaches() 使本地缓存失效。
+ */
 // 创建预约页：
 // - 门店/服务/理发师/日期联动
 // - 依据服务时长展示可预约窗口
@@ -173,6 +250,8 @@ function toDateString(date) {
 }
 
 function decodeQueryText(value) {
+  // 路由参数通过 navigateTo URL 拼接时会被 encodeURIComponent 编码，
+  // 此函数将其还原为原始文字；解码失败时直接使用原始字符串，避免异常阻断渲染。
   const raw = String(value || '');
   if (!raw) return '';
   try {
@@ -183,6 +262,8 @@ function decodeQueryText(value) {
 }
 
 function timeToMinutes(text) {
+  // 将 "HH:MM" 格式的时间字符串转为从 0:00 起的分钟数，用于智能推荐算法中的数值比较。
+  // 解析失败（格式非法或非数字）时返回 NaN，调用方需用 Number.isNaN 做防御。
   const matched = String(text || '').match(/^(\d{2}):(\d{2})$/);
   if (!matched) return NaN;
   const hour = Number(matched[1]);
@@ -326,7 +407,11 @@ export default {
       this.currentStep = 1;
       await this.loadStoreRelated('');
     },
-    // 拉取服务与理发师
+    // 拉取服务与理发师（并发加载 services/barbers/storeDetail，减少等待时间）
+    // 同时读取门店预约规则并写入 storeRules，供"预约须知"展示。
+    // 根据 barberServiceAssignmentEnabled 开关决定使用"显式绑定"还是"历史一一配对"策略：
+    //   显式绑定（hasExplicitConfig=true）：reads.serviceIds from users collection
+    //   历史配对（hasExplicitConfig=false）：serviceList[i] ↔ barberList[i]
     async loadStoreRelated(presetServiceId = '') {
       this.serviceOptions = [];
       this.allBarbers = [];
@@ -405,6 +490,10 @@ export default {
         uni.showToast({ title: err.message || '加载门店信息失败', icon: 'none' });
       }
     },
+    // 根据当前选中服务重建可选理发师列表
+    // 遍历 allBarbers，筛选 supportedServiceIds 中包含当前 serviceId 的理发师。
+    // 同时尝试保留上次选中的理发师（prevBarberId），保证切换服务时不丢失已选状态；
+    // 找不到则默认选中新列表第 0 项；列表为空则清空选中。
     rebuildBarberOptions() {
       const service = this.serviceOptions[this.serviceIndex];
       if (!service || !service._id) {
@@ -491,7 +580,10 @@ export default {
         this.slotsLoading = false;
       }
     },
-    // 前端兜底：对“当天且已过去”的时段标记为过期
+    // 前端兜底过期判定，与云函数双保险：
+    // 1) 若选择日期早于今天，所有非 BOOKED 时段直接标为 EXPIRED；
+    // 2) 若选择日期为今天，逐槽比对当前分钟数，startTime <= 当前时间的标为 EXPIRED；
+    // 目的：防止时段请求返回后到用户提交前出现状态滞后的问题。
     applySlotExpiration(list) {
       const today = toDateString(new Date());
       if (!this.date) return list;
@@ -512,6 +604,11 @@ export default {
         return slot;
       });
     },
+    // 智能推荐算法：对全部 AVAILABLE 时段打分，score 越小越优先。评分维度：
+    // ① 周边堵塞度（前后各 2 格内 BOOKED/UNAVAILABLE 数 ×2.5）：拥挤时段环境反而更高效
+    // ② 与 14:00 的中心偏差（偏离每小时加 1 分）：友好时段优先
+    // ③ 边缘时段惩罚（10:00 前或 20:00 后 +0.8）：避免推荐过早/过晚时段
+    // 推荐原因文案根据当日占用率动态生成（紧张/充足/弹性）
     refreshRecommendedSlot() {
       const allSlots = Array.isArray(this.slots) ? this.slots : [];
       const availableSlots = allSlots.filter((slot) => slot && slot.status === 'AVAILABLE');
@@ -594,7 +691,9 @@ export default {
       if (!slot || slot.status === 'BOOKED' || slot.status === 'EXPIRED' || slot.status === 'UNAVAILABLE') return;
       this.selectedStartTime = slot.startTime;
     },
-    // 确认预约：二次校验时段是否过期，并弹出确认弹窗
+    // 确认预约前二次校验：
+    // 1) 判断 selectedStartTime 对应时段是否仍为 AVAILABLE（防止弹窗打开后时段被他人抢占）；
+    // 2) 组装确认弹窗展示数据（confirmData）与提交参数（pendingPayload），打开确认弹窗。
     async confirmSelection() {
       if (!this.selectedStartTime) return;
       const targetSlot = this.slots.find((s) => s.startTime === this.selectedStartTime);
@@ -638,7 +737,9 @@ export default {
       this.showConfirm = false;
       this.pendingPayload = null;
     },
-    // 提交预约：失败时提示冲突/不可预约
+    // 提交预约：调用 orders-create，成功后跳转订单详情页；
+    // 出现 409 冲突（时段被抢占）时提示用户重新选择，不直接关闭弹窗；
+    // finally 保证弹窗无论成功/失败都会关闭，避免页面锁死。
     async confirmSubmit() {
       if (!this.pendingPayload) return;
       try {

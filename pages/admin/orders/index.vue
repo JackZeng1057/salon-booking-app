@@ -1,7 +1,14 @@
 <template>
   <view class="orders-page">
+    <!-- 顶部导航栏，标题固定为"门店订单" -->
     <app-nav :showTitle="true" title="门店订单" />
 
+    <!-- =====================================================
+         顶部筛选控制条
+         - 状态 Tab：全部/待到店/服务中/已完成/已取消/爽约，点击切换筛选
+         - 日期选择器：按日期过滤订单，默认今天；modern-date-picker 自定义组件
+         - 两者联动：变更任一均重新过滤 filteredOrders 计算属性
+    ===================================================== -->
     <view class="orders-top">
       <view class="tabs-wrap">
         <view
@@ -16,6 +23,7 @@
         </view>
       </view>
 
+      <!-- 日期选择器：picker 插槽内显示当前已选日期文本 -->
       <view class="field">
         <text class="label">日期</text>
         <modern-date-picker :value="date" @change="onDateChange">
@@ -24,9 +32,25 @@
       </view>
     </view>
 
+    <!-- =====================================================
+         订单列表滚动区
+         - 支持侧滑删除：左滑露出红色删除按钮（canSwipeDelete 判断权限）
+         - 每张订单卡片包含：
+           * 门店名（带图标）+ 状态徽章（按 statusClass() 动态着色）
+           * 服务名 + 预约时间段 + 理发师名
+           * 排队等待提示（waitHint）
+           * 订单号
+           * 操作按钮区：开始服务 / 完成服务 / 取消订单 / 标记爽约
+             - 开始服务：需先核验顾客（弹出核验码输入弹窗），ARRIVED 状态可用
+             - 完成服务：IN_SERVICE 状态可用
+             - 取消订单：BOOKED/ARRIVED 状态且 canCancel() 判定为真
+             - 标记爽约：顾客超时未到，canNoShow() 判断后允许操作
+    ===================================================== -->
     <scroll-view class="orders-scroll" scroll-y>
       <view class="orders-scroll-content">
+        <!-- 加载中占位 -->
         <view v-if="loading" class="hint">加载中...</view>
+        <!-- 筛选后空状态 -->
         <view v-else-if="filteredOrders.length === 0" class="hint">暂无订单</view>
 
         <view v-else class="list">
@@ -39,6 +63,7 @@
             @touchmove="onTouchMove($event, order)"
             @touchend="onTouchEnd($event, order)"
           >
+            <!-- 侧滑删除操作区（已完成/已取消才可删除） -->
             <view
               v-if="canSwipeDelete(order) && getSwipeOffset(order._id) < 0"
               class="swipe-actions"
@@ -46,29 +71,37 @@
             >
               <view class="swipe-delete" @click.stop="confirmDelete(order)">删除</view>
             </view>
+            <!-- 订单卡片主体 -->
             <view class="swipe-content" :style="getSwipeStyle(order)">
               <view class="order-card">
+                <!-- 卡片头部：门店名 + 状态徽章 -->
                 <view class="order-head">
                   <view class="store-line">
                     <app-icon name="store" color="#94A3B8" :size="20" :stroke-width="2.1" />
                     <text class="store-name">{{ order.storeName || order.storeId || '门店订单' }}</text>
                   </view>
+                  <!-- 状态徽章：颜色由 statusClass() 根据 order.status 动态绑定 -->
                   <view class="status-pill" :class="statusClass(order.status)">
                     {{ formatOrderStatus(order.status) }}
                   </view>
                 </view>
+                <!-- 订单主信息 -->
                 <view class="order-main">
                   <text class="service-name">{{ order.serviceName || order.serviceId || '未知服务' }}</text>
                   <text class="meta">预约时间：{{ order.date }} {{ order.startTime }}-{{ order.endTime }}</text>
                   <text class="meta">理发师：{{ order.barberName || order.barberId || '未知' }}</text>
                 </view>
+                <!-- 排队等待提示（有队列信息时显示） -->
                 <view v-if="waitHint(order)" class="order-queue">
                   <text class="meta">{{ waitHint(order) }}</text>
                 </view>
+                <!-- 卡片底部：订单号 -->
                 <view class="order-foot">
                   <text class="foot-text">订单号：{{ order.orderNo || order._id }}</text>
                 </view>
+                <!-- 操作按钮区：仅对可操作状态的订单显示 -->
                 <view v-if="showActions(order.status) || canNoShow(order) || canCancel(order)" class="actions">
+                  <!-- 开始服务：前置弹出核验码输入弹窗，核验通过后触发 ARRIVED→IN_SERVICE -->
                   <button
                     class="action-btn"
                     type="primary"
@@ -78,6 +111,7 @@
                   >
                     开始服务
                   </button>
+                  <!-- 完成服务：IN_SERVICE→FINISHED，关闭服务流程 -->
                   <button
                     class="action-btn"
                     type="default"
@@ -87,6 +121,7 @@
                   >
                     完成服务
                   </button>
+                  <!-- 取消订单：BOOKED/ARRIVED 状态下可取消 -->
                   <button
                     v-if="canCancel(order)"
                     class="action-btn"
@@ -97,6 +132,7 @@
                   >
                     取消订单
                   </button>
+                  <!-- 标记爽约：顾客超时未到店时由管理员手动触发，订单转为 NO_SHOW -->
                   <button
                     v-if="canNoShow(order)"
                     class="action-btn"
@@ -116,6 +152,12 @@
       </view>
     </scroll-view>
 
+    <!-- =====================================================
+         核验码输入弹窗（点击"开始服务"时弹出）
+         - 管理员输入顾客手机上显示的 6 位预约核验码
+         - 点击"核验并开始"后调用 orders-verify + orders-start-service
+         - 核验成功才真正触发 ARRIVED→IN_SERVICE 状态流转
+    ===================================================== -->
     <app-modal
       :visible="showVerifyModal"
       title="输入核验码"
@@ -127,6 +169,7 @@
       @confirm="confirmVerifyStart"
     >
       <view class="verify-box">
+        <!-- 6位数字输入框，inputmode="numeric" 优化移动端键盘类型 -->
         <input
           class="verify-input"
           v-model="verifyCodeInput"
@@ -139,6 +182,7 @@
       </view>
     </app-modal>
 
+    <!-- 通用操作二次确认弹窗（取消/删除等需确认的操作） -->
     <app-modal
       :visible="confirmDialog.visible"
       :title="confirmDialog.title"

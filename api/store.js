@@ -1,3 +1,26 @@
+/**
+ * @file api/store.js — 门店相关前端 API 封装
+ *
+ * 【职责定位】
+ * 封装门店相关的 callCloud 调用，供门店列表页、详情页、管理后台使用。
+ *
+ * 【缓存策略（本地 uni.getStorageSync）】
+ * 与 api/order.js 使用内存缓存（utils/cache.js）不同，
+ * 门店数据使用 uni.Storage（落地到 App 本地 SQLite），
+ * 原因是门店基础信息（名称/地址/营业时间）变化频率极低，
+ * 本地持久化缓存可以在 App 冷启动后无网络时仍展示上次数据。
+ * 缓存有效期 CACHE_TTL=24 小时，管理员更新门店资料后主动清理。
+ *
+ * 【搜索/筛选场景不缓存】
+ * fetchStores() 在有 keyword/sortBy/minRating 等筛选条件时跳过缓存，
+ * 防止筛选结果污染默认列表缓存，保证两种场景数据互不干扰。
+ *
+ * 【缓存清理联动】
+ * updateManagedStore() 和 setStoreBarberServices() 成功后
+ * 调用 clearStoreCache()，同时清理 stores-detail / stores-services /
+ * stores-barbers / stores-list 多个缓存 key，
+ * 保证管理员更新资料后其他用户下次进入门店页看到最新数据。
+ */
 // 门店相关接口：列表、详情、服务与理发师
 import { callCloud } from './client';
 
@@ -80,7 +103,11 @@ export function fetchStores(params = {}) {
   });
 }
 
-// 获取门店详情
+// 获取门店详情（名称/地址/标签/营业时间/预约规则等完整信息）
+// 使用 uni.Storage 落地持久化缓存，App 冷启动无网络时也能展示上次数据。
+// @param {string} id                    - 门店 _id
+// @param {Object} [options]
+// @param {boolean} [options.noCache]    - 传 true 强制绕过缓存，适用于管理员编辑后刷新
 export function fetchStoreDetail(id, options = {}) {
   const noCache = !!(options && options.noCache);
   const key = `stores-detail:${id}`;
@@ -94,7 +121,10 @@ export function fetchStoreDetail(id, options = {}) {
   });
 }
 
-// 获取门店服务列表
+// 获取门店服务列表（含价格/时长/是否可预约等字段）
+// @param {string} id                    - 门店 _id
+// @param {Object} [options]
+// @param {boolean} [options.noCache]    - 传 true 强制绕过缓存
 export function fetchStoreServices(id, options = {}) {
   const noCache = !!(options && options.noCache);
   const key = `stores-services:${id}`;
@@ -108,7 +138,11 @@ export function fetchStoreServices(id, options = {}) {
   });
 }
 
-// 获取门店理发师列表
+// 获取门店理发师列表（含 username / serviceIds / approvalStatus 等字段）
+// 理发师信息变化较频繁，建议传 noCache:true 以获取最新可服务状态。
+// @param {string} id                    - 门店 _id
+// @param {Object} [options]
+// @param {boolean} [options.noCache]    - 传 true 强制绕过缓存
 export function fetchStoreBarbers(id, options = {}) {
   const noCache = !!(options && options.noCache);
   const key = `stores-barbers:${id}`;
@@ -122,7 +156,10 @@ export function fetchStoreBarbers(id, options = {}) {
   });
 }
 
-// 管理员更新自己门店资料（地址/标签/营业时间/规则等）
+// 管理员更新自己门店资料（地址/标签/营业时间/预约规则等）
+// 成功后调用 clearStoreCache() 同时清理 detail/services/barbers/list 多个缓存 key，
+// 保证其他用户下次进入门店页看到最新资料。
+// @param {Object} payload - { storeId?, name?, address?, tags?, businessHours?, bookingRules? }
 export function updateManagedStore(payload) {
   return callCloud('store-update-profile', payload || {}).then((data) => {
     const storeId = (data && data.storeId) || (payload && payload.storeId) || '';
@@ -131,7 +168,13 @@ export function updateManagedStore(payload) {
   });
 }
 
-// 管理员批量设置理发师可做项目
+// 管理员批量设置理发师可执行的服务项目（barber-services-set 云函数）
+// assignments: [{ barberId, serviceIds[] }] 每条描述一个理发师的服务能力
+// overwriteAll=true（默认）：全量覆盖该门店所有理发师配置，清除不在本次列表中的旧数据
+// 成功后清理门店相关缓存，保证预约页下次加载能拿到更新后的可选理发师列表。
+// @param {Array}  assignments          - 理发师-服务映射数组
+// @param {Object} [options]
+// @param {boolean} [options.overwriteAll=true] - 是否全量覆盖（false=仅更新传入的理发师，其余保留）
 export function setStoreBarberServices(assignments, options = {}) {
   const payload = {
     assignments: Array.isArray(assignments) ? assignments : [],

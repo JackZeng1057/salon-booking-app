@@ -1,4 +1,29 @@
 <script>
+	/**
+	 * @file App.vue — 应用全局入口
+	 *
+	 * 【职责定位】
+	 * uni-app 应用的根组件，处理 App 级别的生命周期事件：
+	 *   - onLaunch : App 首次启动（冷启动）
+	 *   - onShow   : App 从后台切回前台
+	 *   - onHide   : App 切入后台
+	 *
+	 * 【登录态恢复（authStore.init）】
+	 * App 启动第一步：从 uni.getStorageSync(STORAGE_KEY) 读取持久化的 token + user + role，
+	 * 恢复 authStore.state，确保后续所有 callCloud 能自动携带 token。
+	 * 无需每次启动重新登录，提升用户体验。
+	 *
+	 * 【系统通知轮询（syncCriticalSystemNotifications）】
+	 * 由于 uniCloud 不支持服务端主动推送（无 WebSocket），
+	 * 采用前台高频（30 秒）+ 后台低频（90 秒）的轮询策略，
+	 * 拉取 notifications 集合中的"关键通知"（如订单改期/取消/审核结果），
+	 * 并通过系统悬浮窗展示，尽量保证用户在不主动打开 App 时也能感知重要消息变化。
+	 * iOS 后台 App 冻结机制可能导致轮询中断，服务端推送是理想的备选方案。
+	 *
+	 * 【样式全局重置（<style>）】
+	 * page 根选择器定义全局字体族、颜色、溢出规则，
+	 * 统一 box-sizing: border-box，消除移动端常见布局偏差。
+	 */
 	// 应用入口：负责初始化登录态与基础生命周期钩子
 	import { authStore } from './store/auth'
 	import { syncCriticalSystemNotifications } from './utils/system-notify'

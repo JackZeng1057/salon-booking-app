@@ -1,12 +1,25 @@
-const { withResponse, ApiError, requireRole, normalizeIdList } = require('sb-common');
-
 /**
- * 门店资料更新云函数（管理员）
- * 支持更新：
- * - 门店基础信息（名称/地址/电话/封面/简介/标签）
- * - 营业时间、预约规则
- * - 服务项目增删改
+ * store-update-profile 云函数 —— 门店资料更新（管理员）
+ *
+ * 【业务说明】
+ * 门店管理员修改自己门店的基础信息、营业时间、预约规则和服务项目清单。
+ * 只更新请求中显式传入的字段（hasOwn 判断），避免覆盖未传字段。
+ *
+ * 【字段更新策略】
+ * 使用 hasOwn() 安全判断，区分"字段未传"与"字段传空值"两种语义，
+ * 确保客户端不传的字段不会被意外清空。
+ *
+ * 【服务项目全量同步策略】
+ * 传入 services 时执行完整的三路合并：
+ * - 有 _id 且属于本店 → UPDATE（保留）
+ * - 有 name 但无匹配 _id → ADD（新增）
+ * - 旧服务中未出现在新列表的 → DELETE（删除）
+ * 删除后联动清理理发师 serviceIds 中的失效项，防止下单时出现脏引用。
+ *
+ * 【权限】
+ * - 仅 admin 角色可调用，storeId 从 token 中取得，不可由客户端伪造
  */
+const { withResponse, ApiError, requireRole, normalizeIdList } = require('sb-common');
 
 // 安全判断对象是否显式包含某字段（区分“未传”与“传空值”）
 function hasOwn(obj, key) {
@@ -138,12 +151,15 @@ exports.main = withResponse(async (event, context) => {
       throw new ApiError(400, 'services required');
     }
 
-    // 服务项目全量同步策略：保留、更新、新增、删除
+    // 服务项目全量同步策略：保留 / 更新 / 新增 / 删除
+    // 先拉取数据库中旧服务 ID 全集，后面三路对比
     const _ = db.command;
     const servicesCol = db.collection('services');
     const oldRes = await servicesCol.where({ storeId }).field({ _id: true }).get();
     const oldList = oldRes.data || [];
+    // oldIds：数据库已有的服务 ID 集合，用于区分更新与新增
     const oldIds = new Set(oldList.map((item) => item && item._id).filter((id) => !!id));
+    // keepIds：新列表处理后需保留的 ID（包括更新项和新增项生成的 ID）
     const keepIds = new Set();
 
     for (const svc of normalizedServices) {
@@ -157,9 +173,11 @@ exports.main = withResponse(async (event, context) => {
       };
 
       if (svc._id && oldIds.has(svc._id)) {
+        // 已存在的服务：执行 UPDATE 并加入保留集
         await servicesCol.doc(svc._id).update(doc);
         keepIds.add(svc._id);
       } else {
+        // 新服务（无 _id 或 ID 不在库中）：执行 ADD
         const addRes = await servicesCol.add({
           ...doc,
           createdAt: now
@@ -169,6 +187,7 @@ exports.main = withResponse(async (event, context) => {
       }
     }
 
+    // 不在新列表中的旧服务 → DELETE（从 services 集合中彻底删除）
     const removeIds = oldList
       .map((item) => item && item._id)
       .filter((id) => !!id && !keepIds.has(id));

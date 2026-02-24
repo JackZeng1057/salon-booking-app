@@ -1,3 +1,15 @@
+/**
+ * reviews-by-order 云函数 —— 查询订单评价
+ *
+ * 【业务说明】
+ * 返回指定订单的评价记录（reviews 集合）。
+ * 订单详情页底部展示“我的评价”时调用。
+ * 一个订单最多有一条评价（限制 limit(1)）。
+ *
+ * 【权限】
+ * - 需要登录（requireLogin）
+ * - user 只能查询自己订单的评价
+ */
 const { withResponse, ApiError, ERROR_CODES, requireLogin } = require('sb-common');
 
 // 获取订单评价：按订单查询并做权限校验

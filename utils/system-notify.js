@@ -197,6 +197,17 @@ function openNotificationSettings() {
   openNotificationSettingsByIntent();
 }
 
+// 通过 Android Intent 直接跳转系统通知设置页（三级降级策略）：
+// Level 1：android.settings.APP_NOTIFICATION_SETTINGS
+//   — 标准 API，Android 5+ 均支持，直达应用通知开关页。
+//   — 需要附带 APP_PACKAGE / app_package / app_uid 三个 Extra，不同 ROM 解析字段不同，全部传入以提高兼容性。
+// Level 2：android.settings.APPLICATION_DETAILS_SETTINGS（应用详情页）
+//   — Level 1 被 ROM 屏蔽时的备选。用户可以在此手动进入"通知"子项开启权限。
+//   — 通过 Uri.parse('package:<pkg>') 定位到当前应用，避免跳到系统应用列表根目录。
+// Level 3：plus.runtime.openURL('package:<appid>')
+//   — uniApp 运行时兼容策略，适配 Level 1 & 2 均失败的非标设备（如国内某些深度定制 ROM）。
+// 所有跳转均在 try-catch 内执行，互不干扰；
+// 每级成功后立即 return，避免重复打开多个系统页面。
 function openNotificationSettingsByIntent() {
   // #ifdef APP-PLUS
   try {
@@ -206,14 +217,20 @@ function openNotificationSettingsByIntent() {
       const Intent = android.importClass('android.content.Intent');
       const Build = android.importClass('android.os.Build');
       const Uri = android.importClass('android.net.Uri');
+      // SDK_INT 用于判断系统版本，决定跳转策略。此处仅做读取，不做分支判断。
       const sdkInt = Number(Build.VERSION.SDK_INT || 0);
+      // getPackageName() 返回本应用包名，如 com.salon.booking
       const pkg = main.getPackageName();
+      // uid 是应用在系统中的唯一数字标识，部分 ROM 的通知设置页用 app_uid 检索应用
       const appUid = main.getApplicationInfo().uid;
 
+      // Level 1：直接打开应用通知设置页（最精确，兼容 Android 5+）
       try {
         const intent = new Intent();
         intent.setAction('android.settings.APP_NOTIFICATION_SETTINGS');
+        // 标准 Extra key：Android 8+ 官方推荐使用此字段定位应用
         intent.putExtra('android.provider.extra.APP_PACKAGE', pkg);
+        // 旧版兼容 Extra key（Android 5~7 部分 ROM 使用）
         intent.putExtra('app_package', pkg);
         intent.putExtra('app_uid', appUid);
         main.startActivity(intent);
@@ -222,8 +239,10 @@ function openNotificationSettingsByIntent() {
         console.error('open notification channel settings failed:', innerErr);
       }
 
+      // Level 2：跳转应用详情页（用户可从详情页手动进入通知设置）
       try {
         const appIntent = new Intent('android.settings.APPLICATION_DETAILS_SETTINGS');
+        // 通过 package: URI 精确定位到本应用详情，而非系统已安装应用列表
         appIntent.setData(Uri.parse('package:' + pkg));
         main.startActivity(appIntent);
         return;
@@ -231,6 +250,7 @@ function openNotificationSettingsByIntent() {
         console.error('open application details settings failed:', innerErr2);
       }
     }
+    // Level 3：uni-app 运行时 openURL 兜底（极端情况，如无法获取 android 模块的设备）
     if (typeof plus !== 'undefined' && plus.runtime && plus.runtime.openURL) {
       plus.runtime.openURL('package:' + plus.runtime.appid);
     }

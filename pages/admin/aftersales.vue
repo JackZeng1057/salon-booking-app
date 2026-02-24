@@ -1,7 +1,13 @@
 <template>
+  <!-- 售后管理页（管理员）：查看顾客售后申请并进行文本回复处理 -->
   <view class="orders-page">
+    <!-- 顶部导航 -->
     <app-nav :showTitle="true" title="售后管理" />
 
+    <!-- =====================================================
+         状态 Tab 筛选：待处理 / 已处理 / 全部
+         切换后重新拉取对应状态的售后列表
+    ===================================================== -->
     <view class="orders-top">
       <view class="tabs-wrap">
         <view
@@ -17,13 +23,25 @@
       </view>
     </view>
 
+    <!-- =====================================================
+         售后申请列表
+         每张售后卡片包含：
+         - 卡片头部：售后类型（服务问题/迟到爽约/其他）+ 处理状态徽章
+         - 卡片主体：顾客描述文本 + 当前回复（未回复时显示"未回复"）
+         - 卡片底部（仅未回复时显示）：
+           * 回复输入框（item._reply 存储临时输入值）
+           * "回复并处理"按钮：提交回复后自动更新状态为已处理
+    ===================================================== -->
     <scroll-view class="orders-scroll" scroll-y>
       <view class="orders-scroll-content">
+        <!-- 加载中占位 -->
         <view v-if="loading" class="hint">加载中...</view>
+        <!-- 空状态 -->
         <view v-else-if="list.length === 0" class="hint">暂无售后</view>
 
         <view v-else class="list">
           <view v-for="item in list" :key="item._id" class="after-card">
+            <!-- 售后类型 + 处理状态徽章 -->
             <view class="card-head">
               <text class="service-name">{{ formatAftersaleType(item.type) }}</text>
               <view class="status-pill" :class="getStatusClass(item.status)">
@@ -31,6 +49,7 @@
               </view>
             </view>
 
+            <!-- 售后详情：顾客描述 + 当前回复 -->
             <view class="card-main">
               <view class="row">
                 <text class="label">描述</text>
@@ -42,6 +61,8 @@
               </view>
             </view>
 
+            <!-- 回复操作区：仅当 item.reply 为空（未处理）时显示 -->
+            <!-- item._reply 存临时输入；item._focus 控制 input 焦点 -->
             <view v-if="!item.reply" class="card-foot">
               <input
                 class="reply-input"

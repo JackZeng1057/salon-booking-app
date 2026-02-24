@@ -1,18 +1,23 @@
 <template>
+  <!-- 注册页根容器 -->
   <view class="register-page">
-    <!-- 自定义顶部导航（注册页保留返回按钮，但不使用悬浮布局，避免整体往上顶） -->
+    <!-- 顶部导航（保留返回按钮，但不使用悬浮布局，避免整体往上顶） -->
     <app-nav :overlay="false" />
+    <!-- 顶部装饰性圆形背景图案 -->
     <view class="circle-bg"></view>
 
-    <!-- 仅允许内容区上下滚动，避免左右滚动 -->
+    <!-- 内容区滚动容器（解决键盘弹起遮挡表单问题） -->
     <scroll-view class="page-scroll" scroll-y :enable-flex="true">
       <view class="register-container">
+        <!-- 页面标题区域 -->
         <view class="header">
           <text class="title">创建账号</text>
           <text class="subtitle">注册后即可预约</text>
         </view>
 
+        <!-- 注册表单卡片 -->
         <view class="form-card">
+          <!-- 用户名输入 -->
           <view class="input-group">
             <text class="label">用户名</text>
             <input
@@ -26,6 +31,7 @@
             />
           </view>
 
+          <!-- 角色选择器（user/barber/admin 三种角色） -->
           <view class="input-group">
             <text class="label">角色</text>
             <picker :range="roleOptions" range-key="label" :value="roleIndex" @change="onRoleChange">
@@ -33,8 +39,14 @@
             </picker>
           </view>
 
+          <!--
+            门店关联字段（仅 barber/admin 角色时显示）：
+            - 理发师：下拉选已有门店（需等待审核）
+            - 店家：输入文本创建新门店
+          -->
           <view v-if="needStoreName" class="input-group">
             <text class="label">所属门店</text>
+            <!-- 理发师：下拉选已加载的门店列表 -->
             <picker
               v-if="isBarberRole"
               :range="storeOptions"
@@ -44,6 +56,7 @@
             >
               <view class="input-field picker-value">{{ selectedStoreText }}</view>
             </picker>
+            <!-- 店家：文本输入门店名称（后端创建新门店文档） -->
             <input
               v-else
               class="input-field"
@@ -54,10 +67,12 @@
               :adjust-position="false"
               cursor-spacing="20"
             />
+            <!-- 门店列表加载中/无可用门店提示 -->
             <text class="help-text" v-if="isBarberRole && loadingStores">正在加载门店列表...</text>
             <text class="help-text" v-else-if="isBarberRole && storeOptions.length === 0">暂无可选门店，请先由店家创建门店</text>
           </view>
 
+          <!-- 密码输入 -->
           <view class="input-group">
             <text class="label">密码</text>
             <input
@@ -71,6 +86,7 @@
             />
           </view>
 
+          <!-- 确认密码（前端二次校验，防止输入错误） -->
           <view class="input-group">
             <text class="label">确认密码</text>
             <input
@@ -84,6 +100,7 @@
             />
           </view>
 
+          <!-- 注册提交按钮（loading 时禁用，防止重复提交） -->
           <button
             class="register-btn"
             :loading="loading"
@@ -94,6 +111,7 @@
           </button>
         </view>
 
+        <!-- 底部已有账号提示 + 跳登录入口 -->
         <view class="footer">
           <text class="footer-text">已有账号？</text>
           <text class="signup-link" @click="goLogin">去登录</text>

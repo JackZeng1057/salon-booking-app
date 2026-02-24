@@ -1,6 +1,21 @@
+/**
+ * seed-data 云函数 —— 初始化演示数据
+ *
+ * 【业务说明】
+ * 快速创建两家门店、与其对应服务项目、以及演示用户账号样例，
+ * 便于开发、测试与论文演示环境快速建立初始数据。
+ *
+ * 【幂等性设计】
+ * 使用固定 _id（store_001/store_002）创建门店，已存在则复用，
+ * 不会因重复调用而产生重复数据。
+ *
+ * 【权限】
+ * - 仅 admin 角色可调用（生产环境应禁用此接口）
+ */
 // 初始化演示数据：门店/服务/账号样例
 const { withResponse, requireRole } = require('sb-common');
 
+// SHA-256("123456") 的封升值，用于创建演示账号时设置初始密码
 const passwordHash123456 = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92';
 
 // 若指定 _id 已存在则直接复用，否则按固定 _id 新增文档
@@ -69,6 +84,7 @@ exports.main = withResponse(async (event, context) => {
     }
   }
 
+  // 创建演示账号集：普通用户 ×1、理发师 ×2（分属 storeA/storeB）、管理员 ×2（分属 storeA/storeB）。初始密码均为 123456
   await ensureUserByUsername(db, 'user_001', {
     username: 'user_001',
     passwordHash: passwordHash123456,

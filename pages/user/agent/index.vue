@@ -1,5 +1,14 @@
 <template>
+  <!-- AI小顾问页：对话式 AI 服务推荐界面，接入阿里云 Qwen 视觉语言模型 -->
   <view class="agent-page">
+    <!-- =====================================================
+         自定义顶部导航栏
+         - 左侧：AI 品牌标志（方形 LOGO + "AI小顾问"文字）
+         - 右侧：两个功能按钮
+           * 新建对话（⊕）：清空当前消息，开始新会话
+           * 历史记录（⋯）：打开底部历史对话抽屉
+         注意：不使用 app-nav 组件，因为需要自定义高度与状态栏适配
+    ===================================================== -->
     <view class="top-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="top-inner">
         <view class="nav-left">
@@ -11,9 +20,11 @@
           </view>
         </view>
         <view class="nav-right">
+          <!-- 新建对话：点击后清空 chatItems，重置为欢迎页状态 -->
           <view class="nav-mini-btn" @click="startNewChat">
             <text class="nav-mini-icon">⊕</text>
           </view>
+          <!-- 历史记录：展开底部 history-sheet 抽屉 -->
           <view class="nav-mini-btn" @click="openHistory">
             <text class="nav-mini-icon">⋯</text>
           </view>
@@ -21,6 +32,13 @@
       </view>
     </view>
 
+    <!-- =====================================================
+         对话内容滚动区
+         - scroll-into-view / scroll-top 配合 scrollAnchor 实现
+           新消息出现时自动滚动到底部
+         - contentTopPadding / contentBottomPadding 动态计算，
+           保证内容不被顶部导航栏和底部输入栏遮挡
+    ===================================================== -->
     <scroll-view
       class="content"
       scroll-y
@@ -29,6 +47,12 @@
       :style="{ paddingTop: contentTopPadding + 'px', paddingBottom: contentBottomPadding }"
     >
       <view class="chat-list">
+        <!-- =====================================================
+             空状态：首次进入或新建会话时展示欢迎界面
+             - 品牌 LOGO + 欢迎文案
+             - 快捷提示词列表（quickPrompts）：
+               点击后自动填入输入框并触发发送
+        ===================================================== -->
         <view v-if="chatItems.length === 0" class="prompt-list">
           <view class="hero-wrap">
             <view class="hero-logo-wrap">
@@ -37,6 +61,7 @@
             <text class="hero-title">你好，想做点什么？</text>
             <text class="hero-subtitle">输入需求或上传参考图，获取跨门店推荐</text>
           </view>
+          <!-- 快捷提示词卡片：点击快速发送预设问题 -->
           <view
             v-for="(item, idx) in quickPrompts"
             :key="idx"
@@ -47,12 +72,24 @@
           </view>
         </view>
 
+        <!-- =====================================================
+             对话消息列表（chatItems）
+             每条消息根据 role（user/assistant）和 type 渲染不同 UI：
+             - role=user：用户消息气泡（文本 + 最多3张图片网格）
+             - type=loading：AI 思考中的三点打字机动画
+             - type=result：AI 推荐结果卡片
+               * advice：建议文本
+               * bookingRemark：将自动带入订单备注的文字
+               * recommendations：推荐服务列表（可直接点击去预约）
+             - 其他 assistant：AI 普通文本回复气泡
+        ===================================================== -->
         <view
           v-for="item in chatItems"
           :key="item.id"
           class="msg-row"
           :class="item.role === 'user' ? 'msg-user' : 'msg-assistant'"
         >
+          <!-- 用户消息气泡：文本 + 图片多图网格（最多3张） -->
           <view v-if="item.role === 'user'" class="msg-bubble msg-bubble-user">
             <text v-if="item.text" class="msg-text">{{ item.text }}</text>
             <view v-if="item.images && item.images.length > 0" class="msg-media-grid">
@@ -67,6 +104,7 @@
             </view>
           </view>
 
+          <!-- AI 思考中：三点打字机动画 + 提示文字 -->
           <view v-else-if="item.type === 'loading'" class="loading-bubble">
             <view class="typing-dot dot1"></view>
             <view class="typing-dot dot2"></view>
@@ -74,15 +112,18 @@
             <text class="loading-text">AI正在思考...</text>
           </view>
 
+          <!-- AI 推荐结果卡片 -->
           <view v-else-if="item.type === 'result'" class="result-card">
             <text class="result-title">顾问建议</text>
             <text class="result-advice">{{ item.data.advice }}</text>
 
+            <!-- 预约备注预览：此文本将自动带入订单创建页的备注字段 -->
             <view class="remark-box">
               <text class="remark-label">预约备注（将自动带入下单）</text>
               <text class="remark-content">{{ item.data.bookingRemark }}</text>
             </view>
 
+            <!-- 推荐服务列表：点击跳转对应门店的预约创建页 -->
             <view class="result-services">
               <text class="services-title">推荐服务（可跨门店）</text>
               <view
@@ -111,20 +152,37 @@
       <view id="chat-bottom-anchor" class="chat-bottom-anchor"></view>
     </scroll-view>
 
+    <!-- =====================================================
+         底部输入栏（composer-wrap）
+         - composerBottom 动态计算底部偏移（适配键盘弹起）
+         - 图片预览横向滚动条（imageItems > 0 时显示）：
+           * 每张图片可点击预览或点击 ✕ 删除
+         - 普通状态（inputFocused=false）：
+           * +号按钮：调用 pickImages 选择本地图片（最多3张）
+           * 单行输入框 + 发送按钮
+         - 展开状态（inputFocused=true）：
+           * 多行文本域（支持换行输入，符合 AI 长文本需求）
+           * 右下角发送图标按钮
+    ===================================================== -->
     <view class="composer-wrap" :style="{ bottom: composerBottom }">
+      <!-- 待上传图片预览横向列表 -->
       <scroll-view v-if="imageItems.length > 0" class="image-strip" scroll-x>
         <view class="image-row">
           <view v-for="(item, idx) in imageItems" :key="item.fileId" class="strip-item">
             <image class="strip-image" :src="item.preview" mode="aspectFill" @click="previewPendingImage(idx)" />
+            <!-- 删除图片：点击 ✕ 从待上传列表移除 -->
             <view class="strip-remove" @click.stop="removeImage(idx)">✕</view>
           </view>
         </view>
       </scroll-view>
 
+      <!-- 普通状态输入栏 -->
       <view v-if="!inputFocused" class="composer">
+        <!-- + 按钮：选择本地图片附件 -->
         <view class="composer-plus" @click="pickImages">
           <text class="composer-plus-icon">+</text>
         </view>
+        <!-- 单行输入框：confirm-type=send 触发回车发送 -->
         <input
           v-model="queryText"
           class="composer-input"
@@ -139,6 +197,7 @@
         </view>
       </view>
 
+      <!-- 展开状态输入栏：聚焦后切换为多行 textarea -->
       <view v-else class="composer-expanded">
         <textarea
           v-model="queryText"
@@ -158,11 +217,21 @@
       </view>
     </view>
 
+    <!-- =====================================================
+         历史对话底部抽屉（historyVisible 控制显示）
+         - 点击遮罩（history-mask）或返回按钮关闭
+         - 按时间分组：今天 / 更早
+         - 支持长按触发批量删除模式（batchMode）：
+           * batchMode=true 时显示多选框（✓/○）
+           * 选中后可批量删除多条历史会话
+         - 右键/长按单条可弹出操作菜单（重命名/删除）
+    ===================================================== -->
     <view v-if="historyVisible" class="history-mask" @click="closeHistory">
       <view class="history-sheet" @click.stop>
         <view class="history-header">
           <view class="history-back" @click="closeHistory">‹</view>
           <text class="history-title">历史对话</text>
+          <!-- 批量模式下显示"取消"按钮退出多选 -->
           <text v-if="batchMode" class="history-cancel" @click="cancelBatchMode">取消</text>
         </view>
 
@@ -171,6 +240,7 @@
           :style="{ height: batchMode ? 'calc(76vh - 186rpx)' : 'calc(76vh - 94rpx)' }"
           @click="closeHistoryMenu"
         >
+          <!-- 今天的会话 -->
           <text class="history-label">今天</text>
           <view class="history-card">
             <view
@@ -182,14 +252,17 @@
               @longpress.stop="onHistoryItemLongPress(item, $event)"
             >
               <view class="history-item-main">
+                <!-- 批量模式下显示多选框 -->
                 <text v-if="batchMode" class="history-check">{{ isBatchSelected(item.id) ? '✓' : '○' }}</text>
                 <text class="history-item-icon">◌</text>
                 <text class="history-item-title">{{ item.title || '新会话' }}</text>
               </view>
+              <!-- 当前会话标记 -->
               <text v-if="item.id === currentSessionId" class="history-current">当前会话</text>
             </view>
           </view>
 
+          <!-- 更早的历史会话 -->
           <text class="history-label">更早</text>
           <view class="history-card">
             <view

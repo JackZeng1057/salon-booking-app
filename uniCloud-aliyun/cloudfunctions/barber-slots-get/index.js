@@ -1,3 +1,36 @@
+/**
+ * @file barber-slots-get/index.js — 查询理发师可预约时段
+ *
+ * 【业务定位】
+ * 预约创建页（pages/order/create.vue）的核心数据源，
+ * 负责将"理发师 + 日期 + 服务"三要素转换为前端可直接渲染的时段列表。
+ *
+ * 【可预约窗口计算逻辑（三重约束取交集）】
+ *   ① 理发师排班区间（barber_schedules.workStart ~ workEnd）
+ *   ② 门店营业时间（stores.businessHours.weekday / weekend）
+ *   ③ 已占用/过期 slot（time_slots 集合实时状态）
+ * 三者取交集后，以"服务时长 + REST_GAP_MIN（5 分钟缓冲）"为步进，
+ * 生成最终可预约起始时间列表。
+ *
+ * 【时段状态枚举】
+ *   - AVAILABLE：可预约；
+ *   - BOOKED：已被他人预约（起始时段已占）；
+ *   - UNAVAILABLE：服务时长内某中间 slot 被占（起始本身未占，但连续区间有障碍）；
+ *   - EXPIRED：过期（当天距开始不足 5 分钟，或历史日期）。
+ *
+ * 【重复 slot 合并策略】
+ * 同一 startTime 可能在 time_slots 中存在多条记录（历史原因/并发写入），
+ * mergeSlotStatus() 按"最严格状态"合并（BOOKED > UNAVAILABLE > EXPIRED > AVAILABLE），
+ * 确保前端不会误判已占用时段为可预约。
+ *
+ * 【分页读取 slots（PageSize=500）】
+ * 云数据库单次查询默认上限 100，fetchAllSlotsByDate() 按 500 条分批读取，
+ * 防止理发师某天 slot 记录超出单次限制时数据截断。
+ *
+ * 【休息时间段（BREAK_WINDOWS）】
+ * 午休 12:00-13:00 和晚休 18:00-19:00 不允许作为起始时间，
+ * 避免顾客预约到就餐时段影响服务质量。
+ */
 const {
   withResponse,
   ApiError,

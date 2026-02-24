@@ -1,5 +1,7 @@
 <template>
+	<!-- 门店运营看板页根容器 -->
 	<view class="page">
+		<!-- 吸顶头部区域 -->
 		<view class="page-header">
 			<app-nav :showTitle="true" title="门店看板" />
 			<view class="hero-card">
@@ -8,6 +10,7 @@
 		</view>
 
 		<scroll-view class="page-scroll" scroll-y>
+			<!-- 日期选择器：选择基准日期（日视图=当天，周视图=近7天的锚点日） -->
 			<view class="field">
 				<text class="label">{{ mode === 'week' ? '锚点日期（统计近7天）' : '日期' }}</text>
 				<modern-date-picker :value="date" @change="onDateChange">
@@ -15,80 +18,91 @@
 				</modern-date-picker>
 			</view>
 
+			<!-- 日/周看板切换 Tab -->
 			<view class="mode-tabs">
 				<view class="mode-tab" :class="{ active: mode === 'day' }" @click="switchMode('day')">日看板</view>
 				<view class="mode-tab" :class="{ active: mode === 'week' }" @click="switchMode('week')">周看板</view>
 			</view>
+			<!-- 当前统计区间文字说明（如"2025-02-24"或"2025-02-18 ~ 2025-02-24"） -->
 			<text class="range-tip">统计范围：{{ rangeText }}</text>
 
+			<!-- 加载中占位 -->
 			<view v-if="loading" class="hint">加载中...</view>
 			<view v-else class="card">
-			<view class="grid">
-				<view class="grid-item">
-					<text class="grid-label">总单量</text>
-					<text class="grid-value">{{ counters.total }}</text>
-				</view>
-				<view class="grid-item">
-					<text class="grid-label">到店</text>
-					<text class="grid-value">{{ counters.arrived }}</text>
-				</view>
-				<view class="grid-item">
-					<text class="grid-label">已完成</text>
-					<text class="grid-value">{{ counters.finished }}</text>
-				</view>
-				<view class="grid-item">
-					<text class="grid-label">已取消</text>
-					<text class="grid-value">{{ counters.cancelled }}</text>
-				</view>
-				<view class="grid-item">
-					<text class="grid-label">爽约</text>
-					<text class="grid-value">{{ counters.noShow }}</text>
-				</view>
-			</view>
-
-			<view class="kpi-grid">
-				<view class="kpi-item">
-					<text class="kpi-label">完成率</text>
-					<text class="kpi-value">{{ formatRate(rates.finishRate) }}</text>
-				</view>
-				<view class="kpi-item">
-					<text class="kpi-label">取消率</text>
-					<text class="kpi-value">{{ formatRate(rates.cancelRate) }}</text>
-				</view>
-				<view class="kpi-item">
-					<text class="kpi-label">爽约率</text>
-					<text class="kpi-value">{{ formatRate(rates.noShowRate) }}</text>
-				</view>
-				<view class="kpi-item">
-					<text class="kpi-label">评价均分</text>
-					<text class="kpi-value">{{ reviewSummaryText }}</text>
-				</view>
-			</view>
-
-			<view class="section">
-				<text class="section-title">{{ mode === 'week' ? '近7天趋势' : '当日趋势' }}</text>
-				<view v-if="mergedTrend.length === 0" class="hint">暂无数据</view>
-				<view v-else class="trend-list">
-					<view v-for="item in mergedTrend" :key="item.date" class="trend-row">
-						<text class="trend-date">{{ item.date }}</text>
-						<text class="trend-meta">预约 {{ item.total }} · 完成 {{ item.finished }} · 取消 {{ item.cancelled }} · 爽约 {{ item.noShow }}</text>
-						<text class="trend-meta trend-sub">
-							完成率 {{ formatRate(item.finishRate) }} · 评分 {{ formatReview(item.reviewAvg, item.reviewCount) }}
-						</text>
+				<!-- 核心订单量计数网格 -->
+				<view class="grid">
+					<!-- 各状态订单数量统计块 -->
+					<view class="grid-item">
+						<text class="grid-label">总单量</text>
+						<text class="grid-value">{{ counters.total }}</text>
+					</view>
+					<view class="grid-item">
+						<text class="grid-label">到店</text>
+						<text class="grid-value">{{ counters.arrived }}</text>
+					</view>
+					<view class="grid-item">
+						<text class="grid-label">已完成</text>
+						<text class="grid-value">{{ counters.finished }}</text>
+					</view>
+					<view class="grid-item">
+						<text class="grid-label">已取消</text>
+						<text class="grid-value">{{ counters.cancelled }}</text>
+					</view>
+					<view class="grid-item">
+						<text class="grid-label">爽约</text>
+						<text class="grid-value">{{ counters.noShow }}</text>
 					</view>
 				</view>
-			</view>
 
-			<view class="section">
-				<text class="section-title">理发师统计</text>
-				<view v-if="barberStats.length === 0" class="hint">暂无数据</view>
-				<view v-else class="list">
-					<view v-for="item in barberStats" :key="item.barberId || item.barberName" class="row">
-						<text class="value">{{ item.barberName || '未知' }}</text>
-						<text class="meta">完成 {{ item.finished }} / 取消 {{ item.cancelled }} / 爽约 {{ item.noShow }}</text>
+				<!-- KPI 指标网格：完成率/取消率/爽约率/评价均分 -->
+				<view class="kpi-grid">
+					<view class="kpi-item">
+						<text class="kpi-label">完成率</text>
+						<text class="kpi-value">{{ formatRate(rates.finishRate) }}</text>
+					</view>
+					<view class="kpi-item">
+						<text class="kpi-label">取消率</text>
+						<text class="kpi-value">{{ formatRate(rates.cancelRate) }}</text>
+					</view>
+					<view class="kpi-item">
+						<text class="kpi-label">爽约率</text>
+						<text class="kpi-value">{{ formatRate(rates.noShowRate) }}</text>
+					</view>
+					<view class="kpi-item">
+						<text class="kpi-label">评价均分</text>
+						<!-- reviewSummaryText：展示"4.8 (32条评价)"格式 -->
+						<text class="kpi-value">{{ reviewSummaryText }}</text>
 					</view>
 				</view>
-			</view>
+
+				<!-- 日/周趋势列表：每行一天，展示预约/完成/取消/爽约/完成率/评分 -->
+				<view class="section">
+					<text class="section-title">{{ mode === 'week' ? '近7天趋势' : '当日趋势' }}</text>
+					<view v-if="mergedTrend.length === 0" class="hint">暂无数据</view>
+					<view v-else class="trend-list">
+						<view v-for="item in mergedTrend" :key="item.date" class="trend-row">
+							<text class="trend-date">{{ item.date }}</text>
+							<!-- 主要趋势数据行 -->
+							<text class="trend-meta">预约 {{ item.total }} · 完成 {{ item.finished }} · 取消 {{ item.cancelled }} · 爽约 {{ item.noShow }}</text>
+							<!-- 次要指标行：完成率 + 评分 -->
+							<text class="trend-meta trend-sub">
+								完成率 {{ formatRate(item.finishRate) }} · 评分 {{ formatReview(item.reviewAvg, item.reviewCount) }}
+							</text>
+						</view>
+					</view>
+				</view>
+
+				<!-- 理发师个人统计：各人完成/取消/爽约订单数 -->
+				<view class="section">
+					<text class="section-title">理发师统计</text>
+					<view v-if="barberStats.length === 0" class="hint">暂无数据</view>
+					<view v-else class="list">
+						<view v-for="item in barberStats" :key="item.barberId || item.barberName" class="row">
+							<text class="value">{{ item.barberName || '未知' }}</text>
+							<text class="meta">完成 {{ item.finished }} / 取消 {{ item.cancelled }} / 爽约 {{ item.noShow }}</text>
+						</view>
+					</view>
+				</view>
 			</view>
 			<view class="scroll-bottom-gap"></view>
 		</scroll-view>
@@ -162,7 +176,8 @@ export default {
 			if (!endDate || startDate === endDate) return startDate;
 			return `${startDate} 至 ${endDate}`;
 		},
-		// 合并订单趋势与评价趋势，统一输出给模板
+		// 将 orderTrend 与 reviewTrend 按日期键关联合并，穿入对应日评价均分与评价条数
+		// reviewMap 提供 O(1) 日期查找；无评价的日期 reviewAvg/reviewCount 默认为空/0
 		mergedTrend() {
 			const reviewMap = {};
 			(this.reviewTrend || []).forEach((item) => {
@@ -179,7 +194,11 @@ export default {
 				};
 			});
 		},
-		// 计算区间内评价加权均分
+		// 计算区间内评价加权均分（展示为一位小数）：
+		// 遍历 reviewTrend 每一天的 count 和 avg，
+		// 累加总条数（count）和加权分数和（avg × count），
+		// 最终 sum / count 得到区间加权均分；
+		// count 为 0 或列表为空时返回《暂无》。
 		reviewSummaryText() {
 			const list = this.reviewTrend || [];
 			let count = 0;
@@ -226,7 +245,14 @@ export default {
 			const reviewAvg = Number(avg || 0);
 			return `${reviewAvg.toFixed(1)}（${reviewCount}条）`;
 		},
-		// 拉取看板数据并更新统计
+		// 拉取看板数据并更新展示状态：
+		// 参数 { date, mode } 发送给 fetchDashboard，收到统一返回包含：
+		//   counters    — 总订单/已完成/待服务/已取消等计数器
+		//   rates       — 完成率/取消率/到场率等百分比
+		//   range       — 本次查询的日期范围（startDate/endDate）
+		//   barberStats — 每位理发师个人订单量与均分汇总
+		//   orderTrend  — 按日期维度的订单趋势，由 mergedTrend 与 reviewTrend 关联展示
+		//   reviewTrend — 按日期维度的评价均分与条数
 		async loadDashboard() {
 			this.loading = true;
 			try {

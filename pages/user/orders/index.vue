@@ -1,7 +1,14 @@
 <template>
   <view class="orders-page">
+    <!-- 通用顶部导航栏，标题固定为"我的预约" -->
     <app-nav :showBack="false" :showTitle="true" title="我的预约" />
 
+    <!-- =====================================================
+         状态 Tab 筛选区
+         - statusOptions 包含："全部 / 待到店 / 服务中 / 已完成 / 已取消" 等选项
+         - 点击切换 status 后自动重新拉取对应状态的订单列表
+         - 激活项下方显示绿色高亮条（tab-line）
+    ===================================================== -->
     <view class="orders-top">
       <view class="tabs-wrap">
         <view
@@ -17,9 +24,24 @@
       </view>
     </view>
 
+    <!-- =====================================================
+         订单列表滚动区
+         - scrolltolower 触发分页加载更多
+         - 列表为"侧滑删除"交互：
+           * 向左滑动（swipe-open）露出红色删除区（swipe-actions）
+           * 已完成/已取消才允许侧滑删除（canSwipeDelete 控制）
+         - 每张订单卡片包含：
+           * 门店名（带门店图标）+ 状态徽章（颜色按状态动态）
+           * 服务名称 + 预约时间段 + 理发师姓名
+           * 排队等待提示（waitHint — 仅有排队信息时显示）
+           * 订单号 + 核验码（到店时凭核验码核身）
+         - 点击卡片跳转订单详情页
+    ===================================================== -->
     <scroll-view class="orders-scroll" scroll-y @scrolltolower="onListScrollToLower" lower-threshold="120">
       <view class="orders-scroll-content">
+        <!-- 加载中占位 -->
         <view v-if="loading && orders.length === 0" class="hint">加载中...</view>
+        <!-- 空状态提示 -->
         <view v-else-if="orders.length === 0" class="hint">暂无订单</view>
 
         <view v-else class="list">
@@ -32,6 +54,7 @@
             @touchmove="onTouchMove($event, order)"
             @touchend="onTouchEnd($event, order)"
           >
+            <!-- 侧滑删除操作区（仅 canSwipeDelete 为真且已左滑时显示） -->
             <view
               v-if="canSwipeDelete(order) && getSwipeOffset(order._id) < 0"
               class="swipe-actions"
@@ -40,28 +63,33 @@
               <view class="swipe-delete" @click.stop="confirmDelete(order)">删除</view>
             </view>
 
+            <!-- 订单卡片主体：点击跳转订单详情 -->
             <view class="swipe-content" :style="getSwipeStyle(order)" @click="goDetail(order._id)">
               <view class="order-card">
+                <!-- 卡片头部：门店名 + 状态徽章 -->
                 <view class="order-head">
                   <view class="store-line">
                     <app-icon name="store" color="#94A3B8" :size="20" :stroke-width="2.1" />
                     <text class="store-name">{{ order.storeName || order.storeId || '未知门店' }}</text>
                   </view>
-
+                  <!-- 状态徽章：颜色由 getStatusClass() 根据 order.status 动态绑定 -->
                   <view class="status-pill" :class="getStatusClass(order.status)">
                     {{ formatOrderStatus(order.status) }}
                   </view>
                 </view>
 
+                <!-- 订单主信息：服务名称 + 预约时间段 + 理发师 -->
                 <view class="order-main">
                   <text class="service-name">{{ order.serviceName || order.serviceId || '未知服务' }}</text>
                   <text class="meta">预约时间：{{ order.date }} {{ order.startTime }}-{{ order.endTime }}</text>
                   <text class="meta">理发师：{{ order.barberName || order.barberId || '未知' }}</text>
                 </view>
+                <!-- 排队等待提示：当前排在第几位，仅有队列信息时显示 -->
                 <view v-if="waitHint(order)" class="order-queue">
                   <text class="meta">{{ waitHint(order) }}</text>
                 </view>
 
+                <!-- 卡片底部：订单号 + 6位核验码（到店出示给管理员扫码/输入核验） -->
                 <view class="order-foot">
                   <text class="foot-text">订单号：{{ order.orderNo }}</text>
                   <text class="foot-text">核验码：{{ order.verifyCode }}</text>
@@ -74,6 +102,7 @@
       </view>
     </scroll-view>
 
+    <!-- 删除/操作二次确认弹窗（app-modal 通用组件） -->
     <app-modal
       :visible="confirmDialog.visible"
       :title="confirmDialog.title"
@@ -86,6 +115,7 @@
       <view class="confirm-dialog-content">{{ confirmDialog.content }}</view>
     </app-modal>
 
+    <!-- 底部用户 Tab 栏，当前选中 "orders"（我的预约） -->
     <bottom-tab-bar current="orders" />
   </view>
 </template>
@@ -327,6 +357,10 @@ export default {
       } catch (err) {}
     },
     // 加载订单：支持重置、缓存预热、分页加载
+    // 分支逻辑：
+    //   ① 首页且有缓存数据：先从缓存渲染，并在后台调用 syncIncremental 补取增量变更，实现首屏秒开
+    //   ② 缓存为空：直接全量拉取后写入列表
+    //   ③ 非首页（翻页）：直接居律拼接到现有列表
     async loadOrders(reset = false) {
       if (!this.hasMore && !reset) return;
       if (reset) {

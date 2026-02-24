@@ -1,21 +1,27 @@
 <template>
   <view class="page">
+    <!-- 吸顶头部：导航栏 + 功能说明 Banner -->
     <view class="page-header">
       <app-nav :showTitle="true" title="门店信息设置" />
+      <!-- 页面功能说明提示文字 -->
       <view class="hero-card">
         <text class="hero-subtitle">管理员可维护地址、标签、服务、营业时间和预约规则</text>
       </view>
     </view>
 
     <scroll-view class="page-scroll" scroll-y>
+      <!-- 初次加载中占位 -->
       <view v-if="loading" class="card hint-card">加载中...</view>
 
+      <!-- 主体表单卡片：包含所有可编辑字段 -->
       <view v-else class="card">
+        <!-- 门店名称输入 -->
         <view class="field">
           <text class="label">门店名称</text>
           <input class="input" v-model="form.name" placeholder="请输入门店名称" />
         </view>
 
+      <!-- 门店封面：支持从相册选取图片上传到云存储 -->
       <view class="field">
         <text class="label">门店封面</text>
         <view class="cover-row">
@@ -26,6 +32,7 @@
         </view>
       </view>
 
+      <!-- 联系电话 -->
       <view class="field">
         <text class="label">联系电话</text>
         <input class="input" v-model="form.phone" placeholder="请输入联系电话" />
@@ -36,6 +43,7 @@
         <input class="input" v-model="form.address" placeholder="请输入详细地址" />
       </view>
 
+      <!-- 门店标签：展示在列表页端，逗号分隔多个标签 -->
       <view class="field">
         <text class="label">标签（逗号分隔）</text>
         <textarea
@@ -46,6 +54,7 @@
         />
       </view>
 
+      <!-- 服务项目设置：支持动态新增/删除每条服务，与 services 集合同步 -->
       <view class="field">
         <view class="field-head">
           <text class="label">服务项目设置</text>
@@ -71,6 +80,7 @@
         </view>
       </view>
 
+      <!-- 工作日营业时间：开始~结束时间选择器 -->
       <view class="field">
         <text class="label">工作日营业时间</text>
         <view class="time-row">

@@ -1,5 +1,7 @@
 <template>
+  <!-- 我的评价页根容器 -->
   <view class="page">
+    <!-- 吸顶头部：导航栏 + 功能说明 Banner -->
     <view class="page-header">
       <app-nav :showTitle="true" title="我的评价" />
       <view class="hero-card">
@@ -7,30 +9,39 @@
       </view>
     </view>
 
+    <!-- 评价列表滚动区域：触底自动加载更多 -->
     <scroll-view class="page-scroll" scroll-y @scrolltolower="loadMore">
+      <!-- 加载中占位 -->
       <view v-if="loading && reviews.length === 0" class="hint">加载中...</view>
+      <!-- 空列表提示 -->
       <view v-else-if="reviews.length === 0" class="hint">暂无评价记录</view>
 
+      <!-- 评价卡片列表 -->
       <view v-else class="list">
       <view v-for="item in reviews" :key="item._id" class="card">
+        <!-- 卡片头：门店名称 + 评价时间 -->
         <view class="card-head">
           <text class="store">{{ item.storeName || item.storeId || '门店' }}</text>
           <text class="time">{{ formatTime(item.createdAt) }}</text>
         </view>
 
+        <!-- 关联订单快照：订单号、服务项目、理发师、日期 -->
         <view class="order-meta">
           <text class="meta-line">订单号：{{ item.orderNo || '-' }}</text>
           <text class="meta-line">{{ item.serviceName || '服务' }} · {{ item.barberName || '技师' }}</text>
           <text class="meta-line">{{ item.date || '-' }} {{ item.startTime || '' }}{{ item.endTime ? '-' + item.endTime : '' }}</text>
         </view>
 
+        <!-- 星级评分展示 -->
         <view class="rating-row">
           <text class="score">{{ formatScore(item.rating) }}</text>
           <text class="stars">{{ formatStars(item.rating) }}</text>
         </view>
 
+        <!-- 评价文字内容 -->
         <text class="content">{{ item.content || '（无评价内容）' }}</text>
 
+        <!-- 评价图片（点击预览大图） -->
         <view v-if="item.images && item.images.length" class="images-row">
           <image
             v-for="(img, idx) in item.images"
@@ -42,11 +53,13 @@
           />
         </view>
 
+        <!-- 商家回复区（若有） -->
         <view v-if="item.reply && item.reply.content" class="reply-box">
           <text class="reply-label">商家回复：</text>
           <text class="reply-content">{{ item.reply.content }}</text>
         </view>
 
+        <!-- 底部操作按钮：查看关联订单 + 带二次确认的删除评价 -->
         <view class="actions">
           <button class="btn btn-light" type="default" @click="goOrderDetail(item)">查看订单</button>
           <button
@@ -60,6 +73,7 @@
         </view>
       </view>
 
+        <!-- 加载更多触发区 -->
         <view class="load-more" @click="loadMore">
           <text>{{ hasMore ? (loadingMore ? '加载中...' : '加载更多') : '没有更多了' }}</text>
         </view>

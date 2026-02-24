@@ -1,3 +1,30 @@
+/**
+ * @file orders-cancel/index.js — 取消预约云函数
+ *
+ * 【业务定位】
+ * 实现订单状态机中 BOOKED → CANCELLED 这一关键转换。
+ * 两类角色可触发取消：
+ *   - user（顾客自主取消）：只能取消自己的订单；
+ *   - admin（门店代取消）：只能取消本店订单，需附加原因（reason 参数）。
+ *
+ * 【取消时间窗口设计】
+ * 允许在预约开始时刻 + cancelWindowMin（默认 5 分钟）以内取消。
+ * 宽限几分钟的原因：顾客到店核验与取消操作在极端情况下可能交叉发生，
+ * 若到店后立即关闭取消入口，则管理员需手动回滚，故保留短暂宽限期。
+ *
+ * 【并发安全（乐观锁）】
+ * update 操作的 where 条件包含 status=BOOKED，保证"只有 BOOKED 才能被取消"，
+ * 避免两路并发请求都成功取消同一订单。
+ * 若 updateRes.updated === 0，则说明已被他人修改，返回 status_not_allowed。
+ *
+ * 【slot 释放】
+ * 取消成功后立即将对应 time_slots 恢复为 AVAILABLE，
+ * 确保其他用户可以立刻预约该时段，最大化门店运营效率。
+ *
+ * 【通知策略（Fire-and-Forget）】
+ * notifyCancelStakeholders() 封装了顾客/理发师/管理员三方通知，
+ * 外层 try/catch 吞掉通知异常，保证主流程成功后不会因通知失败报错给前端。
+ */
 const { withResponse, ApiError, ERROR_CODES, requireRole, logAudit, logOrderEvent } = require('sb-common');
 
 // 历史数据兼容：旧订单状态可能存中文，统一映射为英文枚举以便后续状态机判断。

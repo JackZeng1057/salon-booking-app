@@ -1,19 +1,31 @@
 <template>
+  <!-- 提交售后页：顾客对已完成/有问题的订单提交投诉或补救申请 -->
   <view class="page">
+    <!-- 顶部导航 + 说明文案：告知用户门店会尽快处理 -->
     <app-nav :showTitle="true" title="提交售后" />
     <view class="hero-card">
       <text class="hero-subtitle">描述问题后提交，门店将尽快处理</text>
     </view>
 
+    <!-- =====================================================
+         售后表单卡片
+         - 类型选择器（picker）：服务问题 / 迟到爽约 / 其他
+           typeOptions 枚举值：SERVICE / NO_SHOW / OTHER
+         - 描述文本域：说明具体问题，便于门店快速定位处理
+         - 提交按钮：调用 aftersales-create 云函数写入 aftersales 集合
+    ===================================================== -->
     <view class="card">
+      <!-- 售后类型选择器：点击弹出原生 picker 选择售后类型 -->
       <text class="label">类型</text>
       <picker :range="typeOptions" range-key="label" :value="typeIndex" @change="onTypeChange">
         <view class="input">{{ typeOptions[typeIndex].label }}</view>
       </picker>
 
+      <!-- 问题描述文本域 -->
       <text class="label">描述</text>
       <textarea class="textarea" v-model="content" placeholder="请输入售后描述"></textarea>
 
+      <!-- 提交按钮：loading 防止重复提交 -->
       <button class="submit" type="primary" :loading="loading" @click="handleSubmit">提交售后</button>
     </view>
   </view>

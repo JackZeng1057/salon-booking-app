@@ -1,9 +1,23 @@
-const { withResponse, ApiError, ERROR_CODES, requireRole, logAudit, logOrderEvent } = require('sb-common');
-
 /**
- * 管理员手动标记爽约
- * 状态流转：BOOKED -> NO_SHOW
+ * orders-no-show 云函数 —— 管理员手动标记顾客爽约
+ *
+ * 【业务说明】
+ * 预约时段开始后超过阈值时间仍未到店，管理员可将订单标记为 NO_SHOW。
+ * 状态流转：BOOKED → NO_SHOW（不可逆，不经过 ARRIVED/IN_SERVICE）
+ *
+ * 【超时阈值判断】
+ * thresholdMin 参数由调用方传入（默认 20 分钟），
+ * 服务端计算：当前时间 >= 预约开始时间 + thresholdMin × 60 × 1000 ms
+ * 未超时则抛出 not_overdue，禁止提前标记。
+ *
+ * 【幂等保护】
+ * 若订单已是 NO_SHOW 直接返回，不报错，支持幂等重试。
+ *
+ * 【权限】
+ * - 仅 admin 角色可调用
+ * - 门店隔离：只能操作与自身 storeId 匹配的订单
  */
+const { withResponse, ApiError, ERROR_CODES, requireRole, logAudit, logOrderEvent } = require('sb-common');
 
 // 状态归一化，兼容中文状态值
 function normalizeStatus(status) {
@@ -18,7 +32,7 @@ function normalizeStatus(status) {
   return map[status] || status;
 }
 
-// 中国时区日期时间转时间戳
+// 中国时区日期时间转毫秒时间戳（格式 "2025-06-01" + "09:30"）
 function toChinaTimestamp(date, time) {
   if (!date || !time) return 0;
   const ms = new Date(`${date}T${time}:00+08:00`).getTime();
@@ -69,7 +83,7 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'status_not_allowed');
   }
 
-  // 未超过超时阈值不允许标记爽约
+  // 超时阈值校验：当前时间须超过 "预约开始时间 + thresholdMin 分钟" 才允许标记爽约
   const startMs = toChinaTimestamp(order.date, order.startTime);
   if (!startMs || Date.now() < startMs + thresholdMin * 60 * 1000) {
     throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'not_overdue');

@@ -1,8 +1,11 @@
 <template>
+  <!-- 消息通知页根容器 -->
   <view class="page">
+    <!-- 吸顶头部导航栏 -->
     <view class="page-header">
       <app-nav :showTitle="true" title="消息通知" />
     </view>
+    <!-- 过滤行：全部/未读 Tab 切换 + 全部已读按钮 -->
     <view class="filter-row">
       <view class="filter-tabs">
         <view
@@ -20,6 +23,7 @@
           未读
         </view>
       </view>
+      <!-- 全部已读按钮：列表非空时显示，无未读消息时置灰 -->
       <view
         v-if="notifications.length > 0"
         class="mark-all-btn"
@@ -43,8 +47,9 @@
         <text class="empty-text">{{ unreadOnly ? '暂无未读消息' : '暂无消息' }}</text>
       </view>
 
-      <!-- 通知列表 -->
+      <!-- 通知消息列表 -->
       <view v-else class="notifications-list">
+        <!-- 支持左滑删除的消息行（swipe-row） -->
         <view
           v-for="notif in notifications"
           :key="notif._id"
@@ -54,6 +59,7 @@
           @touchmove="onTouchMove($event, notif)"
           @touchend="onTouchEnd($event, notif)"
         >
+          <!-- 左滑展开时显示的删除操作区 -->
           <view
             v-if="getSwipeOffset(notif._id) < 0"
             class="swipe-actions"
@@ -61,12 +67,14 @@
           >
             <view class="swipe-delete" @click.stop="confirmDelete(notif)">删除</view>
           </view>
+          <!-- 消息卡片主体（未读时加深背景） -->
           <view class="swipe-content" :style="getSwipeStyle(notif)">
             <view
               class="notification-card"
               :class="{ unread: !notif.isRead }"
               @click="handleNotificationClick(notif)"
             >
+              <!-- 通知类型图标 -->
               <view class="notif-icon">
                 <app-icon
                   :name="getNotificationIconMeta(notif.type).name"
@@ -75,9 +83,11 @@
                   :stroke-width="2.2"
                 />
               </view>
+              <!-- 标题 + 正文 + 时间 -->
               <view class="notif-content">
                 <view class="notif-header">
                   <text class="notif-title">{{ notif.title }}</text>
+                  <!-- 未读红点 -->
                   <text v-if="!notif.isRead" class="unread-dot"></text>
                 </view>
                 <text class="notif-text">{{ notif.content }}</text>

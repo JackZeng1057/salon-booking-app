@@ -1,3 +1,35 @@
+/**
+ * @file orders-reschedule/index.js — 改期云函数
+ *
+ * 【业务定位】
+ * 允许 user（顾客）或 admin（管理员）将一个 BOOKED 订单迁移到新日期/时间，
+ * 同时完成"旧时段释放 + 新时段锁定"的原子性置换。
+ *
+ * 【可改期条件】
+ * - 订单状态必须为 BOOKED；
+ * - 距当前预约开始时间必须 > 5 分钟（reschedule_window_expired 保护），
+ *   避免在服务即将开始时来不及响应的情况下改期。
+ *
+ * 【改期流程（6 步）】
+ *   1. 权限 & 参数校验（确认 user/admin 只能操作自己权限内的订单）
+ *   2. 新时段参数校验（日期格式、时间对齐、排班区间、营业时间、预约截止窗口）
+ *   3. 创建新 time_slots 文档（ensureSlotDocsExist）
+ *   4. 锁定新时段（lockSlotTimesForOrder — 乐观锁，失败则抛出 slot_conflict）
+ *   5. 释放旧时段（将旧 time_slots 恢复 AVAILABLE + orderId 清空）
+ *   6. 更新 orders 文档（写入新 date/startTime/endTime）
+ *
+ * 【失败通知机制（防重复）】
+ * 改期失败时通过 hasRecentRescheduleFailNotice() 做幂等检查：
+ * 若 3 分钟内已发过相同失败通知，则跳过，避免用户收到重复推送。
+ *
+ * 【错误映射（mapRescheduleFailMessage）】
+ * 将内部错误码（slot_conflict / outside_schedule 等）转换为中文提示，
+ * 通过通知推送给顾客，提升改期失败时的用户体验。
+ *
+ * 【通知策略（Fire-and-Forget）】
+ * notifyRescheduleStakeholders() 通知顾客/理发师/管理员三方，
+ * 外层 catch 吞掉通知异常，不影响改期主流程返回。
+ */
 const {
   withResponse,
   ApiError,
@@ -144,12 +176,9 @@ async function notifyRescheduleFailure(db, payload = {}) {
   });
 }
 
-// 订单改期：
-// 1) 先占用新时段（多段 5 分钟 slots）
-// 2) 更新订单时间与记录改期来源
-// 3) 最后释放旧时段，确保改期成功才释放
-
-// 改期预约（占新优先）
+// 订单改期主流程入口（仅 user 角色可调用）
+// 改期策略：先占新时段，成功后再释放旧时段（"占新优先"），
+// 保证在高并发场景下不出现新时段被抢占后旧单仍被释放的双输情况。
 exports.main = withResponse(async (event, context) => {
   const requestId = (context && (context.requestId || context.eventId || context.traceId)) || '';
   // 权限校验：仅 user 可改期
@@ -172,7 +201,7 @@ exports.main = withResponse(async (event, context) => {
   const db = uniCloud.database();
   const userId = user._id || user.uid || user.userId;
 
-  // 仅取改期校验所需字段，减少读取量
+  // 仅取改期校验所需字段，减少读取量（不拉 orderItems、顾客信息等）
   const orderRes = await db
     .collection('orders')
     .doc(orderId)
@@ -247,7 +276,7 @@ exports.main = withResponse(async (event, context) => {
   if (Number.isNaN(startMin) || !isAlignedToSlotStep(startMin)) {
     throw new ApiError(400, 'invalid startTime');
   }
-  // endTime 仅用于展示与订单快照
+  // endTime 仅用于展示与订单快照，不参与 time_slots 锁定逻辑
   const newEndTime = minutesToTime(startMin + durationMin);
 
   const startMs = new Date(`${newDate}T${newStartTime}:00+08:00`).getTime();
@@ -267,16 +296,21 @@ exports.main = withResponse(async (event, context) => {
   }
 
   const _ = db.command;
+  // buildRequiredSlotStartTimes：根据 startTime + durationMin 拆分所需的 5 分钟时段列表
   const newSlotTimes = buildRequiredSlotStartTimes(newStartTime, durationMin);
   try {
+    // 校验新时段在理发师排班区间内
     await ensureSlotTimesWithinSchedule(db, order.barberId, newDate, newSlotTimes);
+    // 校验新时段在门店营业时间内
     await ensureSlotTimesWithinBusinessHours(db, order.storeId, newDate, newSlotTimes);
+    // 确保 time_slots 文档存在（若未生成则自动创建 AVAILABLE 状态文档）
     await ensureSlotDocsExist(db, {
       storeId: order.storeId || '',
       barberId: order.barberId,
       date: newDate,
       slotTimes: newSlotTimes
     });
+    // 乐观锁：将目标时段标记为 OCCUPIED 并写入 orderId；若已被占用则抛出 slot_conflict
     await lockSlotTimesForOrder(db, {
       barberId: order.barberId,
       date: newDate,
@@ -312,7 +346,7 @@ exports.main = withResponse(async (event, context) => {
     });
 
     const oldSlotTimes = buildRequiredSlotStartTimes(order.startTime, durationMin);
-    // 释放旧 slot
+    // 释放旧时段：将旧 time_slots 恢复 AVAILABLE 并清空 orderId（在新时段锁定成功后才执行）
     await db
       .collection('time_slots')
       .where({ barberId: order.barberId, date: order.date, startTime: _.in(oldSlotTimes), orderId })

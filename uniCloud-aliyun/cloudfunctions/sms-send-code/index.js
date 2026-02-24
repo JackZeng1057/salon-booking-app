@@ -1,3 +1,26 @@
+/**
+ * sms-send-code 云函数 —— 发送短信验证码
+ *
+ * 【功能说明】
+ * 用于"手机号绑定"、"密码重置"等需要短信验证的场景。
+ * 支持两种运行模式，通过配置文件或环境变量切换：
+ *   demo   : 演示模式，不实际发送短信，直接返回验证码给前端，供开发/论文演示使用
+ *   market : 阿里云短信市场 API（AppCode 方式），在生产环境实际发送短信
+ *   auto   : 优先使用 market，若未配置 AppCode 则退化为 demo 模式
+ *
+ * 【防刷设计】
+ * 同手机号+同业务类型（type）重发间隔 60 秒（RESEND_GAP_MS），
+ * 通过查询 sms_codes 集合最近记录实现，不依赖外部 Redis。
+ *
+ * 【验证码有效期】
+ * 默认 5 分钟（CODE_EXPIRE_MS），写入 sms_codes.expiresAt 字段，
+ * 校验时用 db.command.gt(now) 判断是否过期。
+ *
+ * 【配置优先级】
+ * 环境变量 > 云函数目录下 config.json
+ * 线上部署后通常通过 uniCloud 环境变量配置供应商参数，
+ * 本地开发可在 config.json 中覆盖以避免修改环境变量。
+ */
 // 短信验证码发送：支持阿里云市场 API（AppCode）与演示模式
 const fs = require('fs');
 const path = require('path');

@@ -1,5 +1,7 @@
 <template>
+  <!-- 理发师管理页（管理员）：查看本店理发师列表、修改账号名、移出门店 -->
   <view class="page">
+    <!-- 顶部固定区：导航 + 页面说明文案 -->
     <view class="page-header">
       <app-nav :showTitle="true" title="理发师管理" />
       <view class="hero-card">
@@ -7,13 +9,28 @@
       </view>
     </view>
 
+    <!-- =====================================================
+         理发师列表滚动区
+         每张理发师卡片包含：
+         - 头部行：头像（有图/首字母占位）+ 用户名 + 手机号
+         - 改名输入行：
+           * draftMap[id] 存储未提交的名称草稿
+           * 点击"改名"调用 barber-manage-rename 云函数更新 username
+         - 操作行：
+           * "移出门店"按钮：调用 barber-manage-remove 云函数，
+             将该理发师从门店移除（清空 storeId，角色降回 user）
+    ===================================================== -->
     <scroll-view class="page-scroll" scroll-y>
+      <!-- 加载中占位 -->
       <view v-if="loading" class="hint">加载中...</view>
+      <!-- 空状态：当前门店无理发师 -->
       <view v-else-if="list.length === 0" class="hint">当前门店暂无理发师</view>
 
       <view v-else class="list">
         <view v-for="item in list" :key="item._id" class="card">
+          <!-- 头像 + 账号信息行 -->
           <view class="header-row">
+            <!-- 头像：有头像显示图片，否则显示用户名首字母占位圆 -->
             <image
               v-if="normalizeAvatar(item.avatar)"
               class="avatar"
@@ -30,6 +47,7 @@
             </view>
           </view>
 
+          <!-- 改名输入行：输入新名称后点击"改名"保存 -->
           <view class="edit-row">
             <input
               class="name-input"
@@ -48,6 +66,7 @@
             </button>
           </view>
 
+          <!-- 操作行：移出门店（解除理发师与本门店的绑定关系） -->
           <view class="action-row">
             <button
               class="remove-btn"

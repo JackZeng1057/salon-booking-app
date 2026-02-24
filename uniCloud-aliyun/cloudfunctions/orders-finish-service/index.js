@@ -1,3 +1,29 @@
+/**
+ * @file orders-finish-service/index.js — 服务完成云函数
+ *
+ * 【业务定位】
+ * 实现订单状态机中 IN_SERVICE → FINISHED 这一最终转换，
+ * 是整个预约流程的闭环节点。
+ * 服务完成后，顾客侧"评价"入口开放（reviews-create 会校验 FINISHED 状态）。
+ *
+ * 【完整状态机路径】
+ * BOOKED（已预约）
+ *   → ARRIVED（到店核验）     由 orders-verify 触发
+ *   → IN_SERVICE（服务中）    由 orders-start-service 触发
+ *   → FINISHED（已完成）      由本函数触发       ← 此处
+ *
+ * 【允许操作的角色】
+ * - barber（理发师）：完成自己负责的服务，校验 barberId 归属；
+ * - admin（管理员）：在理发师不便操作时代为完结本店订单，校验 storeId 归属。
+ *
+ * 【状态机严格保护】
+ * 只有 IN_SERVICE 才能流转 FINISHED，不允许跳步（如直接从 BOOKED→FINISHED），
+ * 从架构上保证审计日志与业务流程完全对应。
+ *
+ * 【字段投影 & 返回优化】
+ * .field({ status, barberId, storeId }) 最小化读取字段；
+ * 更新完成后直接拼装返回对象，无需二次读取整个订单文档，减少读操作费用。
+ */
 const { withResponse, ApiError, ERROR_CODES, requireRole, logAudit, logOrderEvent } = require('sb-common');
 
 // 完成服务（IN_SERVICE -> FINISHED）：记录完成时间与日志

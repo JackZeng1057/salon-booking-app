@@ -1,3 +1,15 @@
+/**
+ * barbers-manage 云函数 —— 门店理发师管理
+ *
+ * 【支持 action】
+ *   list      : 取当前门店全部理发师列表
+ *   rename    : 修改指定理发师的显示名称
+ *   remove    : 将理发师从门店移出（清空 storeId 并重置角色）
+ *
+ * 【权限】
+ * - 仅 admin 角色可调用
+ * - 门店隔离：所有操作均限制在管理员所属门店范围内
+ */
 // 门店理发师管理：列表、改名、移出门店
 const { withResponse, requireRole, ApiError, ERROR_CODES } = require('sb-common');
 
@@ -72,13 +84,14 @@ exports.main = withResponse(async (event, context) => {
     throw new ApiError(ERROR_CODES.FORBIDDEN, 'forbidden');
   }
 
-  // 改名：管理员可直接改理发师账号名
+  // 改名：管理员可直接修改理发师显示名称（同时更新 username 与 name，保持两字段一致）
   if (action === 'rename') {
     const username = sanitizeName(event && event.username);
     if (!username) {
       throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'username required');
     }
 
+    // 唯一性校验：新名称已被其他账号占用则拒绝
     const existedRes = await db.collection('users').where({ username }).limit(1).get();
     const existed = existedRes && existedRes.data && existedRes.data[0];
     if (existed && String(existed._id || '') !== barberId) {
@@ -87,7 +100,7 @@ exports.main = withResponse(async (event, context) => {
 
     await db.collection('users').doc(barberId).update({
       username,
-      // 与账号名保持一致，避免前端师傅名与账号名不一致
+      // name 与 username 保持同步，避免前端显示不一致
       name: username,
       updatedAt: Date.now()
     });
@@ -100,7 +113,8 @@ exports.main = withResponse(async (event, context) => {
     };
   }
 
-  // 移出门店：降级为普通用户并清空门店与项目绑定
+  // 移出门店：将角色降级为普通 user，清空 storeId / pendingRole / serviceIds，
+  // 确保该账号不再出现在门店理发师列表和下单选人列表中
   if (action === 'remove') {
     await db.collection('users').doc(barberId).update({
       role: 'user',

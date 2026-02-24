@@ -1,3 +1,17 @@
+/**
+ * user-profile-update 云函数 —— 更新帐号资料
+ *
+ * 【支持更新字段】
+ * - username/name：帐号名称（全局唯一，重复返回 409）
+ * - avatar：头像 URL
+ *
+ * 【昵称策略】
+ * - admin 角色：name = 门店名（优先）或 username
+ * - barber/user 角色：name = username
+ *
+ * 【权限】
+ * - user、admin、barber 均可调用
+ */
 // 账号资料更新：支持账号名（username）与头像
 const { withResponse, requireRole, ApiError } = require('sb-common');
 

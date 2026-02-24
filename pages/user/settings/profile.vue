@@ -1,5 +1,7 @@
 <template>
+  <!-- 个人资料编辑页根容器 -->
   <view class="page">
+    <!-- 吸顶头部：导航栏 + 副标题提示（昵称规则说明） -->
     <view class="page-header">
       <app-nav :showTitle="true" title="修改账号名/头像" />
       <view class="hero-card">
@@ -9,34 +11,37 @@
 
     <scroll-view class="page-scroll" scroll-y>
       <view class="card">
-      <view class="field">
-        <text class="label">头像</text>
-        <view class="avatar-row">
-          <image v-if="avatar" class="avatar" :src="avatar" mode="aspectFill" />
-          <view v-else class="avatar avatar-placeholder">{{ (username || 'U').slice(0, 1).toUpperCase() }}</view>
-          <button class="pick-btn" :loading="uploading" @click="pickAvatar">选择头像</button>
+        <!-- 头像选择区：有头像则预览，无头像则显示首字母占位 -->
+        <view class="field">
+          <text class="label">头像</text>
+          <view class="avatar-row">
+            <image v-if="avatar" class="avatar" :src="avatar" mode="aspectFill" />
+            <view v-else class="avatar avatar-placeholder">{{ (username || 'U').slice(0, 1).toUpperCase() }}</view>
+            <button class="pick-btn" :loading="uploading" @click="pickAvatar">选择头像</button>
+          </view>
         </view>
-      </view>
 
-      <view class="field">
-        <text class="label">账号名</text>
-        <input
-          class="input"
-          maxlength="20"
-          v-model="username"
-          placeholder="请输入账号名（最多20字）"
-        />
-      </view>
+        <!-- 账号名输入框（最多20字） -->
+        <view class="field">
+          <text class="label">账号名</text>
+          <input
+            class="input"
+            maxlength="20"
+            v-model="username"
+            placeholder="请输入账号名（最多20字）"
+          />
+        </view>
 
-      <button
-        class="submit-btn"
-        :class="{ disabled: !canSave }"
-        :disabled="!canSave"
-        :loading="saving"
-        @click="handleSave"
-      >
-        保存
-      </button>
+        <!-- 保存按钮：头像或名称发生变化时方可点击 -->
+        <button
+          class="submit-btn"
+          :class="{ disabled: !canSave }"
+          :disabled="!canSave"
+          :loading="saving"
+          @click="handleSave"
+        >
+          保存
+        </button>
       </view>
       <view class="scroll-bottom-gap"></view>
     </scroll-view>

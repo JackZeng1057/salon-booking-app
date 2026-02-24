@@ -1,3 +1,34 @@
+/**
+ * @file reviews-create/index.js — 创建评价云函数
+ *
+ * 【业务定位】
+ * 顾客完成服务后，对本次预约体验进行三维度评分与图文评论的写入接口。
+ * 评价创建完成后，立即触发门店整体评分聚合更新（updateStoreRating），
+ * 确保门店详情页的评分数据实时性。
+ *
+ * 【三维度评分设计】
+ * 评分由三个维度组成，均为 1-5 的整数（或小数）：
+ *   - service（服务质量）：理发技术、服务态度；
+ *   - environment（环境）：门店整洁度、氛围；
+ *   - barber（理发师满意度）：综合单次体验。
+ * overall（综合均分）= (service + environment + barber) / 3，保留 1 位小数，
+ * 用于门店排序与展示，对顾客更直观。
+ *
+ * 【三重准入校验】
+ * 1. 权限：仅 user 角色可评价，且 order.userId === currentUser._id；
+ * 2. 状态机：仅 FINISHED 订单可评价（确保服务已完成）；
+ * 3. 幂等：同一 orderId 只允许写入 1 条评价（review_exists 保护）。
+ *
+ * 【图片安全校验】
+ * 仅接受 cloud:// fileID 或 http(s):// URL，
+ * 拒绝本地临时路径（如 file:// / wxfile://），
+ * 防止上传失败的临时路径被持久化到数据库。
+ *
+ * 【评分聚合（updateStoreRating）】
+ * 评价写入后立即调用 sb-common 中的 updateStoreRating()，
+ * 重新计算门店 reviews 集合中所有评价的 overall 均值，
+ * 更新写入 stores.rating 字段，供门店列表页实时展示。
+ */
 const { withResponse, ApiError, ERROR_CODES, requireRole, updateStoreRating } = require('sb-common');
 
 // 创建评价（仅 FINISHED 订单可评价）：支持多维评分与图片

@@ -1,16 +1,24 @@
 <template>
+  <!-- 订单详情页根容器 -->
   <view class="page">
+    <!-- 顶部导航栏 -->
     <app-nav :showTitle="true" title="订单详情" />
+    <!-- 页面副标题 Banner -->
     <view class="hero-card">
       <text class="hero-subtitle">查看订单状态、明细与服务日志</text>
     </view>
 
+    <!-- 数据加载中状态 -->
     <view v-if="loading" class="hint">加载中...</view>
+    <!-- 订单不存在或加载失败兜底 -->
     <view v-else-if="!detail" class="hint">订单不存在</view>
 
+    <!-- 订单主体内容（仅加载完成且有数据时展示） -->
     <view v-else class="card">
+      <!-- 订单基础信息行：门店/服务/理发师/时间/状态/核验码/备注 -->
       <view class="row">
         <text class="label">门店</text>
+        <!-- 优先使用订单快照字段，快照缺失时从本地字典兜底 -->
         <text class="value">{{ displayStoreName }}</text>
       </view>
       <view class="row">
@@ -27,31 +35,42 @@
       </view>
       <view class="row">
         <text class="label">状态</text>
+        <!-- 状态通过 formatOrderStatus 转为可读中文 -->
         <text class="value">{{ formatOrderStatus(detail.order.status) }}</text>
       </view>
+      <!-- 队列等待提示（仅当日 BOOKED 状态且前面有订单时显示） -->
       <view v-if="queueHintText" class="row">
         <text class="label">等待提示</text>
         <text class="value">{{ queueHintText }}</text>
       </view>
+      <!-- 6 位核验码：用户到店出示给管理员核验 -->
       <view class="row">
         <text class="label">核验码</text>
         <text class="value code">{{ detail.order.verifyCode }}</text>
       </view>
+      <!-- 备注（可选字段，仅创建时填写了才显示） -->
       <view v-if="detail.order.remark" class="row">
         <text class="label">备注</text>
         <text class="value">{{ detail.order.remark }}</text>
       </view>
 
+      <!-- 操作按钮区：仅 BOOKED 状态可操作（取消/改期按钮） -->
       <view class="actions">
+        <!-- 取消预约：canCancelOperate 控制是否在取消窗口内 -->
         <button class="action-btn" type="default" :disabled="!canCancelOperate" @click="openCancel">取消预约</button>
+        <!-- 改期：仅 BOOKED 且距开始时间足够可操作 -->
         <button class="action-btn" type="primary" :disabled="!canRescheduleOperate" @click="openReschedule">改期</button>
       </view>
 
+      <!-- 服务后操作区：仅 FINISHED 状态可评价和申请售后 -->
       <view class="actions">
+        <!-- 去评价：跳转评价页（pages/order/review.vue） -->
         <button class="action-btn" type="primary" :disabled="!canReview" @click="goReview">去评价</button>
+        <!-- 申请售后：跳转售后页（pages/order/aftersale.vue） -->
         <button class="action-btn" type="default" :disabled="!canReview" @click="goAftersale">申请售后</button>
       </view>
 
+      <!-- 我的评价面板（仅在 review 已存在时展示） -->
       <view v-if="review" class="panel">
         <text class="panel-title">我的评价</text>
         <text class="panel-text">
@@ -59,6 +78,7 @@
           <text class="review-score">{{ formatReviewScore(review.rating) }}</text>
         </text>
         <text class="panel-text">内容：{{ review.content || '无' }}</text>
+        <!-- 评价图片列表，点击图片可全屏预览 -->
         <view v-if="review.images && review.images.length" class="review-images">
           <image
             v-for="(img, idx) in review.images"
@@ -71,14 +91,17 @@
         </view>
       </view>
 
+      <!-- 服务明细折叠面板（懒加载：展开时才请求 orders-items-list） -->
       <view class="panel">
         <view class="panel-header" @click="toggleItems">
           <text class="panel-title">服务明细</text>
+          <!-- 展开/收起切换文本 -->
           <text class="panel-toggle">{{ showItems ? '收起' : '展开' }}</text>
         </view>
         <view v-if="showItems">
           <view v-if="itemsLoading" class="hint">加载中...</view>
           <view v-else-if="orderItems.length === 0" class="hint">暂无明细</view>
+          <!-- 服务项目列表：名称 + 单价 × 数量 -->
           <view v-else class="list">
             <view v-for="item in orderItems" :key="item._id" class="row">
               <text class="value">{{ item.name }}</text>
@@ -88,6 +111,7 @@
         </view>
       </view>
 
+      <!-- 订单日志折叠面板（展示状态流转记录，来自 order_events 集合） -->
       <view class="panel">
         <view class="panel-header" @click="toggleEvents">
           <text class="panel-title">订单日志</text>
@@ -96,6 +120,7 @@
         <view v-if="showEvents">
           <view v-if="eventsLoading" class="hint">加载中...</view>
           <view v-else-if="orderEvents.length === 0" class="hint">暂无日志</view>
+          <!-- 状态流转时间线：状态名 + 时间 + 附加备注 -->
           <view v-else class="list">
             <view v-for="event in orderEvents" :key="event._id" class="row">
               <text class="value">{{ formatOrderStatus(event.toStatus || event.fromStatus) }}</text>
@@ -105,20 +130,28 @@
         </view>
       </view>
 
+      <!-- 取消预约操作面板（点击"取消预约"按钮后展开） -->
       <view v-if="showCancel" class="panel">
         <text class="panel-title">取消原因</text>
+        <!-- 取消原因文本域，填写后随请求发往云函数记录在审计日志中 -->
         <textarea class="panel-textarea" v-model="cancelReason" placeholder="请输入取消原因" />
+        <!-- 提交取消，调用 orders-cancel 云函数 -->
         <button class="panel-btn" type="warn" @click="handleCancel">确认取消</button>
       </view>
 
+      <!-- 改期操作面板（点击"改期"按钮后展开，含日期选择 + 时段选择） -->
       <view v-if="showReschedule" class="panel">
         <text class="panel-title">选择新日期</text>
+        <!-- 日期选择器：改期只允许选当天之后的日期 -->
         <modern-date-picker :value="rescheduleDate" @change="onRescheduleDateChange">
           <view class="panel-input">{{ rescheduleDate || '请选择日期' }}</view>
         </modern-date-picker>
         <text class="panel-title">可预约时段</text>
+        <!-- 时段加载中 -->
         <view v-if="slotsLoading" class="hint">加载中...</view>
+        <!-- 所选新日期无可用时段 -->
         <view v-else-if="slots.length === 0" class="hint">暂无可用时段</view>
+        <!-- 改期时段网格（同创建页的时段选择逻辑） -->
         <view v-else class="slots-grid">
           <view
             v-for="slot in slots"
@@ -131,6 +164,7 @@
             <text class="slot-status">{{ formatSlotStatus(slot.status) }}</text>
           </view>
         </view>
+        <!-- 确认改期按钮，未选时段时禁用 -->
         <button class="panel-btn" type="primary" :disabled="!selectedStartTime" @click="handleReschedule">确认改期</button>
       </view>
     </view>
@@ -231,6 +265,8 @@ export default {
       const { barberName, barberId } = this.detail.order;
       return barberName || this.barberMap[barberId] || barberId || '';
     },
+    // 排队提示文案：queueAheadCount/queueWaitMin 字段由云函数 attachQueueHints 注入
+    // 仅在当天 ARRIVED 状态且数据完整时展示，其他状态不显示
     queueHintText() {
       if (!this.detail || !this.detail.order) return '';
       const order = this.detail.order;
@@ -262,11 +298,17 @@ export default {
       };
       return map[status] || status;
     },
+    // 将日期字符串与时间字符串拼接为北京时间时间戳（毫秒）
+    // 明确指定 +08:00 偏移，避免 new Date() 将 "YYYY-MM-DDTHH:MM:00" 解析为本地时间
+    // 从而在非 UTC+8 设备（如香港/海外用户）上出现时区偏差导致操作窗口计算错误。
     toChinaTimestamp(date, time) {
       if (!date || !time) return 0;
       const ms = new Date(`${date}T${time}:00+08:00`).getTime();
       return Number.isFinite(ms) ? ms : 0;
     },
+    // 判断当前是否在取消/处理窗口内（开始时间 + cancelWindowMin 分钟之前）
+    // cancelWindowMin 默认 5 分钟，与云函数 orders-cancel 中的校验值保持一致，
+    // 前端提前拦截避免用户提交后才看到错误提示。
     inCancelWindow(order, cancelWindowMin = 5) {
       if (!order) return false;
       const startMs = this.toChinaTimestamp(order.date, order.startTime);
@@ -307,6 +349,8 @@ export default {
       });
     },
     formatEventTime(ts) {
+      // 将 Unix 毫秒时间戳格式化为 "YYYY-MM-DD HH:mm" 便于事件日志展示。
+      // 使用本地时区（用户设备偏移），事件显示时间与用户操作时观察到的系统时间一致。
       if (!ts) return '';
       const date = new Date(ts);
       const y = date.getFullYear();
@@ -316,7 +360,10 @@ export default {
       const mm = String(date.getMinutes()).padStart(2, '0');
       return `${y}-${m}-${d} ${hh}:${mm}`;
     },
-    // 加载订单详情：必要时补齐门店/服务/理发师名称
+    // 加载订单详情：
+    // 1) 请求 orders-detail 获取包含快照（storeName/serviceName/barberName）的完整订单；
+    // 2) 若快照字段缺失（历史老数据无快照），调用 loadLocalMaps() 通过本地缓存字典补全；
+    // 3) FINISHED 状态订单同步加载评价（fetchReviewByOrder），供"我的评价"区域展示。
     async loadDetail() {
       this.loading = true;
       try {
@@ -375,7 +422,10 @@ export default {
         }
       }
     },
-    // 通过本地缓存数据构建名称字典（不额外增加云端读）
+    // 通过本地缓存数据构建名称字典（不额外增加云端读次数）
+    // 当订单快照中 storeName/serviceName/barberName 缺失（老数据）时，
+    // 从本地 stores/services/barbers 缓存中建立 id→name 的对照表（storeMap/serviceMap/barberMap），
+    // 供 computed displayStoreName 等属性兜底。
     async loadLocalMaps() {
       const order = this.detail && this.detail.order;
       if (!order) return;
@@ -405,7 +455,12 @@ export default {
         // 忽略缓存读取失败，不影响主流程
       }
     },
-    // 取消预约：仅 BOOKED 可操作
+    // 提交取消预约：
+    // 1) 取消原因不可为空（前端校验）；
+    // 2) 通过 canCancelOperate 计算属性再次校验5分钟时间窗，防止用户留在页面超时后仍提交；
+    // 3) 成功后通过 spread 合并后端返回的订单字段（含新 status），
+    //    避免额外全量请求带来的加载延迟；
+    // 4) 422-cancel_window_expired 与 422-状态不允许 分支各给出用户可读提示。
     async handleCancel() {
       if (!this.cancelReason.trim()) {
         uni.showToast({ title: '请输入取消原因', icon: 'none' });
@@ -462,7 +517,11 @@ export default {
       this.rescheduleDate = e.detail.value || '';
       this.loadSlots();
     },
-    // 拉取可改期时段：由服务时长决定窗口粒度
+    // 拉取可用改期时段：
+    // 以 barberId + date + serviceId 为参数调用 fetchBarberSlots，
+    // 后端根据服务时长（duration）计算时间窗粒度（如30/60分钟窗口），
+    // 并过滤已被占用（BOOKED）和已过期（EXPIRED）的时段；
+    // 每次调用强制 noCache:true，确保展示最新可用状态。
     async loadSlots() {
       if (!this.detail || !this.detail.order) return;
       this.slotsLoading = true;
@@ -496,7 +555,11 @@ export default {
       if (slot.startTime === this.selectedStartTime) return 'slot-selected';
       return 'slot-available';
     },
-    // 确认改期：冲突与状态不允许时提示
+    // 提交改期：
+    // 1) 前端再次校验 canRescheduleOperate（距开始5分钟内不可改期）；
+    // 2) 409 时段冲突：自动刷新当日时段列表，提示用户重选；
+    // 3) 422 状态不允许：直接展示后端返回的 message（含多种禁止改期场景）；
+    // 4) 改期成功后重新调用 loadDetail 以获取服务端最新快照数据。
     async handleReschedule() {
       if (!this.selectedStartTime) return;
       if (!this.canRescheduleOperate) {

@@ -1,3 +1,18 @@
+/**
+ * orders-delete 云函数 —— 订单逻辑删除
+ *
+ * 【业务说明】
+ * 采用“软删除”策略：不真实删除订单文档，而是添加标志字段
+ * （deletedByUser / deletedByStore），保留完整数据便于状态统计和审计追查。
+ *
+ * 【权限与圭查】
+ * - user 只能删除自己的订单
+ * - admin 只能删除本店订单
+ * - 仅允许删除 CANCELLED / FINISHED 状态的订单（进行中订单不允许删除）。
+ *
+ * 【审计】
+ * 删除操作写入 audit_logs，包含操作者角色与请求追踪 ID。
+ */
 const { withResponse, ApiError, ERROR_CODES, requireRole, logAudit } = require('sb-common');
 
 // 删除订单（逻辑删除，仅已取消/已完成）

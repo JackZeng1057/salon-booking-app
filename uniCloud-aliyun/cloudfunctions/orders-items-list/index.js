@@ -1,3 +1,14 @@
+/**
+ * orders-items-list 云函数 —— 订单服务小项列表
+ *
+ * 【业务说明】
+ * 返回指定订单下的服务小项（order_items 集合）。
+ * order_items 采用拆分设计，支持未来扩展为单次订单包含多个服务项目的场景。
+ *
+ * 【权限】
+ * - 需要登录（requireLogin）
+ * - user 只能查询自己订单； admin/barber 需在各自属管范围内
+ */
 const { withResponse, ApiError, ERROR_CODES, requireLogin } = require('sb-common');
 
 // 订单明细列表：按订单查询并做权限校验

@@ -1,8 +1,12 @@
 <template>
+  <!-- 理发师订单管理页根容器 -->
   <view class="orders-page">
+    <!-- 顶部导航栏（不需要返回，作为理发师端主入口之一） -->
     <app-nav :showBack="false" :showTitle="true" title="理发师订单" />
 
+    <!-- 吸顶区域：状态分栏 Tab + 日期选择器 -->
     <view class="orders-top">
+      <!-- 订单状态分栏：全部/待服务/服务中/已完成/已取消 -->
       <view class="tabs-wrap">
         <view
           v-for="item in statusOptions"
@@ -12,10 +16,12 @@
           @click="activeTab = item.value"
         >
           <text>{{ item.label }}</text>
+          <!-- 当前选中 Tab 的下划线指示器 -->
           <view v-if="activeTab === item.value" class="tab-line"></view>
         </view>
       </view>
 
+      <!-- 日期选择器：理发师按天查看指定日期的订单 -->
       <view class="field">
         <text class="label">日期</text>
         <modern-date-picker :value="date" @change="onDateChange">
@@ -24,31 +30,44 @@
       </view>
     </view>
 
+    <!-- 可滚动订单列表区域 -->
     <scroll-view class="orders-scroll" scroll-y>
       <view class="orders-scroll-content">
+        <!-- 加载中状态 -->
         <view v-if="loading" class="hint">加载中...</view>
+        <!-- 当前 Tab + 日期下无订单时的空状态 -->
         <view v-else-if="filteredOrders.length === 0" class="hint">暂无订单</view>
 
+        <!-- 订单卡片列表 -->
         <view v-else class="list">
           <view v-for="order in filteredOrders" :key="order._id" class="card">
+            <!-- 卡片头部：门店名称（左） + 状态胶囊（右） -->
             <view class="order-head">
               <view class="store-line">
                 <app-icon name="store" color="#94A3B8" :size="20" :stroke-width="2.1" />
                 <text class="store-name">{{ getStoreText(order) }}</text>
               </view>
+              <!-- 状态胶囊颜色由 statusClass 动态绑定（黄/绿/灰等） -->
               <text class="status-pill" :class="statusClass(order.status)">
                 {{ formatOrderStatus(order.status) }}
               </text>
             </view>
+
+            <!-- 卡片主体：服务名称 + 预约时间 + 理发师 -->
             <view class="order-main">
               <text class="service-name">{{ getServiceText(order) }}</text>
               <text class="meta">预约时间：{{ getScheduleText(order) }}</text>
               <text class="meta">理发师：{{ getBarberText(order) }}</text>
             </view>
+
+            <!-- 卡片底部：订单号 -->
             <view class="order-foot">
               <text class="foot-text">订单号：{{ getOrderNo(order) }}</text>
             </view>
+
+            <!-- 服务操作按钮区（开始服务 / 完成服务） -->
             <view class="actions">
+              <!-- 开始服务：仅 ARRIVED 状态可操作（顾客已到店核验后） -->
               <button
                 class="action-btn"
                 type="primary"
@@ -58,6 +77,7 @@
               >
                 开始服务
               </button>
+              <!-- 完成服务：仅 IN_SERVICE 状态可操作 -->
               <button
                 class="action-btn"
                 type="default"
@@ -70,19 +90,24 @@
             </view>
           </view>
         </view>
+        <!-- 底部安全边距，防止被自定义 Tab Bar 遮档 -->
         <view class="scroll-bottom-safe"></view>
       </view>
     </scroll-view>
 
+    <!-- 自定义底部 Tab Bar（排班 / 订单 / 我的三个入口） -->
     <view class="bottom-tab">
+      <!-- 排班入口（跳转理发师排班设置页） -->
       <view class="bar-item" @click="goSchedule">
         <app-icon name="calendar" color="#64748B" :size="25" size-unit="px" :stroke-width="2.25" />
         <text>排班</text>
       </view>
+      <!-- 订单入口（当前页，激活状态） -->
       <view class="bar-item active">
         <app-icon name="file" color="#10B981" :size="25" size-unit="px" :stroke-width="2.25" />
         <text>订单</text>
       </view>
+      <!-- 我的入口（跳转账号设置页） -->
       <view class="bar-item" @click="goAccountSettings">
         <app-icon name="user" color="#64748B" :size="25" size-unit="px" :stroke-width="2.25" />
         <text>我的</text>

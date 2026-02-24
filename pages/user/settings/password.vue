@@ -1,5 +1,7 @@
 <template>
+  <!-- 修改密码页根容器 -->
   <view class="page">
+    <!-- 吸顶头部：导航栏 + 验证方式说明（通过手机号验证码） -->
     <view class="page-header">
       <app-nav :showTitle="true" title="修改密码" />
       <view class="hero-card">
@@ -9,16 +11,20 @@
 
     <scroll-view class="page-scroll" scroll-y>
       <view class="card">
+      <!-- 当前绑定手机号展示 -->
       <view class="field">
         <text class="label">当前绑定手机号</text>
         <text class="phone-text">{{ user.phone || '未绑定手机号' }}</text>
       </view>
 
+      <!-- 手机号未绑定时的引导提示 -->
       <view v-if="!user.phone" class="empty-tip">
-        请先到“绑定/修改手机号”页面绑定手机号
+        请先到"绑定/修改手机号"页面绑定手机号
       </view>
 
+      <!-- 已绑定手机号时才显示修改密码表单 -->
       <template v-else>
+        <!-- 验证码输入 + 发送按钮（倒计时防重发） -->
         <view class="field">
           <text class="label">验证码</text>
           <view class="code-row">
@@ -40,8 +46,10 @@
           </view>
         </view>
 
+        <!-- 演示模式下实际验证码回显 -->
         <view v-if="demoCode" class="demo-tip">演示验证码：{{ demoCode }}</view>
 
+        <!-- 新密码输入框（最少6位） -->
         <view class="field">
           <text class="label">新密码</text>
           <input
@@ -53,6 +61,7 @@
           />
         </view>
 
+        <!-- 确认新密码（需与新密码一致方可提交） -->
         <view class="field">
           <text class="label">确认新密码</text>
           <input
@@ -64,6 +73,7 @@
           />
         </view>
 
+        <!-- 更新密码提交按钮（canSubmit 计算属性控制可用态） -->
         <button
           class="submit-btn"
           :class="{ disabled: !canSubmit }"

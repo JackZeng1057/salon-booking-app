@@ -1,5 +1,7 @@
 <template>
+  <!-- 绑定/修改手机号页根容器 -->
   <view class="page">
+    <!-- 吸顶头部：导航栏 + 用途说明 -->
     <view class="page-header">
       <app-nav :showTitle="true" title="绑定/修改手机号" />
       <view class="hero-card">
@@ -8,61 +10,67 @@
     </view>
 
     <scroll-view class="page-scroll" scroll-y>
+      <!-- 当前账号信息卡片：展示登录名与已绑定手机号 -->
       <view class="profile-card">
-      <view class="profile-row">
-        <text class="profile-label">当前账号</text>
-        <text class="profile-value">{{ user.username || '-' }}</text>
-      </view>
-      <view class="profile-row">
-        <text class="profile-label">已绑定手机号</text>
-        <text class="profile-value">{{ user.phone || '未绑定' }}</text>
-      </view>
-    </view>
-
-      <view class="form-card">
-      <view class="field">
-        <text class="field-label">手机号</text>
-        <input
-          class="input"
-          type="number"
-          maxlength="11"
-          v-model="phone"
-          placeholder="请输入手机号"
-        />
-      </view>
-
-      <view class="field">
-        <text class="field-label">验证码</text>
-        <view class="code-row">
-          <input
-            class="input code-input"
-            type="number"
-            maxlength="6"
-            v-model="code"
-            placeholder="请输入6位验证码"
-          />
-          <button
-            class="code-btn"
-            :class="{ disabled: countdown > 0 || !canSend }"
-            :disabled="countdown > 0 || !canSend"
-            @click="sendCode"
-          >
-            {{ countdown > 0 ? countdown + 's' : '发送验证码' }}
-          </button>
+        <view class="profile-row">
+          <text class="profile-label">当前账号</text>
+          <text class="profile-value">{{ user.username || '-' }}</text>
+        </view>
+        <view class="profile-row">
+          <text class="profile-label">已绑定手机号</text>
+          <text class="profile-value">{{ user.phone || '未绑定' }}</text>
         </view>
       </view>
 
-      <view v-if="demoCode" class="demo-tip">演示验证码：{{ demoCode }}</view>
+      <!-- 手机号 + 验证码表单卡片 -->
+      <view class="form-card">
+        <!-- 手机号输入框（11位数字） -->
+        <view class="field">
+          <text class="field-label">手机号</text>
+          <input
+            class="input"
+            type="number"
+            maxlength="11"
+            v-model="phone"
+            placeholder="请输入手机号"
+          />
+        </view>
 
-      <button
-        class="submit-btn"
-        :class="{ disabled: !canSubmit }"
-        :loading="saving"
-        :disabled="!canSubmit"
-        @click="handleBind"
-      >
-        保存手机号
-      </button>
+        <!-- 验证码输入 + 发送按钮（手机号合法时方可发送，倒计时防重发） -->
+        <view class="field">
+          <text class="field-label">验证码</text>
+          <view class="code-row">
+            <input
+              class="input code-input"
+              type="number"
+              maxlength="6"
+              v-model="code"
+              placeholder="请输入6位验证码"
+            />
+            <button
+              class="code-btn"
+              :class="{ disabled: countdown > 0 || !canSend }"
+              :disabled="countdown > 0 || !canSend"
+              @click="sendCode"
+            >
+              {{ countdown > 0 ? countdown + 's' : '发送验证码' }}
+            </button>
+          </view>
+        </view>
+
+        <!-- 演示模式下实际验证码回显 -->
+        <view v-if="demoCode" class="demo-tip">演示验证码：{{ demoCode }}</view>
+
+        <!-- 保存手机号提交按钮（canSubmit 计算属性控制可用态） -->
+        <button
+          class="submit-btn"
+          :class="{ disabled: !canSubmit }"
+          :loading="saving"
+          :disabled="!canSubmit"
+          @click="handleBind"
+        >
+          保存手机号
+        </button>
       </view>
       <view class="scroll-bottom-gap"></view>
     </scroll-view>

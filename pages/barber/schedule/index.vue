@@ -1,11 +1,20 @@
 <template>
   <view class="page">
+    <!-- =====================================================
+         顶部固定区域：导航栏 + 英雄卡片
+         英雄卡片包含：
+         - 理发师头像（有图用图、无图显示姓名首字符作为占位符）
+         - 理发师姓名 + 所属门店名称
+         - 通知铃铛（右上角，有未读消息时显示红点）
+         - "自动生成未来7天排班" 开关（generateFuture 控制）
+    ===================================================== -->
     <view class="page-header">
       <app-nav :showBack="false" />
 
       <view class="hero-card">
       <view class="hero-head">
         <view class="hero-user">
+          <!-- 头像：有图显示，无图降级为姓名首字符圆形占位符 -->
           <image
             v-if="barberAvatar"
             class="avatar avatar-image"
@@ -20,12 +29,14 @@
           </view>
         </view>
         <view class="hero-actions">
+          <!-- 通知入口：unreadCount > 0 时在铃铛右上角显示红点角标 -->
           <view class="notify-btn" @click="goNotifications">
             <app-icon name="bell" color="#334155" :size="30" :stroke-width="2.1" />
             <text v-if="unreadCount > 0" class="notify-dot"></text>
           </view>
         </view>
       </view>
+        <!-- 自动排班开关：开启后点击"保存"时同时生成未来 7 天的时段数据 -->
         <view class="auto-row">
           <view class="auto-left">
             <app-icon name="calendar" color="#059669" :size="18" :stroke-width="2.1" />
@@ -36,7 +47,11 @@
       </view>
     </view>
 
+    <!-- =====================================================
+         主体滚动区
+    ===================================================== -->
     <scroll-view class="page-scroll" scroll-y>
+      <!-- 日期横向选择器：展示最近 7 天，横向滚动，点击切换排班日期 -->
       <view class="date-strip">
         <scroll-view class="day-scroll" scroll-x>
           <view class="day-row">
@@ -54,9 +69,19 @@
         </scroll-view>
       </view>
 
+      <!-- =====================================================
+           排班设置面板
+           - 顶部：当前日期标题 + 图例说明（可约/休息/已约）
+           - 工作时间区间选择：开始时间 + 结束时间（点击弹出滚轮 picker）
+           - 时段预览网格：每格代表一个时间段，颜色区分可约/休息/已约/已过期
+             * slot-item 点击可手动切换该时段的状态（AVAILABLE ↔ DISABLED）
+             * 右上角绿色三角标记代表"可预约"
+           - 保存结果提示区：显示本次生成的可预约时段数
+      ===================================================== -->
       <view class="panel">
         <view class="panel-head">
           <text class="panel-title">{{ date }} 排班</text>
+          <!-- 图例：三种时段状态的颜色说明 -->
           <view class="legend">
             <view class="legend-item"><text class="dot dot-a"></text><text>可预约</text></view>
             <view class="legend-item"><text class="dot dot-d"></text><text>休息</text></view>
@@ -64,11 +89,14 @@
           </view>
         </view>
 
+        <!-- 工作时间区间：点击 chip 打开时间滚轮，修改工作开始/结束时间 -->
         <view class="time-range">
           <view class="time-chip" @tap="openTimePicker('workStart')">开始 {{ workStart }}</view>
           <view class="time-chip" @tap="openTimePicker('workEnd')">结束 {{ workEnd }}</view>
         </view>
 
+        <!-- 时段预览网格：每格为一个可切换的时间槽 -->
+        <!-- slot-past 样式使已过期（今天的历史时间段）呈灰色只读效果 -->
         <view class="slot-grid">
           <view
             v-for="slot in previewSlots"
@@ -78,10 +106,12 @@
             @click="togglePreviewSlot(slot)"
           >
             <text>{{ slot.time }}</text>
+            <!-- 可预约时段右上角绿色小三角标记 -->
             <view v-if="slot.status === 'AVAILABLE' && !isPastSlot(slot)" class="corner"></view>
           </view>
         </view>
 
+        <!-- 保存结果反馈：显示本次生成/已存在的可预约时段总数 -->
         <view v-if="result" class="result">
           <text class="result-title">{{ Number(result.createdCount || 0) > 0 ? '生成成功' : '已设置排班' }}</text>
           <text class="result-tip">
@@ -92,10 +122,12 @@
       <view class="scroll-bottom-gap"></view>
     </scroll-view>
 
+    <!-- 悬浮保存按钮：提交当前排班设置，调用 barber-schedule-set 云函数 -->
     <button class="submit submit-floating" type="primary" :loading="loading" @click="handleSubmit">
       保存今日排班
     </button>
 
+    <!-- 底部自定义 Tab 栏：排班（当前）/ 订单 / 我的 -->
     <view class="bottom-tab">
       <view class="bar-item active">
         <app-icon name="calendar" color="#10B981" :size="25" size-unit="px" :stroke-width="2.25" />
@@ -111,6 +143,13 @@
       </view>
     </view>
 
+    <!-- =====================================================
+         时间滚轮选择器弹窗（自底部弹出）
+         - showTimePicker 控制显示/隐藏
+         - 点击遮罩层（picker-mask）取消选择
+         - 双列滚轮：小时（0-23）+ 分钟（0/15/30/45，步长与时段间隔一致）
+         - 用于分别修改"工作开始时间"与"工作结束时间"
+    ===================================================== -->
     <view v-if="showTimePicker" class="picker-mask" @tap="cancelTimePicker">
       <view class="picker-panel" @tap.stop>
         <view class="picker-toolbar">
@@ -119,9 +158,11 @@
         </view>
         <view class="picker-wheel-wrap">
           <picker-view class="picker-wheel" :value="tempTimeValue" indicator-class="picker-indicator" @change="onTimePickerChange">
+            <!-- 小时列：0-23 小时选项 -->
             <picker-view-column>
               <view v-for="hour in hourOptions" :key="`hour-${hour}`" class="picker-item">{{ hour }}</view>
             </picker-view-column>
+            <!-- 分钟列：0/15/30/45，与时段步长保持一致 -->
             <picker-view-column>
               <view v-for="minute in minuteOptions" :key="`minute-${minute}`" class="picker-item">{{ minute }}</view>
             </picker-view-column>

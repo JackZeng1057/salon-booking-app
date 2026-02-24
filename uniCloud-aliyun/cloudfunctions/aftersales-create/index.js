@@ -1,3 +1,19 @@
+/**
+ * aftersales-create 云函数 —— 用户提交售后工单
+ *
+ * 【业务说明】
+ * 用户在订单完成或出现问题后，可以针对该订单发起售后申请。
+ * 每次申请创建一条 aftersales 文档（初始状态 OPEN），
+ * 门店管理员在售后管理页处理后可流转为 PROCESSING / RESOLVED / REJECTED。
+ *
+ * 【权限与校验】
+ * - 仅 user 角色可调用（requireRole）
+ * - 只允许对自己名下的订单发起售后（订单归属校验）
+ *
+ * 【通知策略】
+ * 工单创建成功后以 fire-and-forget 方式通知门店管理员与用户，
+ * 通知失败不影响主流程返回，避免因通知服务异常导致用户提交失败。
+ */
 const { withResponse, ApiError, ERROR_CODES, requireRole } = require('sb-common');
 
 // 将售后类型编码转成中文文案，便于通知内容直出。

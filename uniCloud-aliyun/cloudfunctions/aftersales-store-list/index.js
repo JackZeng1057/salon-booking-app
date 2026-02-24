@@ -1,5 +1,18 @@
+/**
+ * aftersales-store-list 云函数 —— 门店售后工单列表
+ *
+ * 【业务说明】
+ * 返回当前管理员所属门店的全部售后工单，支持按状态筛选（OPEN/PROCESSING/RESOLVED/REJECTED）。
+ * 前端售后管理页面使用此接口来渲染工单列表，管理员可逐条点入处理。
+ *
+ * 【权限】
+ * - 仅 admin 角色可访问
+ * - 查询范围自动限定为管理员所属门店（admin.storeId）
+ */
 const { withResponse, requireRole } = require('sb-common');
 
+// 兼容中英文状态值：前端可能传中文（"待处理"）或英文枚举（"OPEN"），均归一化为统一枚举
+// 传入空字符串或 "ALL" 时返回空字符串表示"不过滤状态"
 function normalizeAftersaleStatus(status) {
   const raw = String(status || '').trim().toUpperCase();
   if (!raw || raw === 'ALL' || raw === '全部') return '';

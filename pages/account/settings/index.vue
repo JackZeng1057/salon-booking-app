@@ -1,13 +1,17 @@
 <template>
+  <!-- 账号设置页根容器（理发师/通用角色通用） -->
   <view class="page">
+    <!-- 顶部导航：理发师角色显示返回按钮，其他角色隐藏 -->
     <app-nav :showBack="!isBarberRole" :showTitle="true" title="账号设置" />
 
     <view class="content" :class="{ 'content--with-tab': isBarberRole }">
+      <!-- 账号摘要卡片：昵称 + 脱敏手机号 -->
       <view class="summary-card">
         <text class="name">{{ displayName || '-' }}</text>
         <text class="meta">手机号：{{ phoneMasked }}</text>
       </view>
 
+      <!-- 账号功能菜单：个人资料 / 绑定手机号 / 修改密码 -->
       <view class="menu-card">
         <view class="menu-item" @click="goProfile">
           <text class="menu-title">个人资料</text>
@@ -25,9 +29,11 @@
         </view>
       </view>
 
+      <!-- 退出登录按钮（清除 token 并跳登录页） -->
       <view class="logout-btn" @click="handleLogout">退出登录</view>
     </view>
 
+    <!-- 理发师专属底部 TabBar（排班 / 订单 / 我的） -->
     <view v-if="isBarberRole" class="bottom-tab">
       <view class="bar-item" @click="goBarberSchedule">
         <app-icon name="calendar" color="#64748B" :size="25" size-unit="px" :stroke-width="2.25" />

@@ -1,3 +1,19 @@
+/**
+ * notifications-create 云函数 —— 创建系统内部通知
+ *
+ * 【设计说明】
+ * 本云函数为紧耦内部调用接口，不直接对外暴露。
+ * 其他云函数（如 orders-create、orders-cancel 等）通过
+ * uniCloud.callFunction({ name: 'notifications-create', ... }) 调用。
+ *
+ * 【幂等性配限】
+ * 支持 idempotencyKey 参数：对同一 userId+type+key 组合生成固定文档 ID，
+ * 重复调用时利用数据库 upsert 特性自动去重，
+ * 避免网络重试导致用户收到重复通知。
+ *
+ * 【支持的通知类型】
+ * booking_success 、reschedule、cancel、no_show、arrival_reminder、service_start、service_finish
+ */
 // 通知创建：供内部云函数调用，写入通知表
 // 引入统一响应包装
 const { withResponse, ApiError } = require('sb-common');
@@ -26,11 +42,15 @@ const ALLOWED_TYPES = new Set([
 function normalizeType(type) {
   const raw = String(type || '').trim();
   if (!raw) return '';
+  // 先尝试大写映射别名（如 BOOKING_SUCCESS），再降为小写做精确匹配
   const mapped = TYPE_ALIAS[raw] || raw.toLowerCase();
   if (ALLOWED_TYPES.has(mapped)) return mapped;
+  // 未知类型 fallback 到 arrival_reminder，避免写入非法类型
   return 'arrival_reminder';
 }
 
+// 根据 userId + type + idempotencyKey 生成固定文档 ID
+// 相同参数多次调用产生相同 docId，配合 upsert 防止重复通知写入
 function makeIdempotentDocId(userId, type, idempotencyKey) {
   const raw = `${userId}::${type}::${idempotencyKey}`;
   return `noti_${crypto.createHash('md5').update(raw).digest('hex')}`;
@@ -68,7 +88,7 @@ exports.main = withResponse(async (event, context) => {
     createdAt: now
   };
 
-  // 可选幂等：调用方传入 idempotencyKey 时，使用固定 _id 防止并发重复写入。
+  // 可选幂等写入：调用方传入 idempotencyKey 时，使用固定 _id 防止并发重复写入
   if (idempotencyKey) {
     const docId = makeIdempotentDocId(userId, type, idempotencyKey);
     try {
@@ -78,6 +98,7 @@ exports.main = withResponse(async (event, context) => {
       });
       return { id: docId };
     } catch (err) {
+      // 重复写入时数据库抛出 duplicate/conflict/exists 错误，视为成功（返回已有 docId）
       const message = String((err && err.message) || '').toLowerCase();
       if (message.includes('duplicate') || message.includes('conflict') || message.includes('exists')) {
         return { id: docId };

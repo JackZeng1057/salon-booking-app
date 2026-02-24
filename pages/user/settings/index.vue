@@ -1,9 +1,12 @@
 <template>
+  <!-- 用户设置首页根容器（无返回按钮，作为 TabBar 根页面） -->
   <view class="settings-page">
     <app-nav :showBack="false" :showTitle="true" title="设置" />
 
     <view class="settings-content">
+      <!-- 账号功能菜单组：个人资料 / 绑定手机号 / 修改密码 / 我的评价 -->
       <view class="group-card">
+        <!-- 个人资料入口：右侧展示当前昵称 -->
         <view class="group-item" @click="goProfile">
           <view class="item-left">
             <view class="item-icon"><app-icon name="user" color="#64748B" :size="22" :stroke-width="2.1" /></view>
@@ -17,6 +20,7 @@
 
         <view class="divider"></view>
 
+        <!-- 绑定手机号入口：右侧展示脱敏后的手机号 -->
         <view class="group-item" @click="goPhone">
           <view class="item-left">
             <view class="item-icon"><app-icon name="phone" color="#64748B" :size="22" :stroke-width="2.1" /></view>
@@ -30,6 +34,7 @@
 
         <view class="divider"></view>
 
+        <!-- 修改密码入口（需先绑定手机号，密码重置通过验证码） -->
         <view class="group-item" @click="goPassword">
           <view class="item-left">
             <view class="item-icon"><app-icon name="shield" color="#64748B" :size="22" :stroke-width="2.1" /></view>
@@ -42,6 +47,7 @@
 
         <view class="divider"></view>
 
+        <!-- 我的评价入口 -->
         <view class="group-item" @click="goReviews">
           <view class="item-left">
             <view class="item-icon"><app-icon name="file" color="#64748B" :size="22" :stroke-width="2.1" /></view>
@@ -53,6 +59,7 @@
         </view>
       </view>
 
+      <!-- 版本信息卡片 -->
       <view class="group-card">
         <view class="group-item">
           <view class="item-left">
@@ -65,9 +72,11 @@
         </view>
       </view>
 
+      <!-- 退出登录按钮（清除本地 token 并跳转登录页） -->
       <view class="logout-btn" @click="handleLogout">退出登录</view>
     </view>
 
+    <!-- 底部 TabBar 组件 -->
     <bottom-tab-bar current="settings" />
   </view>
 </template>

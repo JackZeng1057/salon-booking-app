@@ -1,3 +1,44 @@
+/**
+ * @file ai-service-advisor/index.js — AI 服务选择顾问云函数
+ *
+ * 【业务定位】
+ * 接收顾客输入的需求文字（最多 300 字）和可选图片（最多 3 张），
+ * 调用阿里云 Qwen（通义千问）视觉语言模型生成中文服务推荐，
+ * 严格从门店真实服务目录中筛选 1-3 个推荐项（不允许虚构服务名称），
+ * 返回可直接传给 orders-create 的备注文本与推荐服务列表。
+ *
+ * 【接入模型】
+ * Qwen（通义千问）兼容 OpenAI Chat Completion 协议，
+ * 通过 HTTPS POST 请求阿里云 DashScope 端点，API Key 优先从云函数
+ * 环境变量读取（QWEN_API_KEY），其次回退到同目录 config.json 文件。
+ *
+ * 【提示词工程设计】
+ * 1. 系统 Prompt 强调：只能从给定目录选择服务，返回 JSON 格式；
+ * 2. 门店真实服务目录（最多 MAX_MODEL_CATALOG_SIZE=10 条）注入提示词，
+ *    防止目录过大导致 Token 超限和响应延迟；
+ * 3. 对用户输入做 XSS 清洗（去掉 HTML 标签），防止提示词注入攻击。
+ *
+ * 【故障容灾（两级重试）】
+ * 主请求：目录 10 条，超时 12 秒；
+ * 重试请求：目录缩小到 6 条，超时 8 秒，最大 Token 上调到 1100；
+ * 仅图片场景：目录进一步缩小到 4 条，降低多模态推理耗时。
+ * 通过 isRetryableQwenError() 识别超时/网络抖动，触发重试而非直接报错。
+ *
+ * 【JSON 解析容错】
+ * 模型返回可能包含 markdown 代码块（```json ... ```）或多余空白，
+ * cleanJsonFromModelResponse() 先做清洗再解析，提升解析成功率。
+ * 解析失败时不报服务器错误，而是返回"无匹配推荐"的降级结果。
+ *
+ * 【图片处理】
+ * 支持 cloud:// fileID（调用 uniCloud.getTempFileURL 获取有效 URL）
+ * 和 http(s):// 直链两种格式，自动归一化后传给 Qwen 视觉接口。
+ * 图片像素上限 DEFAULT_IMAGE_MAX_PIXELS=1572864，降低多模态在线推理耗时。
+ *
+ * 【配置参数（可通过 config.json 覆盖）】
+ * qwenApiKey, qwenEndpoint, qwenModel,
+ * qwenTimeoutMs, qwenMaxTokens, qwenCatalogLimit,
+ * qwenRetryTimeoutMs, qwenRetryMaxTokens, qwenRetryCatalogLimit, imageMaxPixels
+ */
 // AI 服务选择顾问云函数
 // 职责：
 // 1) 接收用户文本 + 可选图片，生成中文建议

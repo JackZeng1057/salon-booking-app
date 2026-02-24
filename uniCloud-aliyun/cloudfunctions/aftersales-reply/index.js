@@ -1,3 +1,17 @@
+/**
+ * aftersales-reply 云函数 —— 门店管理员处理售后工单
+ *
+ * 【业务说明】
+ * 管理员在售后管理页查看工单后，可填写回复内容并更新工单状态。
+ * 状态流转路径：OPEN → PROCESSING → RESOLVED / REJECTED
+ *
+ * 【权限与校验】
+ * - 仅 admin 角色可调用
+ * - 门店隔离：管理员只能处理本店发起的售后工单
+ *
+ * 【通知策略】
+ * 状态更新后自动推送进度通知给用户（fire-and-forget）。
+ */
 const { withResponse, ApiError, requireRole } = require('sb-common');
 
 // 标准化售后状态：仅允许固定枚举，非法值回退 PROCESSING 防止写入异常状态。

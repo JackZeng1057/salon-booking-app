@@ -1,3 +1,18 @@
+/**
+ * orders-store-list 云函数 —— 门店当日订单列表
+ *
+ * 【业务说明】
+ * 返回管理员所店指定日期的全部订单列表，管理员在订单管理页调用。
+ * 已被门店软删除的订单不展示。
+ *
+ * 【附加能力】
+ * - 入口懒触发自动爱约：将该门店超时未处理的订单标记为 NO_SHOW
+ * - 返回列表附带排队提示字段
+ *
+ * 【权限】
+ * - 仅 admin 角色可访问
+ * - 强制要求传入 date 参数
+ */
 const {
   withResponse,
   ApiError,
@@ -66,6 +81,8 @@ exports.main = withResponse(async (event, context) => {
     .get();
 
   const rawList = res.data || [];
+  // buildQueueHintMap：查询同时段已 BOOKED 订单数，生成时段→排队人数映射
+  // attachQueueHints：将排队位置写入每条订单，前端展示「您前面还有X人」
   const queueHintMap = await buildQueueHintMap(db, rawList);
   const list = attachQueueHints(rawList, queueHintMap);
   const latestSyncAt = list.reduce((max, item) => Math.max(max, Number(item.updatedAt || 0)), lastSyncAt || 0);

@@ -1,80 +1,100 @@
-﻿// 登录接口：校验账号密码并签发令牌
-// 引入 Node.js 加密模块
+﻿/**
+ * auth-login 云函数 —— 账号密码登录 & Token 签发
+ *
+ * 【认证方案设计说明】
+ * 本系统没有使用 uniCloud 官方的 uni-id 内置认证体系，而是采用自定义 Token 方案。
+ * 原因如下：
+ *   1. uni-id 默认将用户表与认证逻辑高度耦合，难以在不改造框架的情况下实现
+ *      本项目所需的多角色审批流（barber 需要 admin 审核才能切换 role）；
+ *   2. 自定义 auth_tokens 集合结构简单清晰，便于在论文中完整描述认证流程；
+ *   3. 支持未来扩展（如 refresh token、多设备踢出等），只需修改 auth_tokens 逻辑。
+ *
+ * 【完整登录流程】
+ *   ① 客户端发送 { username, password } 给本云函数
+ *   ② 校验入参非空
+ *   ③ 按 username 在 users 集合精确查找
+ *   ④ 将 hashPassword(password) 的计算结果与数据库存储的 passwordHash 比对
+ *      （hashPassword 内部使用 SHA-256，密码不以明文保存）
+ *   ⑤ 比对通过后调用 createToken() 生成 48 位随机十六进制串
+ *   ⑥ 将 token 记录写入 auth_tokens 集合（含过期时间戳）
+ *   ⑦ 将 token 和用户摘要返回给客户端
+ *   ⑧ 客户端将 token 存入 uni.setStorageSync，后续每次调用云函数时附带
+ *
+ * 【安全设计：防用户枚举】
+ * "用户不存在"和"密码错误"两种情况统一返回 401 + 'invalid credentials'，
+ * 攻击者无法通过对比错误消息来判断某个账号是否在系统中注册，从而防止账号枚举攻击。
+ *
+ * 【Token 有效期设计】
+ * 有效期设为 7 天，在安全性与用户体验之间取得平衡：
+ * - 过短：用户需要频繁重新登录，体验差；
+ * - 过长：token 泄露后窗口期长，安全风险增加。
+ * 7 天对于频繁使用的预约 App 是合适的折中值。
+ */
 const crypto = require('crypto');
-// 引入统一响应包装、错误类型与错误码常量
 const { withResponse, ApiError, ERROR_CODES, hashPassword } = require('sb-common');
 
-// 生成随机令牌作为登录会话
+/**
+ * 生成随机 Token（48 位十六进制字符串）
+ * 使用 Node.js 内置 crypto 模块的 randomBytes，能产生加密安全的随机字节，
+ * 碰撞概率约为 2^{-192}，远低于实际威胁阈值，不存在可预测性问题。
+ */
 function createToken() {
-  // 生成随机字节并转为十六进制字符串
   return crypto.randomBytes(24).toString('hex');
 }
 
-// 登录：校验账号密码 -> 写入令牌表 -> 返回令牌与用户基础信息
+/**
+ * 登录主逻辑：入参校验 → 账号查询 → 密码比对 → Token 入库 → 返回凭证
+ */
 exports.main = withResponse(async (event, context) => {
-  // 从入参读取用户名，若不存在则使用空字符串兜底
   const username = (event && event.username) || '';
-  // 从入参读取密码，若不存在则使用空字符串兜底
   const password = (event && event.password) || '';
 
-  // 校验用户名和密码是否齐全
+  // 入参非空校验：username 和 password 均为必填
   if (!username || !password) {
-    // 抛出统一错误：参数不可处理（缺少用户名或密码）
     throw new ApiError(ERROR_CODES.UNPROCESSABLE, 'username and password required');
   }
 
-  // 获取数据库操作实例
   const db = uniCloud.database();
-  // 根据用户名查询用户记录
+  // 按 username 精确查找用户（users.username 字段应在数据库建立唯一索引）。
+  // limit(1) 防止异常情况下返回多条记录。
   const userRes = await db.collection('users').where({ username }).limit(1).get();
-  // 取出查询到的第一条用户记录
   const user = userRes.data && userRes.data[0];
-  // 校验用户是否存在以及密码是否匹配
+
+  // 【安全】用户不存在与密码错误统一返回 401，防止攻击者通过不同错误消息枚举账号。
+  // hashPassword 内部使用 SHA-256：passwordHash = SHA256(password)，数据库中不存明文。
   if (!user || user.passwordHash !== hashPassword(password)) {
-    // 抛出统一错误：账号或密码错误
     throw new ApiError(ERROR_CODES.UNAUTHORIZED, 'invalid credentials');
   }
 
-  // 生成新的登录令牌
+  // 生成 Token 并写入 auth_tokens 集合。
+  // auth_tokens 集合结构：{ userId, token, createdAt, expiresAt }
+  // 使用独立集合而非直接存 users 的好处：支持多设备同时登录（一账号多 token），
+  // 且可随时吊销指定设备的 token（删除对应文档即可强制下线）。
   const token = createToken();
-  // 计算令牌过期时间（7 天后）
-  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
-  // 将令牌信息写入 auth_tokens 集合
+  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 天后过期
+
   await db.collection('auth_tokens').add({
-    // 关联用户 id
     userId: user._id,
-    // 保存令牌字符串
     token,
-    // 保存创建时间戳
     createdAt: Date.now(),
-    // 保存过期时间戳
     expiresAt
   });
 
-  // 返回令牌与用户基础信息
+  // 返回 token 与用户摘要：
+  // 前端收到后将 token 持久化到本地存储，后续请求携带；
+  // 同时将 user 摘要存入 Vuex/store，直接完成角色路由，无需再调用 auth-me。
   return {
-    // 返回令牌字符串
     token,
-    // 返回用户基础信息对象
     user: {
-      // 返回用户 id
       _id: user._id,
-      // 返回用户名
       username: user.username,
-      // 返回角色（缺省为 user）
       role: user.role || 'user',
-      // 返回门店 ID（理发师/店家需要）
-      storeId: user.storeId || '',
-      // 返回绑定手机号
+      storeId: user.storeId || '',     // 理发师/管理员后续门店操作的关键外键
       phone: user.phone || '',
-      // 返回显示昵称
-      name: user.name || '',
-      // 返回头像
+      name: user.name || '',           // admin 角色此处存门店名，barber/user 存账号名
       avatar: user.avatar || '',
-      // 待审核角色（如 barber）
-      pendingRole: user.pendingRole || '',
-      // 审核状态（PENDING/APPROVED/REJECTED）
-      approvalStatus: user.approvalStatus || ''
+      pendingRole: user.pendingRole || '',         // 申请中的目标角色（如 barber）
+      approvalStatus: user.approvalStatus || ''   // PENDING=审核中 / APPROVED=通过 / REJECTED=拒绝
     }
   };
 });

@@ -1,10 +1,24 @@
+/**
+ * password-reset 云函数 —— 通过手机号验证码重置密码
+ *
+ * 【业务流程】
+ *   ① 输入手机号与短信验证码（由 sms-send-code 发送）
+ *   ② 参数完整性校验：手机号、验证码、新密码均必填
+ *   ③ 核查手机号是否已绑定到某个账号
+ *   ④ 校验短信验证码是否有效且未过期
+ *   ⑤ 更新 passwordHash（SHA-256 摘要）
+ *   ⑥ 将验证码标记为已使用，防止重放攻击
+ *
+ * 【密码强度限制】
+ * 新密码至少 6 位，backend 存储 SHA-256 摘要而非明文。
+ *
+ * 【权限】
+ * 公开接口：无需登录（忘记密码场景）
+ */
 // 密码重置：校验短信验证码并更新密码摘要
-// 引入统一响应包装
 const { withResponse, ApiError, hashPassword } = require('sb-common');
 
-/**
- * 验证验证码并重置密码
- */
+// 流程：验证手机号绑定 -> 校验短信验证码 -> 更新密码摘要 -> 标记验证码已使用
 exports.main = withResponse(async (event, context) => {
   const phone = event && event.phone;
   const code = event && event.code;

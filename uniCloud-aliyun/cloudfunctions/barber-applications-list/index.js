@@ -1,3 +1,15 @@
+/**
+ * barber-applications-list 云函数 —— 理发师入店申请列表
+ *
+ * 【业务说明】
+ * 管理员在审核理发师申请页面中查看本店待审核或历史申请记录。
+ * 支持按审核状态（PENDING/APPROVED/REJECTED/ALL）进行筛选，
+ * 并并行返回待审核数量，供管理员首页展示待处理红点。
+ *
+ * 【权限】
+ * - 仅 admin 角色可访问
+ * - 数据范围自动限定为管理员所属门店
+ */
 // 店家查看理发师申请列表（仅本店）
 const { withResponse, requireRole, ApiError, ERROR_CODES } = require('sb-common');
 
@@ -37,7 +49,7 @@ exports.main = withResponse(async (event, context) => {
     where.approvalStatus = status;
   }
 
-  // 并行获取分页列表与待审核数量
+  // 并行获取分页列表与待审核数量（pendingCount 供管理首页「待审核」徽章/红点展示）
   const [listRes, pendingCountRes] = await Promise.all([
     db
       .collection('users')

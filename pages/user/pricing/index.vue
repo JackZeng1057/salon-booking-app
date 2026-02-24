@@ -1,12 +1,16 @@
 <template>
+  <!-- 价目表页根容器 -->
   <view class="pricing-page">
+    <!-- 吸顶头部：导航栏 + 标题 Banner + 分类标签滚动行 -->
     <view class="page-header">
       <app-nav :showTitle="true" title="价目表" />
+      <!-- 页面说明 Banner -->
       <view class="hero-card">
         <text class="hero-title">透明报价</text>
         <text class="hero-subtitle">所有项目明码标价，预约前先看清楚价格与时长</text>
       </view>
 
+      <!-- 服务类型滚动标签行：全部 / 剪发 / 染发 / 烫发 / 护理 -->
       <scroll-view class="category-scroll" scroll-x>
         <view class="category-row">
           <view
@@ -22,11 +26,15 @@
       </scroll-view>
     </view>
 
+    <!-- 服务列表滚动区域 -->
     <scroll-view class="page-scroll" scroll-y>
       <view class="pricing-content">
+        <!-- 加载中占位 -->
         <view v-if="loading" class="hint">加载中...</view>
+        <!-- 空数据提示 -->
         <view v-else-if="filteredServices.length === 0" class="hint">暂无价目数据</view>
 
+        <!-- 服务卡片列表：展示名称、描述、标签、价格、时长以及"去预约"按钮 -->
         <view v-else class="pricing-list">
           <view v-for="item in filteredServices" :key="item.id" class="service-card">
             <view class="service-main">

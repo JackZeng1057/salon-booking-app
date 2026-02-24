@@ -1,7 +1,9 @@
 <template>
   <view class="reviews-page">
+    <!-- 吸顶头部：导航栏 + 门店评价概览 Banner + 筛选标签行 -->
     <view class="page-header">
       <app-nav :showTitle="true" title="门店评价" />
+      <!-- 评分概览卡片：展示门店总评分与评价总数 -->
       <view class="hero-card">
         <text class="hero-kicker">管理员视角</text>
         <text class="hero-title">{{ storeName || '当前门店' }}</text>
@@ -12,6 +14,7 @@
         </view>
       </view>
 
+      <!-- 评价筛选标签：全部 / 好评 / 差评 / 有图 -->
       <view class="filter-wrap">
         <text
           v-for="item in filters"
@@ -25,19 +28,27 @@
       </view>
     </view>
 
+    <!-- 评价列表滚动区域：触底自动加载更多 -->
     <scroll-view class="page-scroll" scroll-y @scrolltolower="loadMore">
       <view class="page-content">
+      <!-- 未绑定门店提示 -->
       <view v-if="!storeId" class="hint">当前账号未绑定门店</view>
+      <!-- 初次加载中占位 -->
       <view v-else-if="loading && reviews.length === 0" class="hint">评价加载中...</view>
+      <!-- 空列表提示 -->
       <view v-else-if="reviews.length === 0" class="hint">暂无评价</view>
 
+      <!-- 评价卡片列表 -->
       <view v-else class="review-list">
         <view v-for="item in reviews" :key="item._id" class="review-card">
+          <!-- 卡片头：用户名 + 星级评分 -->
           <view class="review-top">
             <text class="review-user">{{ item.userName || '匿名用户' }}</text>
             <text class="review-score">★ {{ formatScore(item.rating) }}</text>
           </view>
+          <!-- 评价内容文本 -->
           <text class="review-content">{{ item.content || '用户未填写内容' }}</text>
+          <!-- 评价图片组（点击预览大图） -->
           <view v-if="getImages(item).length > 0" class="review-images">
             <image
               v-for="(img, idx) in getImages(item)"
@@ -48,14 +59,17 @@
               @click="previewReviewImage(item, idx)"
             />
           </view>
+          <!-- 商家回复区（若已回复则显示） -->
           <view v-if="getReplyText(item)" class="reply-box">
             <text class="reply-label">商家回复：</text>
             <text class="reply-text">{{ getReplyText(item) }}</text>
           </view>
+          <!-- 发布时间 -->
           <text class="review-time">{{ formatTime(item.createdAt) }}</text>
         </view>
       </view>
 
+      <!-- 加载更多触发区 -->
       <view v-if="storeId && reviews.length > 0" class="load-more" @click="loadMore">
         <text>{{ hasMore ? (loadingMore ? '加载中...' : '加载更多') : '没有更多了' }}</text>
       </view>

@@ -1,3 +1,35 @@
+/**
+ * @file admin-dashboard/index.js — 门店运营看板云函数
+ *
+ * 【业务定位】
+ * 为门店管理员提供单日（day）或近7天（week）维度的运营数据汇总，
+ * 是 admin/dashboard 页面的唯一数据源。
+ *
+ * 【返回数据结构】
+ * {
+ *   date, mode, range,       // 查询维度与日期范围
+ *   counters,                 // 汇总订单计数（total/arrived/finished/cancelled/noShow）
+ *   rates,                    // 比率（完成率/取消率/爽约率），精确到 4 位小数
+ *   barberStats,              // 各理发师维度聚合（按完成数降序）
+ *   orderTrend,               // 按日展开的订单趋势（供折线图）
+ *   reviewTrend               // 按日展开的评价均分趋势（供折线图）
+ * }
+ *
+ * 【自动爽约机制（autoCancelOverdueBookedOrders）】
+ * 看板加载前会先执行一次自动爽约：
+ * 将门店内所有超时未到店 BOOKED 订单（宽限 20 分钟）标记为 NO_SHOW，
+ * 防止看板统计数据与实际情况出入（如"完成率"因历史已过期但仍 BOOKED 的订单被拉低）。
+ * 自动爽约失败时只记录日志，不影响看板数据返回。
+ *
+ * 【分页全量读取（PAGE_SIZE=500）】
+ * fetchAllOrdersByDate / fetchAllReviewsByStore 均采用分页循环，
+ * 保证订单/评价超出云数据库默认 100 条上限时数据完整。
+ *
+ * 【纯计算函数（无副作用）】
+ * calcCounters / calcRates / calcBarberStats / calcReviewTrend
+ * 均为纯函数，仅对内存中的已读数据做聚合，不产生额外 DB 读写，
+ * 保证统计逻辑可单独单元测试。
+ */
 // 门店运营看板数据：支持按日/近7天汇总订单、理发师指标与评价趋势
 const { withResponse, requireRole, getChinaDateString, autoCancelOverdueBookedOrders } = require('sb-common');
 

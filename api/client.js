@@ -1,25 +1,75 @@
 import { authStore } from '../store/auth';
 
 /**
- * 云函数客户端统一封装
- * 目标：
- * 1) 自动携带登录 token
- * 2) 统一翻译后端/网络错误为中文可读文案
- * 3) 保留 requestId 便于线上排障
+ * @file client.js — 前端云函数调用统一客户端
+ *
+ * 【职责定位】
+ * 所有前端 api/*.js 模块最终都通过本文件的 callCloud() 发起云函数调用。
+ * 集中处理以下三类关注点，避免在每个业务模块中反复实现：
+ *   1. Token 注入      — 从 Vuex store 读取 token 并自动附加到每次请求，
+ *                        页面层完全无需手动传递 token 参数；
+ *   2. 错误翻译        — 将后端英文错误码/网络错误统一转换为用户可读的中文提示，
+ *                        通过 exactMap 精确匹配 + 正则模式 + HTTP 状态码 三重兜底；
+ *   3. requestId 追踪  — 从错误信息中提取 requestId 并附加到 Error 对象，
+ *                        供 debug 时定位云函数执行日志。
+ *
+ * 【调用链路】
+ *   页面层 (pages/)
+ *     → 业务 API 模块 (api/order.js, api/auth.js …)
+ *       → callCloud(name, data)        ← 本文件
+ *         → uniCloud.callFunction()    ← uniCloud SDK
+ *           → 云函数 (uniCloud-aliyun/cloudfunctions/)
+ *
+ * 【错误处理两路径】
+ *   A. 网络层错误（uniCloud.callFunction throw）：SDK 层超时/连接失败，
+ *      捕获后构造统一 Error 对象并抛出
+ *   B. 业务层错误（result.code !== 0）：云函数正常返回但业务失败，
+ *      同样转为 Error 抛出，保证调用方只需 catch 一种类型
+ *
+ * 【成功路径】
+ *   只返回 result.data，页面层不感知 { code, message, data, requestId } 包裹结构，
+ *   写法更简洁（直接 const data = await apiXxx()，无需 .data.data 解包）
  */
 
-// 从错误文本中提取 requestId（后端常以 [requestId:xxx] 形式拼接）
+/**
+ * 从错误文本中提取 requestId
+ * 后端 withResponse.js 会将 requestId 以 [requestId:xxx] 格式拼接到 message 末尾，
+ * 此函数将其解析出来，供排障时检索云函数执行日志。
+ * @param {string} text - 原始错误消息
+ * @returns {string} requestId 或空字符串
+ */
 function extractRequestId(text) {
   const m = String(text || '').match(/\[requestId:([^\]]+)\]/);
   return m ? m[1] : '';
 }
 
-// 清理错误消息中的 requestId 后缀，避免直接暴露给终端用户
+/**
+ * 清理错误消息中的 requestId 后缀
+ * 由于 requestId 是内部调试信息，不适合直接展示给终端用户（如 toast），
+ * 此函数将其从消息文本中剥离，获得纯净的错误说明。
+ * @param {string} text
+ * @returns {string}
+ */
 function stripRequestId(text) {
   return String(text || '').replace(/\s*\[requestId:[^\]]+\]\s*/g, '').trim();
 }
 
-// 错误文案翻译器：先走精确映射，再走模式匹配与状态码兜底
+/**
+ * 错误文案翻译器（三级降级策略）
+ *
+ * 翻译优先级：
+ *   1. 超时特判 —— 对 AI 云函数超时单独提示，引导用户到控制台调整超时配置；
+ *   2. exactMap 精确匹配 —— 约 60 条已知英文错误码→中文映射，覆盖所有业务场景；
+ *   3. 正则模式匹配 —— 捕获网络错误、凭证错误等通用模式；
+ *   4. HTTP 状态码兜底 —— 对未匹配的错误按 401/403/404/5xx/4xx 兜底翻译；
+ *   5. 最终兜底 —— "请求失败，请稍后重试"
+ *
+ * 设计动机：将所有文案集中在此处，UI 层只负责展示，不感知英文错误码。
+ *
+ * @param {string} message - 原始英文错误消息
+ * @param {number} code    - 业务错误码（与 HTTP 状态码语义对齐）
+ * @returns {string} 中文可读文案
+ */
 function translateErrorMessage(message, code) {
   const pure = stripRequestId(message);
   const lower = pure.toLowerCase();
@@ -111,11 +161,27 @@ function translateErrorMessage(message, code) {
   return pure || '请求失败，请稍后重试';
 }
 
-// 云函数调用入口：统一注入 token、超时与错误对象结构
+/**
+ * 云函数调用入口（全局统一）
+ *
+ * 封装了 uniCloud.callFunction 的所有样板代码：
+ * - 自动从 Vuex authStore 读取 token 并注入到 payload，无需调用方传递；
+ * - 默认超时 15 秒（AI 云函数建议通过 options.timeout 设为 25000）；
+ * - 网络层抛出时：提取 requestId，翻译为中文，构造统一 Error 抛出；
+ * - 业务层失败（code!==0）时：同样翻译并构造统一 Error 抛出；
+ * - 成功时只返回 data 字段，页面层直接得到数据，无需 .data 解包。
+ *
+ * @param {string} name            - 云函数名称（如 'orders-create'）
+ * @param {Object} [data={}]       - 业务参数（token 会被自动追加，无需手动传）
+ * @param {Object} [options={}]    - 可选配置
+ * @param {number} [options.timeout=15000] - 超时毫秒数
+ * @returns {Promise<any>}         - 云函数返回的 result.data
+ * @throws {Error}                 - 含 .code / .requestId / .data 的增强 Error 对象
+ */
 export async function callCloud(name, data = {}, options = {}) {
-  // 克隆入参，避免污染调用方对象
+  // 克隆入参，避免污染调用方传入的对象（引用类型问题）
   const payload = { ...data };
-  // 已登录时自动透传 token
+  // 已登录时自动透传 token（云函数中 sb-common/auth.js 会验证此字段）
   if (authStore.state.token) {
     payload.token = authStore.state.token;
   }
@@ -128,7 +194,8 @@ export async function callCloud(name, data = {}, options = {}) {
       timeout: Number(options.timeout || 15000)
     });
   } catch (e) {
-    // 网络层异常：构造统一 Error 对象，附带 code/data/requestId
+    // 网络层异常（SDK 层 throw）：超时、断网、DNS 失败等
+    // 统一构造增强 Error 对象供页面层 catch：err.code / err.requestId / err.data
     const requestId = (e && e.requestId) || extractRequestId(e && e.message);
     const readable = translateErrorMessage(e && e.message, e && e.code);
     const err = new Error(readable);
@@ -138,12 +205,13 @@ export async function callCloud(name, data = {}, options = {}) {
     throw err;
   }
 
-  // 云函数未返回 result，视为服务异常
+  // 云函数未返回 result（极少见，通常是函数崩溃或 runtime 错误）
   const result = res && res.result;
   if (!result) {
     throw new Error('服务无响应，请稍后重试');
   }
-  // 业务层非 0 code，转为统一异常抛出
+  // 业务层非 0 code（如 400 参数错误、401 未登录、403 权限不足等）
+  // 与网络层错误统一为 throw Error，页面层只需一个 catch 块处理所有失败情况
   if (result.code !== 0) {
     const requestId = result.requestId || '';
     const readable = translateErrorMessage(result.message, result.code);
@@ -154,6 +222,6 @@ export async function callCloud(name, data = {}, options = {}) {
     throw err;
   }
 
-  // 成功时仅返回 data，页面层不感知 result 包装结构
+  // 成功：仅返回 data，页面层不感知 result 包装结构，写法更简洁
   return result.data;
 }

@@ -1,5 +1,7 @@
 <template>
+  <!-- 消息详情页根容器 -->
   <view class="page">
+    <!-- 吸顶头部：导航栏 + 消息发送时间 -->
     <view class="page-header">
       <app-nav :showTitle="true" title="消息详情" />
       <view class="hero-card">
@@ -7,23 +9,28 @@
       </view>
     </view>
 
+    <!-- 滚动内容区 -->
     <scroll-view class="page-scroll" scroll-y>
+      <!-- 消息内容卡片 -->
       <view class="card">
-      <view class="top-row">
-        <view class="icon-wrap">
-          <app-icon
-            :name="getNotificationIconMeta(detail.type).name"
-            :color="getNotificationIconMeta(detail.type).color"
-            :size="56"
-            :stroke-width="2.2"
-          />
+        <!-- 顶部行：通知类型图标 + 标题 + 类型文字 -->
+        <view class="top-row">
+          <view class="icon-wrap">
+            <!-- 图标名称与颜色根据通知类型动态映射 -->
+            <app-icon
+              :name="getNotificationIconMeta(detail.type).name"
+              :color="getNotificationIconMeta(detail.type).color"
+              :size="56"
+              :stroke-width="2.2"
+            />
+          </view>
+          <view class="main">
+            <text class="msg-title">{{ detail.title || '系统通知' }}</text>
+            <text class="msg-type">{{ formatType(detail.type) }}</text>
+          </view>
         </view>
-        <view class="main">
-          <text class="msg-title">{{ detail.title || '系统通知' }}</text>
-          <text class="msg-type">{{ formatType(detail.type) }}</text>
-        </view>
-      </view>
 
+        <!-- 通知正文内容区 -->
         <view class="content-box">
           <text class="content">{{ detail.content || '暂无内容' }}</text>
         </view>

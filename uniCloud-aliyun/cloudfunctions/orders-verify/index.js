@@ -1,3 +1,27 @@
+/**
+ * @file orders-verify/index.js — 到店核验云函数
+ *
+ * 【业务定位】
+ * 实现订单状态机中 BOOKED → ARRIVED 这一关键转换，
+ * 对应顾客持核验码到店、门店管理员扫码/手工输入确认的业务场景。
+ *
+ * 【核验码设计】
+ * verifyCode 是在 orders-create 阶段生成的 6 位纯数字随机码。
+ * 采用短码格式（非 UUID），方便门店工作人员口头核对或在小屏设备手动输入，
+ * 降低操作门槛。本接口以 verifyCode 为 where 条件查询订单，
+ * 确保门店无需知道内部 orderId 即可完成核验。
+ *
+ * 【权限设计】
+ * 仅 admin 角色可调用，防止顾客或理发师自行将订单标记为已到店。
+ * 同时校验 admin.storeId === order.storeId，防止跨门店核验。
+ *
+ * 【幂等性】
+ * 重复核验同一订单时，若已为 ARRIVED 状态，直接返回成功（不报错），
+ * 避免网络重试场景导致前端收到错误提示。
+ *
+ * 【返回值优化】
+ * 核验成功后拼装 order 快照返回，无需再次查询数据库，减少读操作次数。
+ */
 const { withResponse, ApiError, ERROR_CODES, requireRole, logAudit, logOrderEvent } = require('sb-common');
 
 // 核验到店（BOOKED -> ARRIVED）：仅门店管理员可操作

@@ -1,21 +1,29 @@
 <template>
+  <!-- 用户首页根容器 -->
   <view class="home-page">
+    <!-- 顶部导航（不需要返回按钮，首页） -->
     <app-nav :showBack="false" />
 
     <view class="home-content">
+      <!-- 顶部头部区域：问候语 + 通知按钮 + 头像 + 搜索框 -->
       <view class="home-top">
         <view class="header-row">
+          <!-- 左侧：时段问候语（早安/上午好/下午好/晚上好）+ 用户名 -->
           <view class="header-copy">
             <text class="greeting-text">{{ greetingText }}，{{ displayName }}</text>
             <text class="headline-text">开启今日造型</text>
           </view>
 
+          <!-- 右侧操作区：通知角标 + 头像入口 -->
           <view class="header-actions">
+            <!-- 铃铛通知按钮；有未读消息时显示红点角标 -->
             <view class="notify-btn" @click="goNotifications">
               <app-icon name="bell" color="#334155" :size="34" :stroke-width="2.1" />
+              <!-- 未读消息红点（unreadCount > 0 才显示） -->
               <text v-if="unreadCount > 0" class="notify-dot"></text>
             </view>
 
+            <!-- 用户头像（有头像显示图片，否则显示首字母占位圆） -->
             <view class="avatar-wrap" @click="goSettings">
               <image
                 v-if="userAvatar"
@@ -24,21 +32,26 @@
                 mode="aspectFill"
                 @error="handleAvatarError"
               />
+              <!-- 头像兜底：用 username 首字母作为占位符 -->
               <view v-else class="avatar-image avatar-fallback">{{ avatarInitial }}</view>
             </view>
           </view>
         </view>
 
+        <!-- 搜索框（点击后跳转门店列表页进行搜索，非原地输入） -->
         <view class="search-bar" @click="goSearch">
           <app-icon class="search-icon-svg" name="search" color="#94A3B8" :size="31" :stroke-width="2.1" />
           <text class="search-text">搜索门店、发型师、服务...</text>
         </view>
       </view>
 
+      <!-- 主要内容滚动区域 -->
       <scroll-view class="home-scroll" scroll-y>
         <view class="home-scroll-content">
+          <!-- 促销 Banner 卡片（点击跳转门店列表；背景图、标题、副标题可运营配置） -->
           <view class="promo-card" @click="goStores">
             <image class="promo-bg" :src="bannerCover" mode="aspectFill" />
+            <!-- 渐变蒙层提升文字对比度 -->
             <view class="promo-overlay"></view>
             <view class="promo-content">
               <text class="promo-kicker">Season Offer</text>
@@ -48,6 +61,7 @@
             </view>
           </view>
 
+          <!-- 快捷功能入口区：预约/AI 顾问/我的订单/评价 4 个图标格 -->
           <view class="quick-actions">
             <view
               v-for="item in quickActions"
@@ -56,6 +70,7 @@
               @click="handleQuickAction(item.key)"
               hover-class="quick-item-hover"
             >
+              <!-- 彩色圆形图标底板 + SVG 图标 -->
               <view class="quick-icon" :style="{ background: item.bg }">
                 <app-icon :name="item.iconName" color="#334155" :size="36" :stroke-width="2.15" />
               </view>
@@ -63,17 +78,22 @@
             </view>
           </view>
 
+          <!-- 附近推荐门店区域标题行 -->
           <view class="section-header">
             <text class="section-title">附近推荐</text>
+            <!-- "更多"链接跳转完整门店列表 -->
             <text class="section-more" @click="goStores">更多</text>
           </view>
 
+          <!-- 门店列表加载中状态 -->
           <view v-if="storeLoading" class="state-card">
             <text class="state-text">正在加载门店...</text>
           </view>
+          <!-- 无推荐门店兜底 -->
           <view v-else-if="recommendedStores.length === 0" class="state-card">
             <text class="state-text">暂无可展示门店</text>
           </view>
+          <!-- 推荐门店卡片列表（最多展示 6 家） -->
           <view v-else class="store-list">
             <view
               v-for="store in recommendedStores"
@@ -81,15 +101,19 @@
               class="store-card"
               @click="goStoreDetail(store._id)"
             >
+              <!-- 门店封面图 + 右下角距离徽章 -->
               <view class="store-cover-wrap">
                 <image class="store-cover" :src="getStoreCover(store)" mode="aspectFill" />
+                <!-- 距离徽章（用户授权定位后展示，单位自动切换 m/km） -->
                 <view v-if="store.distance !== null && store.distance !== undefined" class="store-distance">
                   <app-icon name="map-pin" color="#FFFFFF" :size="19" :stroke-width="2.2" />
                   <text>{{ formatDistance(store.distance) }}</text>
                 </view>
               </view>
 
+              <!-- 门店文字信息：名称/评分 + 地址 + 标签行 -->
               <view class="store-info">
+                <!-- 名称行 + 评分 -->
                 <view class="store-name-row">
                   <text class="store-name">{{ store.name || '未命名门店' }}</text>
                   <text class="store-rating">★ {{ formatStoreRating(store) }}</text>
@@ -97,6 +121,7 @@
 
                 <text class="store-address">{{ store.address || '地址信息待完善' }}</text>
 
+                <!-- 胶囊标签行：价格档 + 评价数 + 营业状态 -->
                 <view class="store-meta-row">
                   <text class="store-meta-pill">{{ formatPrice(store) }}</text>
                   <text class="store-meta-pill">{{ formatReviewCount(store) }}</text>
@@ -106,11 +131,13 @@
             </view>
           </view>
 
+          <!-- 底部安全边距（防止内容被 Tab Bar 遮住） -->
           <view class="scroll-bottom-safe"></view>
         </view>
       </scroll-view>
     </view>
 
+    <!-- 底部导航 Tab Bar（当前选中 home） -->
     <bottom-tab-bar current="home" />
   </view>
 </template>

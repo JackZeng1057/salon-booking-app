@@ -1,3 +1,36 @@
+/**
+ * @file barber-schedule-set/index.js — 理发师排班设置与时段生成云函数
+ *
+ * 【业务定位】
+ * 理发师在排班管理页（pages/barber/schedule/）选择某一天的上班起止时间后，
+ * 提交到本云函数完成两件事：
+ *   1. 写入/更新 barber_schedules 集合中当天的排班记录
+ *   2. 按 5 分钟粒度生成 time_slots 文档（状态默认 AVAILABLE）
+ *
+ * 【时段生成规则】
+ *   - 以 SLOT_STEP_MIN（5分钟）为粒度，在 [workStart, workEnd) 区间逐一生成
+ *   - 午休窗口（12:00-13:00）和 晚间窗口（18:00-19:00）内的时段跳过，不生成
+ *   - 已存在的 time_slots 文档一律跳过（不覆盖，避免误清掉已预约的占用状态）
+ *   - 全部新增时段通过 collection.add() 批量写入，降低超时风险
+ *
+ * 【幂等性设计】
+ * 多次提交同一天排班时，已存在的 AVAILABLE 时段不会被重复创建，
+ * 已被 BOOKED 的时段不受影响，排班调整只新增缺失时段。
+ *
+ * 【可预约统计返回值】
+ * 函数返回 { created, existed, bookable } 统计，
+ * 前端可据此提示"共生成 N 个时段，可预约 M 个"，辅助理发师了解排班效果。
+ *
+ * 【引入的工具说明】
+ *   SLOT_STEP_MIN      : 时段步长（5分钟）
+ *   REST_GAP_MIN       : 服务后缓冲时间（默认 5 分钟），影响可预约窗口计算
+ *   timeToMinutes      : "HH:MM" → 分钟数，用于时间区间运算
+ *   minutesToTime      : 分钟数 → "HH:MM"，将数字转回时间字符串写入数据库
+ *   isAlignedToSlotStep: 时间是否对齐 5 分钟粒度，排班起止时间须对齐才有效
+ *   getChinaDateString : 获取北京时间当前日期字符串，用于"今天"边界判断
+ *   resolveAssignedServiceForBarber: 获取理发师被分配的服务项目列表（含时长），
+ *                        统计可预约窗口时需要知道服务时长
+ */
 const {
   withResponse,
   ApiError,
@@ -14,11 +47,7 @@ const {
   resolveAssignedServiceForBarber
 } = require('sb-common');
 
-// 排班设置与时段生成：
-// 1) 按 5 分钟粒度生成当天/未来 N 天 AVAILABLE slots
-// 2) 已存在时段一律跳过（不重复生成，不覆盖历史）
-// 3) 批量写入，降低超时风险
-
+// 午休/晚间休息窗口：窗口内时段不生成（避免排班期间的休息时段被顾客占用）
 const BREAK_WINDOWS = [
   { start: '12:00', end: '13:00' },
   { start: '18:00', end: '19:00' }

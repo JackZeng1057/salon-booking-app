@@ -1,59 +1,69 @@
 <template>
+  <!-- 门店列表页根容器 -->
   <view class="store-list-page">
+    <!-- 吸顶头部区域：包含导航栏 + 搜索框 + 筛选按钮 + 筛选面板 -->
     <view class="page-header">
+      <!-- 顶部导航 -->
       <app-nav :showTitle="true" title="选择门店" />
 
+      <!-- 搜索栏 + 筛选按钮组合行 -->
       <view class="tools-wrap">
-      <view class="search-box">
-        <app-icon class="search-icon-svg" name="search" color="#94A3B8" :size="30" :stroke-width="2.1" />
-        <input
-          v-model.trim="keyword"
-          class="search-input"
-          type="text"
-          confirm-type="search"
-          placeholder="输入店名或地址"
-          placeholder-class="search-placeholder"
-          @confirm="handleSearch"
-        />
+        <!-- 搜索输入框：输入关键词后按回车触发搜索；搜索时跳过缓存 -->
+        <view class="search-box">
+          <app-icon class="search-icon-svg" name="search" color="#94A3B8" :size="30" :stroke-width="2.1" />
+          <input
+            v-model.trim="keyword"
+            class="search-input"
+            type="text"
+            confirm-type="search"
+            placeholder="输入店名或地址"
+            placeholder-class="search-placeholder"
+            @confirm="handleSearch"
+          />
+        </view>
+
+        <!-- 筛选按钮：点击展开/收起下方筛选面板 -->
+        <view class="filter-btn" @click="toggleFilter">
+          <app-icon class="filter-icon-svg" name="sliders" color="#475569" :size="24" :stroke-width="2.1" />
+          <text>筛选</text>
+        </view>
       </view>
 
-      <view class="filter-btn" @click="toggleFilter">
-        <app-icon class="filter-icon-svg" name="sliders" color="#475569" :size="24" :stroke-width="2.1" />
-        <text>筛选</text>
-      </view>
-    </view>
-
+      <!-- 筛选面板（v-if 控制展开，含排序方式与评分下限两组选项） -->
       <view v-if="showFilter" class="filter-panel">
-      <view class="filter-section">
-        <text class="filter-label">排序</text>
-        <view class="filter-options">
-        <view
-            v-for="item in sortOptions"
-            :key="item.value"
-            class="filter-option"
-            :class="{ active: sortBy === item.value }"
-            @click="selectSort(item.value)"
-          >
-            {{ item.label }}
+        <!-- 排序方式选项组：默认/评分最高/价格优先 -->
+        <view class="filter-section">
+          <text class="filter-label">排序</text>
+          <view class="filter-options">
+            <view
+              v-for="item in sortOptions"
+              :key="item.value"
+              class="filter-option"
+              :class="{ active: sortBy === item.value }"
+              @click="selectSort(item.value)"
+            >
+              {{ item.label }}
+            </view>
           </view>
         </view>
-      </view>
 
-      <view class="filter-section">
-        <text class="filter-label">评分</text>
-        <view class="filter-options">
-          <view
-            v-for="item in ratingOptions"
-            :key="item"
-            class="filter-option"
-            :class="{ active: minRating === item }"
-            @click="selectRating(item)"
-          >
-            {{ item }}分以上
+        <!-- 最低评分过滤选项：3/4/5 分以上 -->
+        <view class="filter-section">
+          <text class="filter-label">评分</text>
+          <view class="filter-options">
+            <view
+              v-for="item in ratingOptions"
+              :key="item"
+              class="filter-option"
+              :class="{ active: minRating === item }"
+              @click="selectRating(item)"
+            >
+              {{ item }}分以上
+            </view>
           </view>
         </view>
-      </view>
 
+        <!-- 筛选操作按钮：重置清空所有条件 / 应用立即搜索 -->
         <view class="filter-actions">
           <button class="reset-btn" @click="resetFilters">重置</button>
           <button class="apply-btn" @click="applyFilters">应用</button>
@@ -61,50 +71,62 @@
       </view>
     </view>
 
+    <!-- 可滚动门店列表区域 -->
     <scroll-view class="page-scroll" scroll-y>
+      <!-- 加载中状态（列表为空时才显示 spinner，下拉刷新时不替换列表） -->
       <view v-if="loading && stores.length === 0" class="status-box">
-      <view class="spinner"></view>
-      <text>正在加载门店...</text>
-    </view>
+        <view class="spinner"></view>
+        <text>正在加载门店...</text>
+      </view>
 
-    <view v-else-if="loaded && stores.length === 0" class="status-box">
-      <text class="empty-text">暂时没有找到相关门店</text>
-    </view>
+      <!-- 搜索/筛选后无结果的空状态 -->
+      <view v-else-if="loaded && stores.length === 0" class="status-box">
+        <text class="empty-text">暂时没有找到相关门店</text>
+      </view>
 
+      <!-- 门店卡片列表 -->
       <view v-else class="list-container">
-      <view
-        v-for="store in stores"
-        :key="store._id"
-        class="store-card"
-        hover-class="store-card-hover"
-        @click="goDetail(store._id)"
-      >
-        <view class="cover-wrap">
-          <image class="cover" :src="store.cover || defaultCover" mode="aspectFill" lazy-load />
-        </view>
+        <!-- 每张门店卡片：封面图 + 名称/评分 + 地址 + 标签行 -->
+        <view
+          v-for="store in stores"
+          :key="store._id"
+          class="store-card"
+          hover-class="store-card-hover"
+          @click="goDetail(store._id)"
+        >
+          <!-- 门店封面图（懒加载，异常时显示 defaultCover） -->
+          <view class="cover-wrap">
+            <image class="cover" :src="store.cover || defaultCover" mode="aspectFill" lazy-load />
+          </view>
 
-        <view class="card-main">
-          <view class="name-row">
-            <text class="store-name">{{ store.name || '未命名门店' }}</text>
-            <view class="rating-wrap">
-              <text class="rating-star">★</text>
-              <text class="rating-score">{{ formatRating(store) }}</text>
+          <!-- 卡片主体：名称/评分行 + 评论数/营业状态行 + 地址行 + 标签行 -->
+          <view class="card-main">
+            <view class="name-row">
+              <text class="store-name">{{ store.name || '未命名门店' }}</text>
+              <!-- 星形评分图标 + 评分数值 -->
+              <view class="rating-wrap">
+                <text class="rating-star">★</text>
+                <text class="rating-score">{{ formatRating(store) }}</text>
+              </view>
+            </view>
+
+            <!-- 评价数 + 今日营业状态 -->
+            <view class="meta-row">
+              <text class="meta-text">{{ formatReviewCount(store) }}</text>
+              <text class="meta-text">{{ getBusinessStatusText(store) }}</text>
+            </view>
+
+            <!-- 门店地址 -->
+            <text class="address">{{ store.address || '地址暂无' }}</text>
+
+            <!-- 标签行（价格档、服务类型等，由 getCardTags 动态生成） -->
+            <view class="tag-row">
+              <text v-for="tag in getCardTags(store)" :key="tag" class="tag">{{ tag }}</text>
             </view>
           </view>
-
-          <view class="meta-row">
-            <text class="meta-text">{{ formatReviewCount(store) }}</text>
-            <text class="meta-text">{{ getBusinessStatusText(store) }}</text>
-          </view>
-
-          <text class="address">{{ store.address || '地址暂无' }}</text>
-
-          <view class="tag-row">
-            <text v-for="tag in getCardTags(store)" :key="tag" class="tag">{{ tag }}</text>
-          </view>
         </view>
       </view>
-      </view>
+      <!-- 底部安全边距 -->
       <view class="scroll-bottom-gap"></view>
     </scroll-view>
   </view>

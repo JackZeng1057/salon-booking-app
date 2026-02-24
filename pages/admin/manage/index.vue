@@ -1,7 +1,9 @@
 <template>
   <view class="admin-page">
+    <!-- 顶部导航（无返回按钮，作为根页面） -->
     <app-nav :showBack="false" />
 
+    <!-- 欢迎横幅：展示门店名、工作台标题、通知入口、今日待处理数 -->
     <view class="hero">
       <view class="hero-top">
         <view>
@@ -9,17 +11,20 @@
           <text class="hero-title">门店管理</text>
           <text class="hero-store">{{ storeName }}</text>
         </view>
+        <!-- 通知铃铛：有未读时显示红点 -->
         <view class="notify-btn" @click="goNotifications">
           <app-icon name="bell" color="#FFFFFF" :size="28" :stroke-width="2.1" />
           <text v-if="unreadCount > 0" class="notify-dot"></text>
         </view>
       </view>
+      <!-- 今日待处理订单数量快览 -->
       <view class="hero-stats">
         <text class="hero-label">今日待处理订单</text>
         <text class="hero-value">{{ todayPendingOrderCount }}</text>
       </view>
     </view>
 
+    <!-- 快捷入口格：核验码扫描 + 数据看板 -->
     <view class="quick-grid">
         <view class="quick-item" @click="goVerify">
           <view class="quick-icon dark">
@@ -35,6 +40,7 @@
         </view>
     </view>
 
+    <!-- 门店管理菜单组：门店信息/理发师审核/项目设置/理发师管理/评价 -->
     <view class="section">
       <text class="section-title">门店管理</text>
       <view class="menu-card">
@@ -43,6 +49,7 @@
           <text class="menu-arrow">›</text>
         </view>
         <view class="divider"></view>
+        <!-- 理发师审核：待审核数量 > 0 时显示红色角标 -->
         <view class="menu-item" @click="goBarberApprovals">
           <view class="menu-row">
             <text class="menu-label">理发师审核</text>
@@ -68,6 +75,7 @@
       </view>
     </view>
 
+    <!-- 订单处理菜单组：订单列表 + 售后管理 -->
     <view class="section">
       <text class="section-title">订单处理</text>
       <view class="menu-card">
@@ -83,6 +91,7 @@
       </view>
     </view>
 
+    <!-- 账号操作：账号设置 + 退出登录 -->
     <view class="section">
       <view class="menu-card">
         <view class="menu-item" @click="goAccountSettings">

@@ -1,3 +1,34 @@
+/**
+ * @file orders-start-service/index.js — 开始服务云函数
+ *
+ * 【业务定位】
+ * 实现订单状态机中 ARRIVED → IN_SERVICE 这一关键转换，
+ * 标志着顾客到店后理发师正式开始提供服务。
+ * 触发时机：理发师或管理员在订单详情页点击「开始服务」按钮后调用。
+ *
+ * 【完整状态机路径（本函数负责第三步）】
+ * BOOKED（已预约）
+ *   → ARRIVED（到店核验）    由 orders-verify 触发
+ *   → IN_SERVICE（服务中）   由本函数触发       ← 此处
+ *   → FINISHED（已完成）     由 orders-finish-service 触发
+ *
+ * 【权限设计（双角色）】
+ * - barber（理发师）：只能对自己负责的订单（barberId 匹配）触发开始服务；
+ * - admin（管理员）：可对本店任意订单（storeId 匹配）触发，
+ *   用于理发师无法操作时的兜底处理。
+ *
+ * 【幂等性保护】
+ * 若订单已处于 IN_SERVICE 状态（如用户重复提交），
+ * 直接返回当前状态而不报错，避免前端因网络重试收到误导性错误提示。
+ *
+ * 【前置状态要求（状态机保护）】
+ * 仅允许 ARRIVED → IN_SERVICE，拒绝任何跨状态跳转（如 BOOKED→IN_SERVICE），
+ * 从架构上保证服务流程严格有序，审计日志与实际操作完全对应。
+ *
+ * 【字段投影优化】
+ * 读取订单时只投影 status / barberId / storeId / arrivedAt / verifiedBy，
+ * 减少无效字段传输，降低云数据库读操作开销。
+ */
 const { withResponse, ApiError, ERROR_CODES, requireRole, logAudit, logOrderEvent } = require('sb-common');
 
 // 开始服务（ARRIVED -> IN_SERVICE）

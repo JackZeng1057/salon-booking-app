@@ -1,5 +1,7 @@
 <template>
+  <!-- 订单评价页：对已完成服务从三个维度（服务/环境/技师）进行评分并上传图片 -->
   <view class="page">
+    <!-- 顶部导航 + 提示文案 -->
     <app-nav :showTitle="true" title="评价订单" />
 
     <view class="review-top">
@@ -8,9 +10,19 @@
       </view>
     </view>
 
+    <!-- =====================================================
+         评价表单滚动区
+         结构：
+         - 三维度评分区（服务/环境/技师）：5 星点击评分
+         - 综合评分展示（三维度均值，精确到 0.1）
+         - 评价内容文本域（最多 500 字）
+         - 图片上传区（最多 6 张，支持添加/删除）
+         - 提交按钮：先上传图片到云存储，再调用 reviews-create
+    ===================================================== -->
     <scroll-view class="review-scroll" scroll-y>
       <view class="review-scroll-content">
         <view class="card">
+          <!-- 三维度评分区：每行 5 颗星，点击设置对应维度分数 -->
           <!-- 多维评分 -->
           <view class="rating-section">
             <text class="section-label">服务评分</text>
