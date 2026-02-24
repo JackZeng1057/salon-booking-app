@@ -17,13 +17,6 @@
 			},
 			"name": "idx_slots_barber_date_start",
 			"unique": true
-		},
-		{
-			"key": {
-				"barberId": 1,
-				"date": 1
-			},
-			"name": "barber_date_query"
 		}
 	],
 	"properties": {

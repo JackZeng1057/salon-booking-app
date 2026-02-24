@@ -1,0 +1,22 @@
+[
+  {
+    "IndexName": "idx_noti_user_read_created",
+    "MgoKeySchema": {
+      "MgoIndexKeys": [
+        {
+          "Name": "userId",
+          "Direction": "1"
+        },
+        {
+          "Name": "isRead",
+          "Direction": "1"
+        },
+        {
+          "Name": "createdAt",
+          "Direction": "-1"
+        }
+      ],
+      "MgoIsUnique": false
+    }
+  }
+]

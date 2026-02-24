@@ -1,4 +1,4 @@
-理发预约系统 数据库交付与索引核对清单
+理发预约系统 数据库交付与索引清单
 
 A. 交付文件清单（必须）
 1) uniCloud-aliyun/database/*.schema.json
@@ -20,72 +20,71 @@ B. 核心表核对（14张）
 13) time_slots
 14) users
 
-C. 12个核心业务索引（答辩重点）
-1) orders.user_status_updatedAt
-   字段：userId(升序) + status(升序) + updatedAt(降序)
-   用途：用户订单列表、状态筛选、最近更新时间排序
+C. 12个核心业务索引
+说明：以下索引以 `uniCloud-aliyun/database/*.index.json` 为准（与控制台名称一致）。
 
-2) orders.store_status_updatedAt
-   字段：storeId(升序) + status(升序) + updatedAt(降序)
-   用途：门店订单列表、状态分组查询
+1) orders.idx_orders_user_updated
+   字段：userId(升序) + updatedAt(降序)
+   用途：用户订单列表、分页与修改时间排序
 
-3) orders.barber_date_status
+2) orders.idx_orders_store_date_updated
+   字段：storeId(升序) + date(升序) + updatedAt(降序)
+   用途：门店订单列表、按日期查询、增量同步
+
+3) orders.idx_orders_barber_date_status
    字段：barberId(升序) + date(升序) + status(升序)
    用途：理发师当日工单、待服务队列
 
-4) orders.verifyCode_unique（唯一）
+4) orders.idx_orders_verify_code
    字段：verifyCode(升序)
-   用途：到店核验码快速查单，避免重复核验码
+   用途：到店核验码快速查单
 
-5) order_events.order_ts
+5) order_events.idx_order_events_order_ts
    字段：orderId(升序) + ts(降序)
    用途：订单时间线/操作日志按时间倒序查询
 
-6) notifications.userId_createdAt
-   字段：userId(升序) + createdAt(降序)
-   用途：用户通知列表按时间倒序
+6) reviews.idx_reviews_store_created
+   字段：storeId(升序) + createdAt(降序)
+   用途：门店评价列表、最新评价
 
-7) aftersales.store_status_createdAt
-   字段：storeId(升序) + status(升序) + createdAt(降序)
+7) notifications.idx_noti_user_read_created
+   字段：userId(升序) + isRead(升序) + createdAt(降序)
+   用途：用户通知列表、未读筛选、按时间倒序
+
+8) aftersales.idx_aftersales_store_status_updated
+   字段：storeId(升序) + status(升序) + updatedAt(降序)
    用途：门店售后工单处理列表
 
-8) time_slots.barber_date_start_unique（唯一）
+9) time_slots.idx_slots_barber_date_start（唯一）
    字段：barberId(升序) + date(升序) + startTime(升序)
    用途：时段唯一约束，防止重复写入同一时段
 
-9) barber_schedules.barber_date_unique（唯一）
+10) barber_schedules.idx_sched_barber_date
    字段：barberId(升序) + date(升序)
-   用途：理发师排班唯一，防止一天多份冲突排班
+   用途：理发师排班查询与编辑回显
 
-10) services.store_createdAt
-    字段：storeId(升序) + createdAt(降序)
+11) services.idx_services_store
+    字段：storeId(升序)
     用途：门店服务项列表查询
 
-11) users.username_unique（唯一）
+12) users.idx_users_username（唯一）
     字段：username(升序)
     用途：登录账号唯一约束
 
-12) auth_tokens.token_unique（唯一）
-    字段：token(升序)
-    用途：登录态鉴权时按 token 快速反查
+D. 索引文件清单
+1) orders.index.json（4条）
+2) order_events.index.json
+3) reviews.index.json
+4) notifications.index.json
+5) aftersales.index.json
+6) time_slots.index.json
+7) barber_schedules.index.json
+8) services.index.json
+9) users.index.json
 
-D. 额外建议核对索引（非答辩必讲，但项目已使用）
-1) orders.(storeId,date)
-2) orders.(barberId,date)
-3) orders.(userId,createdAt)
-4) order_items.order_createdAt
-5) reviews.orderId_unique
-6) time_slots.barber_date_query
-7) users.store_role_createdAt
-8) audit_logs.order_time
-9) audit_logs.actor_time
-10) auth_tokens.user_createdAt
-11) auth_tokens.expiresAt
-12) stores.createdAt_desc
-13) aftersales.store_createdAt
-
-E. 验收打勾项
+E. 检查项
 [ ] schema 已上传
+[ ] index.json 已同步到云端
 [ ] init 数据已导入
 [ ] 12个核心索引存在
 [ ] 登录/下单/到店/开服务/完服务链路可跑通

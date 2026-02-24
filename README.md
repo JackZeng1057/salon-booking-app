@@ -2,7 +2,7 @@
 
 基于 `uni-app + uniCloud` 的多角色理发预约系统，覆盖用户端、理发师端、管理员端三条业务主线，支持预约下单、到店核验、服务流转、评价售后、通知触达与运营管理。
 
-本 README 为正式交付版，按当前仓库真实代码目录编写，可直接用于答辩、评审与后续维护。
+本 README 按当前仓库真实代码目录编写，用于开发、评审与后续维护。
 
 ## 1. 项目概述
 
@@ -45,6 +45,7 @@
 | --- | --- | --- |
 | 数据库 | `uniCloud MongoDB` | 业务主数据存储 |
 | 数据模型 | `*.schema.json` | 集合结构与字段约束 |
+| 索引配置 | `*.index.json` | 12 条核心索引配置（同步后生效） |
 | 初始化脚本 | `*.jql` | 种子数据与维护脚本 |
 | 数据交付 | `云数据库json文件夹/*.json` | 完整导出数据文件 |
 
@@ -310,6 +311,17 @@ salon-booking-app/
 - `reset-admins.jql`
 - `JQL查询.jql`
 
+#### 7.2.3 索引配置（9 个文件，共 12 条）
+- `orders.index.json`（4 条）
+- `order_events.index.json`
+- `reviews.index.json`
+- `notifications.index.json`
+- `aftersales.index.json`
+- `time_slots.index.json`
+- `barber_schedules.index.json`
+- `services.index.json`
+- `users.index.json`
+
 ## 8. 测试目录说明
 
 | 文件 | 作用 |
@@ -376,9 +388,10 @@ salon-booking-app/
 ### 11.2 云端部署顺序
 1. 打开项目并绑定 uniCloud 空间
 2. 导入 `uniCloud-aliyun/database/*.schema.json`
-3. 上传 `uniCloud-aliyun/cloudfunctions/common/sb-common`
-4. 上传全部业务云函数
-5. 按需执行 `seed-data` 初始化演示数据
+3. 同步 `uniCloud-aliyun/database/*.index.json`（创建/更新索引）
+4. 上传 `uniCloud-aliyun/cloudfunctions/common/sb-common`
+5. 上传全部业务云函数
+6. 按需执行 `seed-data` 初始化演示数据
 
 ### 11.3 本地运行
 - HBuilderX 选择运行到 H5 / App / 小程序

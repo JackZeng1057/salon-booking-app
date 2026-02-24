@@ -15,13 +15,6 @@
 				"createdAt": -1
 			},
 			"name": "idx_reviews_store_created"
-		},
-		{
-			"key": {
-				"orderId": 1
-			},
-			"name": "orderId_unique",
-			"unique": true
 		}
 	],
 	"properties": {

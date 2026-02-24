@@ -1,0 +1,18 @@
+[
+  {
+    "IndexName": "idx_reviews_store_created",
+    "MgoKeySchema": {
+      "MgoIndexKeys": [
+        {
+          "Name": "storeId",
+          "Direction": "1"
+        },
+        {
+          "Name": "createdAt",
+          "Direction": "-1"
+        }
+      ],
+      "MgoIsUnique": false
+    }
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "IndexName": "idx_slots_barber_date_start",
+    "MgoKeySchema": {
+      "MgoIndexKeys": [
+        {
+          "Name": "barberId",
+          "Direction": "1"
+        },
+        {
+          "Name": "date",
+          "Direction": "1"
+        },
+        {
+          "Name": "startTime",
+          "Direction": "1"
+        }
+      ],
+      "MgoIsUnique": true
+    }
+  }
+]

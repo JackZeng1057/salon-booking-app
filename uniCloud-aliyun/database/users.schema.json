@@ -15,14 +15,6 @@
 			},
 			"name": "idx_users_username",
 			"unique": true
-		},
-		{
-			"key": {
-				"storeId": 1,
-				"role": 1,
-				"createdAt": -1
-			},
-			"name": "store_role_createdAt"
 		}
 	],
 	"properties": {

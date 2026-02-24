@@ -1,0 +1,14 @@
+[
+  {
+    "IndexName": "idx_users_username",
+    "MgoKeySchema": {
+      "MgoIndexKeys": [
+        {
+          "Name": "username",
+          "Direction": "1"
+        }
+      ],
+      "MgoIsUnique": true
+    }
+  }
+]

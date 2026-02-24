@@ -8,22 +8,7 @@
     "update": false,
     "delete": false
   },
-  "indexes": [
-    {
-      "key": {
-        "orderId": 1,
-        "time": -1
-      },
-      "name": "order_time"
-    },
-    {
-      "key": {
-        "actorId": 1,
-        "time": -1
-      },
-      "name": "actor_time"
-    }
-  ],
+  "indexes": [],
   "properties": {
     "_id": {
       "description": "ID，系统自动生成"

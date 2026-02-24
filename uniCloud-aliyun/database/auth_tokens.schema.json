@@ -7,28 +7,7 @@
     "update": false,
     "delete": false
   },
-  "indexes": [
-    {
-      "key": {
-        "token": 1
-      },
-      "name": "token_unique",
-      "unique": true
-    },
-    {
-      "key": {
-        "userId": 1,
-        "createdAt": -1
-      },
-      "name": "user_createdAt"
-    },
-    {
-      "key": {
-        "expiresAt": 1
-      },
-      "name": "expiresAt"
-    }
-  ],
+  "indexes": [],
   "properties": {
     "_id": {
       "description": "ID，系统自动生成"

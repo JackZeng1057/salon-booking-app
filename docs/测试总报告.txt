@@ -1,7 +1,7 @@
 理发预约系统-测试总报告（整合版）
 
 项目路径：/Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app
-最近一次执行：2026-02-23（命令：node tests/run-all-tests.js）
+执行命令：node tests/run-all-tests.js
 
 一、测试范围
 1) 白盒分支测试（核心业务函数）
@@ -38,9 +38,9 @@
 - 状态机约束已验证：BOOKED 不能直接开始，必须 ARRIVED 才能 IN_SERVICE。
 - 核心接口返回结构统一（code/message/data/requestId）。
 - 数据一致性通过：订单主表状态与 order_events/audit_logs 能形成闭环。
-- 轻量性能基线可接受，配合已落地 12 个索引可支撑当前阶段答辩与演示。
+- 轻量性能基线可接受，配合 12 条核心索引配置（同步到云端后生效）可支撑当前阶段评审与演示。
 
-四、结果文件（用于论文附录）
+四、结果文件
 - docs/白盒测试记录.txt
 - docs/接口联调测试结果.txt
 - docs/数据与性能基础测试结果.txt

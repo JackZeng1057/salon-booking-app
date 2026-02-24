@@ -1,4 +1,4 @@
-理发预约系统-云数据库说明（项目内版本）
+理发预约系统-云数据库说明
 
 0. 说明
 - 数据库目录：/Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app/uniCloud-aliyun/database
@@ -16,7 +16,7 @@
 2) 核心表简述
 - users：账号信息（角色、门店归属、审核状态、手机号、理发师服务绑定）
 - stores：门店基础资料、营业信息、规则和评分（含理发师服务绑定开关）
-- services：门店服务项目与价格时长（含描述与更新时间）
+- services：门店服务项目与价格时长（含描述与最后修改时间）
 - barber_schedules：理发师日排班
 - time_slots：预约时段库存（AVAILABLE/BOOKED）
 - orders：订单主表（状态机核心）
@@ -24,7 +24,7 @@
 - order_events：订单状态流转日志
 - reviews：订单评价
 - aftersales：售后工单
-- notifications：站内消息
+- notifications：站内消息（关键字段：type / isRead / isDeleted / relatedId / relatedType）
 - audit_logs：审计日志
 
 3) 订单状态约束（当前实现）
@@ -43,6 +43,7 @@
 - 备注：等待时长是估算值（按已到店/服务中队列推算）
 
 5) 已创建索引（12个）+ 对应用途
+说明：索引以 uniCloud-aliyun/database/*.index.json 为准，通过 HBuilderX/uniCloud 同步后在云端生效。
 
 A. orders（4个）
 1. idx_orders_user_updated
@@ -101,10 +102,21 @@ I. users（1个）
     字段：username(升序)
     用途：保证用户名不重复，并加速登录/注册重名校验
 
+对应索引配置文件
+- orders.index.json（4条）
+- order_events.index.json
+- reviews.index.json
+- notifications.index.json
+- aftersales.index.json
+- time_slots.index.json
+- barber_schedules.index.json
+- services.index.json
+- users.index.json
+
 6) 维护备注
 - 新增字段：同步更新 schema 和本文件
 - 新增状态值：同步更新云函数状态校验和接口文档
-- 答辩前建议做一次 schema/云函数/文档三方对照
+- 版本发布前建议做一次 schema/云函数/文档三方对照
 
 附：aftersales 状态口径（当前）
 - OPEN / PROCESSING / RESOLVED / REJECTED

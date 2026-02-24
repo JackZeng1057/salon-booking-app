@@ -1,0 +1,18 @@
+[
+  {
+    "IndexName": "idx_order_events_order_ts",
+    "MgoKeySchema": {
+      "MgoIndexKeys": [
+        {
+          "Name": "orderId",
+          "Direction": "1"
+        },
+        {
+          "Name": "ts",
+          "Direction": "-1"
+        }
+      ],
+      "MgoIsUnique": false
+    }
+  }
+]

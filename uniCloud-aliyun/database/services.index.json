@@ -1,0 +1,14 @@
+[
+  {
+    "IndexName": "idx_services_store",
+    "MgoKeySchema": {
+      "MgoIndexKeys": [
+        {
+          "Name": "storeId",
+          "Direction": "1"
+        }
+      ],
+      "MgoIsUnique": false
+    }
+  }
+]

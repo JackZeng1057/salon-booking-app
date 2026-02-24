@@ -1,0 +1,70 @@
+[
+  {
+    "IndexName": "idx_orders_user_updated",
+    "MgoKeySchema": {
+      "MgoIndexKeys": [
+        {
+          "Name": "userId",
+          "Direction": "1"
+        },
+        {
+          "Name": "updatedAt",
+          "Direction": "-1"
+        }
+      ],
+      "MgoIsUnique": false
+    }
+  },
+  {
+    "IndexName": "idx_orders_store_date_updated",
+    "MgoKeySchema": {
+      "MgoIndexKeys": [
+        {
+          "Name": "storeId",
+          "Direction": "1"
+        },
+        {
+          "Name": "date",
+          "Direction": "1"
+        },
+        {
+          "Name": "updatedAt",
+          "Direction": "-1"
+        }
+      ],
+      "MgoIsUnique": false
+    }
+  },
+  {
+    "IndexName": "idx_orders_barber_date_status",
+    "MgoKeySchema": {
+      "MgoIndexKeys": [
+        {
+          "Name": "barberId",
+          "Direction": "1"
+        },
+        {
+          "Name": "date",
+          "Direction": "1"
+        },
+        {
+          "Name": "status",
+          "Direction": "1"
+        }
+      ],
+      "MgoIsUnique": false
+    }
+  },
+  {
+    "IndexName": "idx_orders_verify_code",
+    "MgoKeySchema": {
+      "MgoIndexKeys": [
+        {
+          "Name": "verifyCode",
+          "Direction": "1"
+        }
+      ],
+      "MgoIsUnique": false
+    }
+  }
+]
