@@ -88,6 +88,10 @@
 				"bsonType": "string",
 				"description": "头像"
 			},
+			"intro": {
+				"bsonType": "string",
+				"description": "理发师擅长介绍"
+			},
 			"updatedAt": {
 				"bsonType": "int",
 				"description": "更新时间戳"

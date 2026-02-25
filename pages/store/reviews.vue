@@ -42,6 +42,8 @@
             <text class="review-user">{{ item.userName || '匿名用户' }}</text>
             <text class="review-score">★ {{ formatScore(item.rating) }}</text>
           </view>
+          <!-- 展示该评价对应订单的服务项目 -->
+          <text v-if="getServiceText(item)" class="review-service">服务项目：{{ getServiceText(item) }}</text>
           <!-- 评价文字内容 -->
           <text class="review-content">{{ item.content || '用户未填写内容' }}</text>
           <!-- 评价图片（可选，点击预览大图） -->
@@ -239,6 +241,13 @@ export default {
       if (typeof reply === 'string') return reply.trim();
       if (typeof reply === 'object') return String(reply.content || '').trim();
       return '';
+    },
+    // 返回评价关联的服务显示文本：优先服务名，其次服务 ID。
+    getServiceText(review) {
+      const serviceName = String((review && review.serviceName) || '').trim();
+      if (serviceName) return serviceName;
+      const serviceId = String((review && review.serviceId) || '').trim();
+      return serviceId;
     }
   }
 };
@@ -357,6 +366,13 @@ export default {
   font-size: 22rpx;
   color: #f59e0b;
   font-weight: 700;
+}
+
+.review-service {
+  margin-top: 8rpx;
+  display: block;
+  font-size: 22rpx;
+  color: #334155;
 }
 
 .review-content {

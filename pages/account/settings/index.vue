@@ -147,6 +147,10 @@ export default {
   border-radius: 20rpx;
   padding: 20rpx;
   margin-bottom: 14rpx;
+  position: sticky;
+  top: 96rpx;
+  top: calc(var(--status-bar-height) + 44px + 12rpx);
+  z-index: 10;
 }
 
 .name {

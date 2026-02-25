@@ -1,20 +1,25 @@
 <template>
   <!-- 订单详情页根容器 -->
   <view class="page">
-    <!-- 顶部导航栏 -->
-    <app-nav :showTitle="true" title="订单详情" />
-    <!-- 页面副标题 Banner -->
-    <view class="hero-card">
-      <text class="hero-subtitle">查看订单状态、明细与服务日志</text>
+    <!-- 固定顶部区域，承载导航标题与提示词 -->
+    <view class="top-fixed">
+      <!-- 顶部导航栏 -->
+      <app-nav :showTitle="true" title="订单详情" />
+      <!-- 页面副标题 Banner -->
+      <view class="hero-card">
+        <text class="hero-subtitle">查看订单状态、明细与服务日志</text>
+      </view>
     </view>
 
-    <!-- 数据加载中状态 -->
-    <view v-if="loading" class="hint">加载中...</view>
-    <!-- 订单不存在或加载失败兜底 -->
-    <view v-else-if="!detail" class="hint">订单不存在</view>
+    <!-- 独立滚动区域，仅承载订单详情主体内容 -->
+    <scroll-view class="content-scroll" scroll-y>
+      <!-- 数据加载中状态 -->
+      <view v-if="loading" class="hint">加载中...</view>
+      <!-- 订单不存在或加载失败兜底 -->
+      <view v-else-if="!detail" class="hint">订单不存在</view>
 
-    <!-- 订单主体内容（仅加载完成且有数据时展示） -->
-    <view v-else class="card">
+      <!-- 订单主体内容（仅加载完成且有数据时展示） -->
+      <view v-else class="card">
       <!-- 订单基础信息行：门店/服务/理发师/时间/状态/核验码/备注 -->
       <view class="row">
         <text class="label">门店</text>
@@ -167,7 +172,8 @@
         <!-- 确认改期按钮，未选时段时禁用 -->
         <button class="panel-btn" type="primary" :disabled="!selectedStartTime" @click="handleReschedule">确认改期</button>
       </view>
-    </view>
+      </view>
+    </scroll-view>
   </view>
 </template>
 
@@ -337,7 +343,9 @@ export default {
         create: '创建订单',
         'create-order': '创建订单',
         cancel_order: '取消预约',
-        reschedule_order: '改期'
+        reschedule_order: '改期',
+        // 系统在预约开始后超过宽限时间自动判定爽约时，日志备注统一显示为中文说明。
+        auto_no_show_timeout: '系统超时自动判定爽约'
       };
       return map[remark] || remark;
     },
@@ -606,9 +614,28 @@ export default {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
-  padding: calc(118rpx + 20px) 28rpx 30rpx;
+  /* 页面作为纵向容器，限制整页滚动，由下方内容区接管滚动 */
+  height: 100vh;
   background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.top-fixed {
+  /* 顶部固定内容区，始终停留在可视区域上方 */
+  flex: none;
+  padding: calc(118rpx + 20px) 28rpx 0;
+  background: #f8fafc;
+  z-index: 2;
+}
+
+.content-scroll {
+  /* 可滚动主体区：占据剩余高度并允许纵向滚动 */
+  flex: 1;
+  min-height: 0;
+  padding: 18rpx 28rpx 30rpx;
+  box-sizing: border-box;
 }
 
 .hero-card {

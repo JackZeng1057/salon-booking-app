@@ -77,6 +77,15 @@
               <input class="input input-small" type="number" v-model="item.duration" placeholder="45" />
             </view>
           </view>
+          <view class="service-desc-field">
+            <text class="sub-label">服务说明</text>
+            <textarea
+              class="textarea service-desc-input"
+              v-model="item.description"
+              maxlength="120"
+              placeholder="专业造型服务，按需求定制。"
+            />
+          </view>
         </view>
       </view>
 
@@ -180,6 +189,7 @@ function pad2(n) {
 // 时间选择器选项（00~23 / 00~59）
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => pad2(i));
 const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => pad2(i));
+const DEFAULT_SERVICE_DESCRIPTION = '专业造型服务，按需求定制。';
 
 // 将 HH:mm 文本解析为 picker-view 索引值
 function parseTimeToPickerValue(value) {
@@ -200,7 +210,8 @@ function createEmptyService() {
     _id: '',
     name: '',
     price: '',
-    duration: ''
+    duration: '',
+    description: DEFAULT_SERVICE_DESCRIPTION
   };
 }
 
@@ -288,7 +299,8 @@ export default {
           _id: item._id || '',
           name: item.name || '',
           price: item.price !== undefined && item.price !== null ? String(item.price) : '',
-          duration: item.duration !== undefined && item.duration !== null ? String(item.duration) : ''
+          duration: item.duration !== undefined && item.duration !== null ? String(item.duration) : '',
+          description: String(item.description || '').trim() || DEFAULT_SERVICE_DESCRIPTION
         }))
         : [createEmptyService()];
     },
@@ -379,7 +391,8 @@ export default {
           _id: item._id || '',
           name,
           price: Number(price.toFixed(2)),
-          duration
+          duration,
+          description: String(item.description || '').trim() || DEFAULT_SERVICE_DESCRIPTION
         });
       }
       if (result.length === 0) {
@@ -635,6 +648,10 @@ export default {
   flex: 1;
 }
 
+.service-desc-field {
+  margin-top: 12rpx;
+}
+
 .sub-label {
   display: block;
   color: $uni-text-color-grey;
@@ -644,6 +661,11 @@ export default {
 
 .input-small {
   height: 84rpx;
+  font-size: $uni-font-size-sm;
+}
+
+.service-desc-input {
+  min-height: 120rpx;
   font-size: $uni-font-size-sm;
 }
 

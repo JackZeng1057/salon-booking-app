@@ -24,6 +24,7 @@
  *   phone          : 绑定手机号；密码找回时用于接收短信验证码
  *   name           : 显示名称；admin 注册时写入的是门店名称，barber/user 写的是账号名
  *   avatar         : 头像 URL；前端直接渲染，为空字符串时显示首字母占位符
+ *   intro          : 理发师擅长介绍；门店详情页用于展示个人简介
  *   pendingRole    : 申请中的目标角色（仅 barber 入驻审核期间非空），配合 approvalStatus 使用
  *   approvalStatus : PENDING = 审核中（等待 admin 操作）
  *                    APPROVED = 已通过（role 已切换为 barber）
@@ -55,9 +56,11 @@ exports.main = withResponse(async (event, context) => {
       username: true,
       role: true,
       storeId: true,
+      serviceIds: true,
       phone: true,
       name: true,
       avatar: true,
+      intro: true,
       pendingRole: true,
       approvalStatus: true
     }).get();
@@ -74,9 +77,12 @@ exports.main = withResponse(async (event, context) => {
     username: target.username || '',
     role: target.role || 'user',
     storeId: target.storeId || '',     // 理发师和管理员后续所有门店操作的关键外键
+    // 理发师可执行服务清单：排班页据此决定“综合/服务”预览口径
+    serviceIds: Array.isArray(target.serviceIds) ? target.serviceIds : [],
     phone: target.phone || '',         // 密码找回短信验证码的接收号码
     name: target.name || '',
     avatar: target.avatar || '',
+    intro: target.intro || '',
     pendingRole: target.pendingRole || '',         // 待审核目标角色（申请入驻期间为 'barber'）
     approvalStatus: target.approvalStatus || ''   // PENDING=审核中 / APPROVED=通过 / REJECTED=拒绝
   };

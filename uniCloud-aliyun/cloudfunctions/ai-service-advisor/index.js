@@ -55,7 +55,7 @@ const path = require('path');
 // 输入约束：最多 3 张图、文本最多 300 字
 const MAX_IMAGE_COUNT = 3;
 const MAX_TEXT_LEN = 300;
-const BUILD_TAG = '2026-02-19-ai-priority-v7-json-recover';
+const BUILD_TAG = '2026-02-25-ai-intent-filter-v9';
 // 喂给模型的服务目录上限，避免提示词过大导致响应慢
 const MAX_MODEL_CATALOG_SIZE = 10;
 // 外部模型请求超时时间（毫秒），默认优先保证 AI 成功率
@@ -72,6 +72,15 @@ const DEFAULT_QWEN_MAX_TOKENS = 900;
 const DEFAULT_QWEN_IMAGE_ONLY_MAX_TOKENS = 900;
 const DEFAULT_QWEN_RETRY_MAX_TOKENS = 1100;
 const DEFAULT_QWEN_IMAGE_ONLY_RETRY_MAX_TOKENS = 1100;
+
+// 意图规则：识别用户主诉求，并约束推荐服务类型
+const INTENT_RULES = [
+  { type: 'cut', user: /(剪|修|短发|层次|刘海)/, service: /(剪|修|造型|刘海)/, weight: 4 },
+  { type: 'perm', user: /(烫|卷|纹理|蓬松)/, service: /(烫|卷|纹理)/, weight: 5 },
+  { type: 'dye', user: /(染|发色|黑茶|亚麻|棕|灰|漂|补色|挑染|褪色)/, service: /(染|漂|发色|补色|挑染|褪色)/, weight: 6 },
+  { type: 'care', user: /(护理|修复|柔顺|毛躁|受损|干枯)/, service: /(护理|修复|柔顺|养护)/, weight: 4 },
+  { type: 'scalp', user: /(头皮|敏感|清洁|去屑)/, service: /(头皮|清洁|去屑)/, weight: 3 }
+];
 
 // API Key 配置优先级：
 // 1) 云函数环境变量（若平台支持）
@@ -159,6 +168,25 @@ function normalizeName(value) {
     .toLowerCase()
     .replace(/\s+/g, '')
     .replace(/[^\w\u4e00-\u9fa5]/g, '');
+}
+
+// 统一 ID 序列化：兼容 string/ObjectId/{$oid} 等形态，避免出现 "[object Object]"
+function normalizeId(value) {
+  if (value == null) return '';
+  if (typeof value === 'string' || typeof value === 'number') {
+    const text = String(value).trim();
+    if (!text || text === '[object Object]') return '';
+    return text;
+  }
+  if (typeof value === 'object') {
+    if (value.$oid) return String(value.$oid).trim();
+    if (value.id) return String(value.id).trim();
+    if (typeof value.toString === 'function') {
+      const text = String(value.toString()).trim();
+      if (text && text !== '[object Object]') return text;
+    }
+  }
+  return '';
 }
 
 // 从模型文本里尽力提取 JSON：
@@ -312,8 +340,8 @@ function recoverPartialAdvisorResult(content) {
         .map((snippet) => parseLooseJson(snippet))
         .filter((row) => row && typeof row === 'object')
         .map((row) => ({
-          serviceId: String((row && row.serviceId) || '').trim(),
-          storeId: String((row && row.storeId) || '').trim(),
+          serviceId: normalizeId(row && row.serviceId),
+          storeId: normalizeId(row && row.storeId),
           storeName: trimText((row && row.storeName) || '', 30),
           name: trimText((row && row.name) || '', 30),
           reason: trimText((row && row.reason) || '', 80)
@@ -370,15 +398,7 @@ function scoreServiceByText(service, text) {
   let score = 0;
 
   // 用户诉求关键词 与 服务特征关键词 的粗匹配权重
-  const rules = [
-    { user: /(剪|修|短发|层次|刘海)/, service: /(剪|修|造型|刘海)/, weight: 4 },
-    { user: /(烫|卷|纹理|蓬松)/, service: /(烫|卷|纹理)/, weight: 5 },
-    { user: /(染|发色|黑茶|亚麻|棕|灰|漂)/, service: /(染|漂|发色)/, weight: 5 },
-    { user: /(护理|修复|柔顺|毛躁|受损|干枯)/, service: /(护理|修复|柔顺|养护)/, weight: 4 },
-    { user: /(头皮|敏感|清洁|去屑)/, service: /(头皮|清洁|去屑)/, weight: 3 }
-  ];
-
-  rules.forEach((rule) => {
+  INTENT_RULES.forEach((rule) => {
     if (rule.user.test(userText) && rule.service.test(source)) {
       score += rule.weight;
     }
@@ -395,6 +415,98 @@ function scoreServiceByText(service, text) {
   }
 
   return score;
+}
+
+// 从用户文本中识别当前主诉求类型（cut/perm/dye/care/scalp）
+function detectPrimaryIntent(text) {
+  const source = String(text || '');
+  let bestType = '';
+  let bestScore = 0;
+  INTENT_RULES.forEach((rule) => {
+    if (!rule.user.test(source)) return;
+    if (rule.weight > bestScore) {
+      bestScore = rule.weight;
+      bestType = rule.type;
+    }
+  });
+  return bestType;
+}
+
+// 判断服务名称/描述是否属于目标诉求类型
+function serviceMatchesIntent(service, intentType) {
+  if (!intentType) return true;
+  const rule = INTENT_RULES.find((item) => item.type === intentType);
+  if (!rule) return true;
+  const source = `${(service && service.name) || ''} ${(service && service.description) || ''}`;
+  return rule.service.test(source);
+}
+
+// 服务排序：按价格升序，价格相同按时长升序
+function sortServicesByPrice(list) {
+  const services = Array.isArray(list) ? [...list] : [];
+  return services.sort((a, b) => {
+    const ap = Number(a && a.price);
+    const bp = Number(b && b.price);
+    const av = Number.isFinite(ap) ? ap : Number.MAX_SAFE_INTEGER;
+    const bv = Number.isFinite(bp) ? bp : Number.MAX_SAFE_INTEGER;
+    if (av !== bv) return av - bv;
+    const ad = Number(a && a.duration);
+    const bd = Number(b && b.duration);
+    const adv = Number.isFinite(ad) ? ad : Number.MAX_SAFE_INTEGER;
+    const bdv = Number.isFinite(bd) ? bd : Number.MAX_SAFE_INTEGER;
+    return adv - bdv;
+  });
+}
+
+// 推荐结果与用户诉求一致性校验：
+// 1) 先保留与诉求匹配的推荐项
+// 2) 不足时从真实服务目录补齐同诉求项目
+function enforceIntentRecommendations(recommendations, services, userText, maxSize = 3) {
+  const list = Array.isArray(recommendations) ? recommendations.filter((item) => !!item) : [];
+  const limit = toPositiveInt(maxSize, 3);
+  if (!list.length) return [];
+
+  const intentType = detectPrimaryIntent(userText);
+  if (!intentType) return list.slice(0, limit);
+
+  const serviceById = new Map();
+  (services || []).forEach((item) => {
+    const sid = normalizeId(item && item._id);
+    if (sid) serviceById.set(sid, item);
+  });
+
+  const used = new Set();
+  const matched = [];
+  list.forEach((item) => {
+    if (matched.length >= limit) return;
+    const sid = normalizeId(item && item.serviceId);
+    const sourceService = (sid && serviceById.get(sid)) || item;
+    if (!serviceMatchesIntent(sourceService, intentType)) return;
+    if (sid && used.has(sid)) return;
+    if (sid) used.add(sid);
+    matched.push(item);
+  });
+
+  // 推荐数量不足时，从同诉求真实服务补齐
+  const intentServices = sortServicesByPrice((services || []).filter((item) => serviceMatchesIntent(item, intentType)));
+  intentServices.forEach((item) => {
+    if (matched.length >= limit) return;
+    const sid = normalizeId(item && item._id);
+    if (!sid || used.has(sid)) return;
+    used.add(sid);
+    matched.push({
+      serviceId: sid,
+      storeId: normalizeId(item && item.storeId),
+      storeName: (item && item.storeName) || '未知门店',
+      name: (item && item.name) || '未命名服务',
+      price: Number((item && item.price) || 0),
+      duration: Number((item && item.duration) || 30),
+      reason: '与当前诉求直接匹配，建议优先预约。'
+    });
+  });
+
+  if (matched.length > 0) return matched;
+  return list.slice(0, limit);
 }
 
 // 给模型做“候选目录裁剪”，避免把全部服务都塞进提示词导致变慢
@@ -421,7 +533,7 @@ function pickServicesForModel(services, userText, maxSize) {
 
   const storeBuckets = new Map();
   list.forEach((item) => {
-    const sid = String((item && item.storeId) || 'unknown');
+    const sid = normalizeId(item && item.storeId) || 'unknown';
     const arr = storeBuckets.get(sid) || [];
     arr.push(item);
     storeBuckets.set(sid, arr);
@@ -456,7 +568,7 @@ function normalizeRecommendations(raw, services, userText) {
 
   // 构建服务索引，提升匹配性能
   services.forEach((service) => {
-    const sid = String(service && service._id ? service._id : '');
+    const sid = normalizeId(service && service._id);
     const sname = normalizeName(service && service.name);
     if (sid) serviceById.set(sid, service);
     if (sname) {
@@ -474,9 +586,9 @@ function normalizeRecommendations(raw, services, userText) {
   list.forEach((row) => {
     if (picked.length >= 3) return;
 
-    const serviceId = String(row && row.serviceId ? row.serviceId : '').trim();
+    const serviceId = normalizeId(row && row.serviceId);
     const serviceName = normalizeName(row && row.name);
-    const rowStoreId = String(row && row.storeId ? row.storeId : '').trim();
+    const rowStoreId = normalizeId(row && row.storeId);
     const rowStoreName = normalizeName(row && row.storeName);
     let matched = null;
 
@@ -494,7 +606,7 @@ function normalizeRecommendations(raw, services, userText) {
 
       // 3) 若模型返回了门店信息，优先按门店过滤候选
       if (candidates.length > 0 && rowStoreId) {
-        const byStoreId = candidates.filter((item) => String(item && item.storeId) === rowStoreId);
+        const byStoreId = candidates.filter((item) => normalizeId(item && item.storeId) === rowStoreId);
         if (byStoreId.length > 0) candidates = byStoreId;
       }
       if (candidates.length > 0 && rowStoreName) {
@@ -509,14 +621,14 @@ function normalizeRecommendations(raw, services, userText) {
     if (!matched || !matched._id) return;
 
     // 去重
-    const id = String(matched._id);
+    const id = normalizeId(matched._id);
     if (used.has(id)) return;
     used.add(id);
 
     // 返回给前端的推荐结构（包含门店信息，支持跨店推荐后直接预约）
     picked.push({
       serviceId: id,
-      storeId: String(matched.storeId || ''),
+      storeId: normalizeId(matched.storeId),
       storeName: matched.storeName || '未知门店',
       name: matched.name || '未命名服务',
       price: Number(matched.price || 0),
@@ -527,7 +639,7 @@ function normalizeRecommendations(raw, services, userText) {
 
   // 模型推荐可用则直接返回
   if (picked.length > 0) {
-    return picked;
+    return enforceIntentRecommendations(picked, services, userText, 3);
   }
 
   // 模型不可用或未命中时，规则打分选 Top3
@@ -539,8 +651,8 @@ function normalizeRecommendations(raw, services, userText) {
     .sort((a, b) => b.score - a.score)
     .slice(0, 3)
     .map(({ item }) => ({
-      serviceId: String(item && item._id ? item._id : ''),
-      storeId: String((item && item.storeId) || ''),
+      serviceId: normalizeId(item && item._id),
+      storeId: normalizeId(item && item.storeId),
       storeName: (item && item.storeName) || '未知门店',
       name: item && item.name ? item.name : '未命名服务',
       price: Number((item && item.price) || 0),
@@ -549,15 +661,23 @@ function normalizeRecommendations(raw, services, userText) {
     }))
     .filter((item) => !!item.serviceId && !!item.storeId);
 
-  return fallback;
+  return enforceIntentRecommendations(fallback, services, userText, 3);
 }
 
-// 生成订单备注：
-// - 优先使用模型给出的 bookingRemark
-// - 否则用“用户诉求 + 推荐服务”拼接
+// 生成订单备注（顾客写给商家/理发师）：
+// - 优先使用模型返回的 bookingRemark
+// - 无模型备注时按用户诉求与推荐服务生成
 function buildBookingRemark(rawRemark, userText, pickedServices) {
   const remark = trimText(rawRemark, 120);
-  if (remark) return remark;
+  if (remark) {
+    // 备注语气标准化为顾客第一人称
+    const fixed = remark
+      .replace(/^用户诉求[:：]\s*/i, '我的需求：')
+      .replace(/^建议服务[:：]\s*/i, '我想预约：')
+      .replace(/建议(优先)?预约/g, '请帮我安排')
+      .replace(/^建议[:：]/, '');
+    return trimText(fixed, 120);
+  }
 
   const demand = trimText(userText, 80);
   const serviceNames = (pickedServices || [])
@@ -565,10 +685,52 @@ function buildBookingRemark(rawRemark, userText, pickedServices) {
     .join('、');
 
   if (demand && serviceNames) {
-    return trimText(`用户诉求：${demand}；建议服务：${serviceNames}。`, 120);
+    return trimText(`我的需求是：${demand}。我想预约：${serviceNames}，请帮我安排合适时段。`, 120);
   }
-  if (demand) return trimText(`用户诉求：${demand}。`, 120);
-  return trimText(`建议服务：${serviceNames || '到店沟通后确认'}。`, 120);
+  if (demand) return trimText(`我的需求是：${demand}，请帮我推荐并安排。`, 120);
+  return trimText(`我想预约：${serviceNames || '到店沟通后确认'}，请帮我安排。`, 120);
+}
+
+// 对推荐结果中的门店名称做名称补全（按 storeId -> stores.name）
+async function backfillUnknownStoreNames(db, recommendations) {
+  const list = Array.isArray(recommendations) ? recommendations : [];
+  const unknownStoreIds = Array.from(
+    new Set(
+      list
+        .filter((item) => item && (!item.storeName || item.storeName === '未知门店') && normalizeId(item.storeId))
+        .map((item) => normalizeId(item.storeId))
+    )
+  );
+  if (unknownStoreIds.length === 0) return list;
+
+  const storeRes = await db.collection('stores').field({ _id: true, name: true }).limit(1000).get();
+  const stores = Array.isArray(storeRes.data) ? storeRes.data : [];
+  const storeNameMap = new Map(stores.map((item) => [normalizeId(item && item._id), (item && item.name) || '']));
+
+  return list.map((item) => {
+    if (!item) return item;
+    if (item.storeName && item.storeName !== '未知门店') return item;
+    const sid = normalizeId(item.storeId);
+    const realName = storeNameMap.get(sid) || '';
+    if (!realName) return item;
+    return { ...item, storeName: realName };
+  });
+}
+
+function sortRecommendationsByPrice(recommendations) {
+  const list = Array.isArray(recommendations) ? [...recommendations] : [];
+  return list.sort((a, b) => {
+    const ap = Number(a && a.price);
+    const bp = Number(b && b.price);
+    const av = Number.isFinite(ap) ? ap : Number.MAX_SAFE_INTEGER;
+    const bv = Number.isFinite(bp) ? bp : Number.MAX_SAFE_INTEGER;
+    if (av !== bv) return av - bv;
+    const ad = Number(a && a.duration);
+    const bd = Number(b && b.duration);
+    const adv = Number.isFinite(ad) ? ad : Number.MAX_SAFE_INTEGER;
+    const bdv = Number.isFinite(bd) ? bd : Number.MAX_SAFE_INTEGER;
+    return adv - bdv;
+  });
 }
 
 // 解析图片输入：
@@ -631,8 +793,8 @@ async function callQwenAdvisor({
 }) {
   // 传给模型的服务目录（只保留必要字段）
   const serviceCatalog = services.map((item) => ({
-    serviceId: String(item && item._id ? item._id : ''),
-    storeId: String(item && item.storeId ? item.storeId : ''),
+    serviceId: normalizeId(item && item._id),
+    storeId: normalizeId(item && item.storeId),
     storeName: item && item.storeName ? item.storeName : '',
     name: item && item.name ? item.name : '',
     price: Number((item && item.price) || 0),
@@ -645,7 +807,8 @@ async function callQwenAdvisor({
     '你是美发预约顾问。请只基于给定门店的真实服务清单推荐，不能创造不存在的服务。' +
     '输出必须是 JSON 对象，字段包括 advice(字符串), bookingRemark(字符串), recommendations(数组1-3项)。' +
     'recommendations 的每项必须包含 serviceId、storeId、storeName、name、reason。请使用简体中文。' +
-    'advice 控制在80字内，bookingRemark 控制在50字内，reason 控制在40字内。';
+    'advice 控制在80字内，bookingRemark 控制在50字内，reason 控制在40字内。' +
+    'bookingRemark 必须是“顾客写给商家/理发师的下单备注”口吻，使用第一人称，不要写成商家建议用户。';
   if (strictJsonOnly) {
     systemPrompt +=
       '只输出单个合法 JSON 对象，不要输出 markdown 代码块，不要输出解释文字，不要输出注释。' +
@@ -752,7 +915,7 @@ exports.main = withResponse(async (event, context) => {
   await requireRole(['user'], event, context);
 
   // 读取与标准化输入
-  const storeId = String((event && event.storeId) || '').trim();
+  const storeId = normalizeId(event && event.storeId);
   const userText = normalizeText(event && event.text);
   const imageFileIds = Array.isArray(event && event.imageFileIds) ? event.imageFileIds : [];
 
@@ -762,7 +925,6 @@ exports.main = withResponse(async (event, context) => {
   }
 
   const db = uniCloud.database();
-  const _ = db.command;
 
   // 若传入 storeId，则仅对该门店推荐；否则跨全部门店推荐
   let scopeStore = null;
@@ -797,29 +959,26 @@ exports.main = withResponse(async (event, context) => {
 
   // 关联门店名称，支持跨店推荐结果直接展示“服务 + 门店”
   const uniqueStoreIds = Array.from(
-    new Set(rawServices.map((item) => String((item && item.storeId) || '')).filter((id) => !!id))
+    new Set(rawServices.map((item) => normalizeId(item && item.storeId)).filter((id) => !!id))
   );
   let storeMap = new Map();
   if (scopeStore) {
-    storeMap.set(String(scopeStore._id), scopeStore.name || '未知门店');
+    storeMap.set(normalizeId(scopeStore._id), scopeStore.name || '未知门店');
   } else if (uniqueStoreIds.length > 0) {
-    const storeRes = await db
-      .collection('stores')
-      .where({ _id: _.in(uniqueStoreIds) })
-      .field({ _id: true, name: true })
-      .limit(uniqueStoreIds.length)
-      .get();
+    // 这里不按 _id in 精确筛选，避免 _id 类型（string/ObjectId）不一致导致门店名映射失败。
+    const storeRes = await db.collection('stores').field({ _id: true, name: true }).limit(1000).get();
     const stores = Array.isArray(storeRes.data) ? storeRes.data : [];
     storeMap = new Map(
-      stores.map((item) => [String((item && item._id) || ''), (item && item.name) || '未知门店'])
+      stores.map((item) => [normalizeId(item && item._id), (item && item.name) || '未知门店'])
     );
   }
 
   const services = rawServices
     .map((item) => {
-      const sid = String((item && item.storeId) || '');
+      const sid = normalizeId(item && item.storeId);
       return {
         ...item,
+        _id: normalizeId(item && item._id),
         storeId: sid,
         storeName: storeMap.get(sid) || '未知门店'
       };
@@ -1006,7 +1165,10 @@ exports.main = withResponse(async (event, context) => {
   // - recommendations 强制走真实服务归一化
   // - bookingRemark 优先模型结果，否则规则生成
   const adviceFromModel = trimText(modelResult && modelResult.advice, 240);
-  const recommendations = normalizeRecommendations(modelResult && modelResult.recommendations, services, userText);
+  const normalizedRecommendations = normalizeRecommendations(modelResult && modelResult.recommendations, services, userText);
+  const backfilledRecommendations = await backfillUnknownStoreNames(db, normalizedRecommendations);
+  const intentFilteredRecommendations = enforceIntentRecommendations(backfilledRecommendations, services, userText, 3);
+  const recommendations = sortRecommendationsByPrice(intentFilteredRecommendations);
   const advice = adviceFromModel || buildFallbackAdvice(userText, recommendations);
   const bookingRemark = buildBookingRemark(
     modelResult && modelResult.bookingRemark,

@@ -33,6 +33,7 @@ exports.main = withResponse(async (event, context) => {
       name: true,
       username: true,
       avatar: true,
+      intro: true,
       serviceIds: true
     })
     // 按创建时间倒序排列，最新理发师在前
@@ -45,6 +46,7 @@ exports.main = withResponse(async (event, context) => {
     const serviceIds = Array.isArray(item && item.serviceIds) ? item.serviceIds : [];
     return {
       ...item,
+      intro: String((item && item.intro) || '').trim(),
       serviceIds: serviceIds
         .map((id) => String(id || '').trim())
         .filter((id) => !!id)

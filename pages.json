@@ -70,7 +70,11 @@
       "path": "pages/user/settings/profile",
       "style": {
         "navigationBarTitleText": "Profile",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "disableScroll": true,
+        "app-plus": {
+          "softinputMode": "adjustResize"
+        }
       }
     },
     {

@@ -95,6 +95,18 @@
           <view class="time-chip" @tap="openTimePicker('workEnd')">结束 {{ workEnd }}</view>
         </view>
 
+        <view v-if="previewServiceOptions.length > 1" class="service-filter">
+          <view
+            v-for="item in previewServiceOptions"
+            :key="item.id"
+            class="service-chip"
+            :class="{ active: item.id === activePreviewServiceId }"
+            @click="selectPreviewService(item.id)"
+          >
+            <text>{{ item.name }}</text>
+          </view>
+        </view>
+
         <!-- 时段预览网格：每格为一个可切换的时间槽 -->
         <!-- slot-past 样式使已过期（今天的历史时间段）呈灰色只读效果 -->
         <view class="slot-grid">
@@ -222,6 +234,36 @@ function getNameInitial(value, fallback = 'B') {
   return first;
 }
 
+function normalizeIdList(list) {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set();
+  const result = [];
+  list.forEach((item) => {
+    const id = String(item || '').trim();
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    result.push(id);
+  });
+  return result;
+}
+
+// 预览模式标识：综合视图（汇总理发师全部已分配服务的时段状态）
+const PREVIEW_ALL_SERVICE_ID = '__all__';
+
+// 多服务时段合并规则：按状态优先级取更严格的结果，避免出现“可约”误判。
+function mergePreviewStatus(current, incoming) {
+  const priority = {
+    DISABLED: 0,
+    AVAILABLE: 1,
+    EXPIRED: 2,
+    UNAVAILABLE: 3,
+    BOOKED: 4
+  };
+  const cur = String(current || 'DISABLED').toUpperCase();
+  const next = String(incoming || 'DISABLED').toUpperCase();
+  return (priority[next] || 0) > (priority[cur] || 0) ? next : cur;
+}
+
 export default {
   data() {
     return {
@@ -247,7 +289,9 @@ export default {
       // 各服务的可预约时段汇总
       serviceSummaries: [],
       unreadCount: 0,
-      previewSlots: []
+      previewSlots: [],
+      previewServiceOptions: [],
+      activePreviewServiceId: PREVIEW_ALL_SERVICE_ID
     };
   },
   computed: {
@@ -287,9 +331,10 @@ export default {
     setTimeout(() => {
       syncCriticalSystemNotifications({ force: true });
     }, 600);
-    this.loadCurrentUser();
+    this.loadCurrentUser().finally(() => {
+      this.loadPreviewSlots();
+    });
     this.loadUnreadCount();
-    this.loadPreviewSlots();
   },
   onLoad() {
     uni.$on('user-profile-updated', this.handleUserProfileUpdated);
@@ -343,10 +388,76 @@ export default {
           this.currentUser = merged;
           authStore.setUser(merged);
           await this.resolveStoreName(merged);
-          return;
+          return merged;
         }
       } catch (err) {}
       await this.resolveStoreName(this.currentUser);
+      return this.currentUser;
+    },
+    // 生成“综合 + 已分配服务”筛选项，用于排班页切换展示口径。
+    buildPreviewServiceOptions(services = []) {
+      const serviceList = Array.isArray(services) ? services : [];
+      if (!serviceList.length) return [];
+      const userServiceIds = normalizeIdList(this.currentUser && this.currentUser.serviceIds);
+      let assigned = [];
+      if (userServiceIds.length > 0) {
+        assigned = serviceList.filter((service) => userServiceIds.includes(String((service && service._id) || '')));
+      }
+      if (assigned.length === 0) {
+        assigned = serviceList.slice(0, 1);
+      }
+      const options = assigned
+        .map((service) => ({
+          id: String((service && service._id) || ''),
+          name: String((service && service.name) || '服务')
+        }))
+        .filter((item) => !!item.id);
+      if (!options.length) return [];
+      return [{ id: PREVIEW_ALL_SERVICE_ID, name: '综合' }, ...options];
+    },
+    // 取当前有效筛选项；当旧值失效时自动回落到首个可用项。
+    getActivePreviewServiceId() {
+      const currentId = String(this.activePreviewServiceId || '');
+      const hasCurrent = this.previewServiceOptions.some((item) => item.id === currentId);
+      if (hasCurrent) return currentId;
+      const first = this.previewServiceOptions[0];
+      return (first && first.id) || PREVIEW_ALL_SERVICE_ID;
+    },
+    // 切换服务筛选口径后重新拉取对应时段。
+    selectPreviewService(serviceId) {
+      const id = String(serviceId || '');
+      if (!id || id === this.activePreviewServiceId) return;
+      this.activePreviewServiceId = id;
+      this.loadPreviewSlots();
+    },
+    // 按“理发师 + 日期 + 服务”读取时段，并转换为页面渲染结构。
+    async fetchPreviewSlotsByService(barberId, date, serviceId) {
+      const slots = await fetchBarberSlots({
+        barberId,
+        date,
+        serviceId,
+        noCache: true
+      });
+      if (!Array.isArray(slots)) return [];
+      return slots.map((item) => ({
+        time: item.startTime || '',
+        status: String(item.status || 'DISABLED').toUpperCase()
+      }));
+    },
+    // 把多个服务的时段列表合并为“综合视图”结果。
+    mergeServicePreviewSlots(slotGroups = []) {
+      const merged = new Map();
+      slotGroups.forEach((group) => {
+        (group || []).forEach((slot) => {
+          const time = String((slot && slot.time) || '');
+          if (!time) return;
+          const prev = merged.get(time) || 'DISABLED';
+          merged.set(time, mergePreviewStatus(prev, slot.status));
+        });
+      });
+      return Array.from(merged.entries())
+        .map(([time, status]) => ({ time, status }))
+        .sort((a, b) => String(a.time).localeCompare(String(b.time)));
     },
     // 加载未读消息数用于头部徽标。
     async loadUnreadCount() {
@@ -431,38 +542,47 @@ export default {
       }
       return list;
     },
-    // 加载预览时段：
-    // - 优先取真实服务时段；
-    // - 取不到时回退到本地推导时段，保障页面可用。
+    // 加载排班预览时段：
+    // - 服务筛选为“综合”时，合并所有已分配服务的时段状态；
+    // - 服务筛选为具体服务时，展示该服务口径下的时段状态；
+    // - 无可用服务数据时回退到本地时段占位，保证页面可用。
     async loadPreviewSlots() {
       const barberId = this.currentUser && (this.currentUser._id || this.currentUser.uid || this.currentUser.userId);
       const storeId = this.currentUser && this.currentUser.storeId;
       if (!barberId || !storeId || !this.date) {
+        this.previewServiceOptions = [];
         this.previewSlots = this.buildFallbackSlots();
         return;
       }
       try {
-        const services = await fetchStoreServices(storeId);
-        const firstService = Array.isArray(services) && services.length ? services[0] : null;
-        if (!firstService || !firstService._id) {
+        const services = await fetchStoreServices(storeId, { noCache: true });
+        this.previewServiceOptions = this.buildPreviewServiceOptions(services);
+        if (!this.previewServiceOptions.length) {
+          this.activePreviewServiceId = PREVIEW_ALL_SERVICE_ID;
           this.previewSlots = this.buildFallbackSlots();
           return;
         }
-        const slots = await fetchBarberSlots({
-          barberId,
-          date: this.date,
-          serviceId: firstService._id,
-          noCache: true
-        });
+        this.activePreviewServiceId = this.getActivePreviewServiceId();
+        const activeId = this.activePreviewServiceId;
+        let slots = [];
+        if (activeId === PREVIEW_ALL_SERVICE_ID) {
+          const targetServiceIds = this.previewServiceOptions
+            .map((item) => item.id)
+            .filter((id) => id && id !== PREVIEW_ALL_SERVICE_ID);
+          const groups = await Promise.all(
+            targetServiceIds.map((serviceId) => this.fetchPreviewSlotsByService(barberId, this.date, serviceId))
+          );
+          slots = this.mergeServicePreviewSlots(groups);
+        } else {
+          slots = await this.fetchPreviewSlotsByService(barberId, this.date, activeId);
+        }
         if (!Array.isArray(slots) || slots.length === 0) {
           this.previewSlots = this.buildFallbackSlots();
           return;
         }
-        this.previewSlots = slots.map((item) => ({
-          time: item.startTime || '',
-          status: String(item.status || 'DISABLED').toUpperCase()
-        }));
+        this.previewSlots = slots;
       } catch (err) {
+        this.previewServiceOptions = [];
         this.previewSlots = this.buildFallbackSlots();
       }
     },
@@ -880,6 +1000,33 @@ export default {
   display: flex;
   gap: 10rpx;
   margin-bottom: 12rpx;
+}
+
+.service-filter {
+  display: flex;
+  gap: 10rpx;
+  flex-wrap: wrap;
+  margin-bottom: 12rpx;
+}
+
+.service-chip {
+  min-width: 92rpx;
+  height: 52rpx;
+  padding: 0 18rpx;
+  border-radius: 26rpx;
+  border: 1rpx solid #cbd5e1;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 20rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.service-chip.active {
+  border-color: #0f172a;
+  background: #0f172a;
+  color: #ffffff;
 }
 
 .time-chip {

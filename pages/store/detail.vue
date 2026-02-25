@@ -116,7 +116,7 @@
               v-for="barber in barbers"
               :key="barber._id"
               class="barber-card"
-              @click="goCreateOrder('')"
+              @click="goCreateOrder('', barber._id)"
             >
               <!-- 头像（有头像时显示图片，否则显示首字母占位） -->
               <!-- 头像（有头像时显示图片，否则显示首字母占位） -->
@@ -196,6 +196,10 @@
                 <text class="review-user">{{ review.userName || '匿名用户' }}</text>
                 <text class="review-score">★ {{ (review.rating && review.rating.overall) || 5 }}</text>
               </view>
+              <!-- 展示该评价对应订单的服务项目 -->
+              <text v-if="getReviewServiceText(review)" class="review-service">
+                服务项目：{{ getReviewServiceText(review) }}
+              </text>
               <!-- 评价文字内容 -->
               <text class="review-content">{{ review.content || '用户未填写内容' }}</text>
               <!-- 评价图片列表（cloud:// 已通过 resolveReviewImageUrls 转为临时 HTTPS 链接） -->
@@ -549,6 +553,13 @@ export default {
         urls: images
       });
     },
+    // 返回评价关联的服务显示文本：优先服务名，其次服务 ID。
+    getReviewServiceText(review) {
+      const serviceName = String((review && review.serviceName) || '').trim();
+      if (serviceName) return serviceName;
+      const serviceId = String((review && review.serviceId) || '').trim();
+      return serviceId;
+    },
     // 评价时间友好化展示
     formatReviewTime(timestamp) {
       if (!timestamp) return '';
@@ -584,11 +595,12 @@ export default {
       const bookingRules = (this.store && this.store.bookingRules) || {};
       return bookingRules[key] || defaults[key] || '未设置';
     },
-    // 去下单页（可携带 serviceId 快速预选服务）
-    goCreateOrder(serviceId = '') {
+    // 去下单页（可携带 serviceId/barberId 快速预选）
+    goCreateOrder(serviceId = '', barberId = '') {
       if (!this.storeId) return;
       const serviceQuery = serviceId ? `&serviceId=${encodeURIComponent(serviceId)}` : '';
-      uni.navigateTo({ url: `/pages/order/create?storeId=${this.storeId}${serviceQuery}` });
+      const barberQuery = barberId ? `&barberId=${encodeURIComponent(barberId)}` : '';
+      uni.navigateTo({ url: `/pages/order/create?storeId=${this.storeId}${serviceQuery}${barberQuery}` });
     },
     // 跳转“门店评价”页查看完整评价列表
     goStoreReviews() {
@@ -1044,6 +1056,13 @@ export default {
   font-size: 22rpx;
   color: #f59e0b;
   font-weight: 700;
+}
+
+.review-service {
+  margin-top: 6rpx;
+  display: block;
+  font-size: 21rpx;
+  color: #334155;
 }
 
 .review-content {

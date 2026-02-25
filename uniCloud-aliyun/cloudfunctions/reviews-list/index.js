@@ -66,11 +66,38 @@ exports.main = withResponse(async (event, context) => {
 
   // 执行查询
   const res = await query.get();
+  const list = Array.isArray(res.data) ? res.data : [];
+
+  // 读取评价关联订单中的服务信息，用于评价列表展示“服务项目”。
+  const orderIds = Array.from(new Set(list.map((item) => item && item.orderId).filter((id) => !!id)));
+  let orderMap = new Map();
+  if (orderIds.length > 0) {
+    const orderRes = await db
+      .collection('orders')
+      .where({ _id: _.in(orderIds) })
+      .field({
+        _id: true,
+        serviceId: true,
+        serviceName: true
+      })
+      .get();
+    const orderList = Array.isArray(orderRes.data) ? orderRes.data : [];
+    orderMap = new Map(orderList.map((item) => [item._id, item]));
+  }
+
+  const hydratedList = list.map((item) => {
+    const order = orderMap.get(item.orderId) || {};
+    return {
+      ...item,
+      serviceId: item.serviceId || order.serviceId || '',
+      serviceName: item.serviceName || order.serviceName || ''
+    };
+  });
 
   return {
-    list: res.data || [],
+    list: hydratedList,
     page: safePage,
     pageSize: safeSize,
-    total: res.data ? res.data.length : 0
+    total: hydratedList.length
   };
 });

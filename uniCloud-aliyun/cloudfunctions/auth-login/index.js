@@ -90,6 +90,8 @@ exports.main = withResponse(async (event, context) => {
       username: user.username,
       role: user.role || 'user',
       storeId: user.storeId || '',     // 理发师/管理员后续门店操作的关键外键
+      // 理发师可执行服务清单：前端用于排班页与预约口径判定
+      serviceIds: Array.isArray(user.serviceIds) ? user.serviceIds : [],
       phone: user.phone || '',
       name: user.name || '',           // admin 角色此处存门店名，barber/user 存账号名
       avatar: user.avatar || '',

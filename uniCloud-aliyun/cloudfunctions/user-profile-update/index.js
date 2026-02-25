@@ -1,9 +1,10 @@
 /**
- * user-profile-update 云函数 —— 更新帐号资料
+ * user-profile-update 云函数 —— 处理帐号资料
  *
- * 【支持更新字段】
+ * 【可传字段】
  * - username/name：帐号名称（全局唯一，重复返回 409）
  * - avatar：头像 URL
+ * - intro：理发师擅长介绍
  *
  * 【昵称策略】
  * - admin 角色：name = 门店名（优先）或 username
@@ -12,7 +13,7 @@
  * 【权限】
  * - user、admin、barber 均可调用
  */
-// 账号资料更新：支持账号名（username）与头像
+// 账号资料处理：账号名、头像、擅长介绍
 const { withResponse, requireRole, ApiError } = require('sb-common');
 
 // 文本清洗：去首尾空格并限制最大长度，避免超长昵称污染展示/索引字段。
@@ -22,8 +23,13 @@ function sanitizeText(value) {
   return text.slice(0, 20);
 }
 
-// 更新个人资料：
-// - 支持 username/name（统一落到 username）和 avatar；
+// 擅长介绍清洗：允许空字符串（用于清空），上限 80 字符。
+function sanitizeIntro(value) {
+  return String(value || '').trim().slice(0, 80);
+}
+
+// 处理个人资料入参：
+// - username/name（统一落到 username）和 avatar；
 // - 根据角色同步 name 字段，确保前台展示命名规则一致。
 exports.main = withResponse(async (event, context) => {
   const user = await requireRole(['user', 'admin', 'barber'], event, context);
@@ -32,10 +38,12 @@ exports.main = withResponse(async (event, context) => {
   // 兼容前端不同字段命名：username 与 name 二选一取值。
   const username = sanitizeText((event && event.username) || (event && event.name));
   const avatar = String((event && event.avatar) || '').trim();
+  const hasIntro = !!(event && Object.prototype.hasOwnProperty.call(event, 'intro'));
+  const intro = sanitizeIntro(event && event.intro);
 
-  // 至少要更新一个字段，避免空请求无意义写库。
-  if (!username && !avatar) {
-    throw new ApiError(400, 'username or avatar is required');
+  // 至少要有一个字段，避免空请求无意义写库。
+  if (!username && !avatar && !hasIntro) {
+    throw new ApiError(400, 'username or avatar or intro is required');
   }
 
   const db = uniCloud.database();
@@ -72,8 +80,10 @@ exports.main = withResponse(async (event, context) => {
       updateData.name = username;
     }
   }
-  // 头像允许独立更新，不依赖 username。
+  // 头像可独立提交，不依赖 username。
   if (avatar) updateData.avatar = avatar;
+  // intro 支持显式清空（传空字符串也会覆盖）。
+  if (hasIntro) updateData.intro = intro;
 
   await db.collection('users').doc(userId).update(updateData);
 
@@ -85,7 +95,8 @@ exports.main = withResponse(async (event, context) => {
     storeId: true,
     phone: true,
     name: true,
-    avatar: true
+    avatar: true,
+    intro: true
   }).get();
   const latest = (userRes.data && userRes.data[0]) || {};
 
@@ -98,7 +109,8 @@ exports.main = withResponse(async (event, context) => {
       storeId: latest.storeId || '',
       phone: latest.phone || '',
       name: latest.name || '',
-      avatar: latest.avatar || ''
+      avatar: latest.avatar || '',
+      intro: latest.intro || ''
     }
   };
 });

@@ -21,10 +21,10 @@
 
 [认证与用户]
 - auth-register：注册
-- auth-login：登录
-- auth-me：获取当前用户
+- auth-login：登录（返回用户信息含 serviceIds）
+- auth-me：获取当前用户（返回含 serviceIds、intro）
 - user-bind-phone：绑定手机号
-- user-profile-update：更新个人资料
+- user-profile-update：更新个人资料（入参 username/name、avatar、intro；intro 支持清空）
 - sms-send-code：发送短信验证码
 - sms-verify-code：校验短信验证码
 - password-reset：重置密码
@@ -33,7 +33,7 @@
 - stores-list：门店列表（支持 sortBy=default/rating/price/distance；价格排序/筛选按有效最低价）
 - stores-detail：门店详情
 - stores-services：门店服务
-- stores-barbers：门店理发师
+- stores-barbers：门店理发师（返回含 intro、serviceIds）
 - store-update-profile：门店资料维护（services 非空且价格>0；提交后同步门店 minPrice）
 - barber-services-set：设置理发师服务项
 
@@ -55,7 +55,7 @@
 
 [评价与售后]
 - reviews-create：创建评价
-- reviews-list：门店评价列表
+- reviews-list：门店评价列表（会补齐 serviceId/serviceName）
 - reviews-by-order：按订单查评价
 - reviews-mine：我的评价
 - reviews-delete：删除评价
@@ -74,7 +74,7 @@
 - barber-applications-list：理发师申请列表
 - barber-application-review：理发师申请审核
 - barbers-manage：理发师管理（list/rename/remove）
-- ai-service-advisor：AI 服务顾问
+- ai-service-advisor：AI 服务顾问（入参 text/imageFileIds/storeId；推荐按用户意图过滤并按价格升序）
 - seed-data：初始化测试数据
 
 --------------------------------------------------

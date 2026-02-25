@@ -229,7 +229,7 @@ salon-booking-app/
 - `auth-login`：账号登录；校验用户名密码，签发 token 并返回用户信息。
 - `auth-me`：获取当前登录用户；用于前端刷新会话与角色信息。
 - `user-bind-phone`：绑定手机号；校验验证码后将手机号写入当前账号。
-- `user-profile-update`：更新个人资料；支持昵称/头像等用户展示信息更新。
+- `user-profile-update`：更新个人资料；支持账号名/头像更新，理发师可维护擅长介绍（intro）。
 - `password-reset`：重置密码；基于短信验证码重设账号密码。
 - `sms-send-code`：发送短信验证码；用于注册、找回密码、绑定手机号流程。
 - `sms-verify-code`：校验短信验证码；返回验证码是否有效及可继续后续操作。
@@ -281,13 +281,13 @@ salon-booking-app/
 - `admin-dashboard`：管理看板统计；汇总订单量、转化、状态分布等运营指标。
 
 扩展与初始化：
-- `ai-service-advisor`：AI 服务顾问；根据文本/图片输入推荐适合服务项目。
+- `ai-service-advisor`：AI 服务顾问；根据 `text/imageFileIds/storeId` 推荐真实服务，结果按用户诉求做意图过滤并按价格升序输出。
 - `seed-data`：初始化演示数据；批量写入示例用户、门店、服务、排班等测试数据。
 
 ### 7.2 数据库目录 `uniCloud-aliyun/database/`
 
 #### 7.2.1 Schema（14 个）
-- `users.schema.json`：用户主表；存储账号、密码摘要、角色、手机号、头像、昵称、审核状态与理发师服务绑定等信息。
+- `users.schema.json`：用户主表；存储账号、密码摘要、角色、手机号、头像、昵称、审核状态、理发师服务绑定与擅长介绍（intro）等信息。
 - `stores.schema.json`：门店主表；存储门店名称、地址、营业时间、规则、联系方式，以及理发师服务绑定开关等。
 - `services.schema.json`：服务项目表；存储服务名称、时长、价格、描述与所属门店。
 - `barber_schedules.schema.json`：理发师排班表；存储理发师某日工作起止时段与排班状态。

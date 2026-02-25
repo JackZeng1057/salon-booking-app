@@ -309,11 +309,74 @@
 
 <script>
 import { adviseServices } from '../../../api/agent';
+import { fetchStores, fetchStoreServices } from '../../../api/store';
 import { authStore } from '../../../store/auth';
 import BottomTabBar from '../../../components/bottom-tab-bar/bottom-tab-bar.vue';
 
 // 本地会话存储 key（用于持久化历史聊天）
 const SESSION_STORAGE_KEY = 'ai_agent_sessions_v1';
+
+// 统一路由参数 ID：兼容 string/ObjectId/{$oid}，避免把对象直接拼成 "[object Object]"
+function normalizeId(value) {
+  if (value == null) return '';
+  if (typeof value === 'string' || typeof value === 'number') {
+    const text = String(value).trim();
+    if (!text || text === '[object Object]') return '';
+    return text;
+  }
+  if (typeof value === 'object') {
+    if (value.$oid) return String(value.$oid).trim();
+    if (value.id) return String(value.id).trim();
+    if (typeof value.toString === 'function') {
+      const text = String(value.toString()).trim();
+      if (text && text !== '[object Object]') return text;
+    }
+  }
+  return '';
+}
+
+function normalizeName(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[^\w\u4e00-\u9fa5]/g, '');
+}
+
+function sortRecommendationsByPrice(recommendations) {
+  const list = Array.isArray(recommendations) ? [...recommendations] : [];
+  return list.sort((a, b) => {
+    const ap = Number(a && a.price);
+    const bp = Number(b && b.price);
+    const av = Number.isFinite(ap) ? ap : Number.MAX_SAFE_INTEGER;
+    const bv = Number.isFinite(bp) ? bp : Number.MAX_SAFE_INTEGER;
+    if (av !== bv) return av - bv;
+    const ad = Number(a && a.duration);
+    const bd = Number(b && b.duration);
+    const adv = Number.isFinite(ad) ? ad : Number.MAX_SAFE_INTEGER;
+    const bdv = Number.isFinite(bd) ? bd : Number.MAX_SAFE_INTEGER;
+    return adv - bdv;
+  });
+}
+
+function detectIntentType(text) {
+  const source = String(text || '');
+  if (/(染|发色|挑染|补色|漂|褪色|黑茶|亚麻|棕|灰)/.test(source)) return 'dye';
+  if (/(烫|卷|纹理|蓬松)/.test(source)) return 'perm';
+  if (/(剪|修|短发|层次|刘海)/.test(source)) return 'cut';
+  if (/(护理|修复|柔顺|养护|头皮|清洁|去屑)/.test(source)) return 'care';
+  return '';
+}
+
+// 判断推荐项是否与当前用户诉求类型一致
+function matchIntentRecommendation(item, intentType) {
+  if (!intentType) return true;
+  const source = `${String((item && item.name) || '')} ${String((item && item.reason) || '')}`;
+  if (intentType === 'dye') return /(染|漂|发色|补色|挑染|褪色)/.test(source);
+  if (intentType === 'perm') return /(烫|卷|纹理)/.test(source);
+  if (intentType === 'cut') return /(剪|修|刘海|造型)/.test(source);
+  if (intentType === 'care') return /(护理|修复|柔顺|养护|头皮|清洁|去屑)/.test(source);
+  return true;
+}
 
 /**
  * AI 顾问页面
@@ -354,6 +417,7 @@ export default {
       currentSessionId: '',
       seq: 0,
       chatItems: [],
+      storeNameMap: {},
       // 空态快捷提问模板
       quickPrompts: [
         '我想要干净利落的短发，发质偏硬，如何选择？',
@@ -499,7 +563,7 @@ export default {
       if (!firstUser) return '新会话';
       return String(firstUser.text).slice(0, 16);
     },
-    // 将当前会话插入/更新到 sessions，并按更新时间排序
+    // 将当前会话写入 sessions，并按最近时间排序
     upsertCurrentSession() {
       const id = String(this.currentSessionId || '').trim();
       if (!id) return;
@@ -831,13 +895,14 @@ export default {
           text,
           imageFileIds
         });
+        const normalized = await this.fillRecommendationStoreNames(data, text);
 
         this.removeChatById(loadingId);
         this.chatItems.push({
           id: this.makeMsgId('assistant'),
           role: 'assistant',
           type: 'result',
-          data: data || {
+          data: normalized || {
             advice: '暂无建议',
             bookingRemark: '',
             recommendations: []
@@ -859,15 +924,106 @@ export default {
     },
     // 从推荐结果跳转下单页，并携带 AI 备注
     goBooking(item, bookingRemark) {
-      if (!item || !item.serviceId) return;
-      const storeId = String(item.storeId || '').trim();
-      if (!storeId) {
-        uni.showToast({ title: '推荐项缺少门店信息', icon: 'none' });
+      const serviceId = normalizeId(item && item.serviceId);
+      const storeId = normalizeId(item && item.storeId);
+      const serviceName = encodeURIComponent(String((item && item.name) || '').trim());
+      const storeName = encodeURIComponent(String((item && item.storeName) || '').trim());
+      if (!serviceId && !serviceName) {
+        uni.showToast({ title: '推荐项服务信息异常', icon: 'none' });
         return;
       }
       const remark = encodeURIComponent(String(bookingRemark || ''));
-      const url = `/pages/order/create?storeId=${storeId}&serviceId=${item.serviceId}&aiRemark=${remark}`;
+      const url = `/pages/order/create?storeId=${storeId}&serviceId=${serviceId}&storeName=${storeName}&serviceName=${serviceName}&aiRemark=${remark}`;
       uni.navigateTo({ url });
+    },
+    async ensureStoreNameMap() {
+      if (Object.keys(this.storeNameMap || {}).length > 0) return;
+      try {
+        const stores = await fetchStores({ noCache: true });
+        const list = Array.isArray(stores) ? stores : [];
+        const map = {};
+        list.forEach((item) => {
+          const sid = normalizeId(item && item._id);
+          const name = String((item && item.name) || '').trim();
+          if (sid && name) map[sid] = name;
+        });
+        this.storeNameMap = map;
+      } catch (e) {}
+    },
+    async findStoreByServiceId(serviceId) {
+      const targetServiceId = normalizeId(serviceId);
+      if (!targetServiceId) return { storeId: '', storeName: '' };
+      try {
+        const stores = await fetchStores({ noCache: true });
+        const list = Array.isArray(stores) ? stores : [];
+        for (let i = 0; i < list.length; i += 1) {
+          const sid = normalizeId(list[i] && list[i]._id);
+          if (!sid) continue;
+          const services = await fetchStoreServices(sid, { noCache: true });
+          const serviceList = Array.isArray(services) ? services : [];
+          const hit = serviceList.some((it) => normalizeId(it && it._id) === targetServiceId);
+          if (hit) {
+            return {
+              storeId: sid,
+              storeName: String((list[i] && list[i].name) || '').trim()
+            };
+          }
+        }
+      } catch (e) {}
+      return { storeId: '', storeName: '' };
+    },
+    filterRecommendationsByIntent(recommendations, userText) {
+      const list = Array.isArray(recommendations) ? [...recommendations] : [];
+      const intentType = detectIntentType(userText);
+      if (!intentType) return list;
+      // 仅展示与本轮用户诉求匹配的推荐项
+      const filtered = list.filter((item) => matchIntentRecommendation(item, intentType));
+      return filtered.length > 0 ? filtered : list;
+    },
+    async fillRecommendationStoreNames(data, userText = '') {
+      const payload = data && typeof data === 'object' ? { ...data } : {};
+      const recs = Array.isArray(payload.recommendations) ? [...payload.recommendations] : [];
+      if (!recs.length) return payload;
+      await this.ensureStoreNameMap();
+      for (let i = 0; i < recs.length; i += 1) {
+        const item = recs[i] || {};
+        const storeId = normalizeId(item.storeId);
+        const currentStoreName = String(item.storeName || '').trim();
+        if (currentStoreName && currentStoreName !== '未知门店') continue;
+        if (storeId && this.storeNameMap[storeId]) {
+          recs[i] = { ...item, storeName: this.storeNameMap[storeId], storeId };
+          continue;
+        }
+        const byService = await this.findStoreByServiceId(item.serviceId);
+        if (byService.storeId && byService.storeName) {
+          recs[i] = { ...item, storeId: byService.storeId, storeName: byService.storeName };
+          this.storeNameMap = { ...(this.storeNameMap || {}), [byService.storeId]: byService.storeName };
+          continue;
+        }
+        // 按服务名匹配门店（同名服务按首个命中门店填充）
+        const serviceName = normalizeName(item.name);
+        if (serviceName) {
+          try {
+            const stores = await fetchStores({ noCache: true });
+            const list = Array.isArray(stores) ? stores : [];
+            for (let k = 0; k < list.length; k += 1) {
+              const sid = normalizeId(list[k] && list[k]._id);
+              if (!sid) continue;
+              const services = await fetchStoreServices(sid, { noCache: true });
+              const serviceList = Array.isArray(services) ? services : [];
+              const hit = serviceList.some((it) => normalizeName(it && it.name) === serviceName);
+              if (hit) {
+                const sname = String((list[k] && list[k].name) || '').trim();
+                recs[i] = { ...item, storeId: sid, storeName: sname || currentStoreName };
+                this.storeNameMap = { ...(this.storeNameMap || {}), [sid]: sname };
+                break;
+              }
+            }
+          } catch (e) {}
+        }
+      }
+      payload.recommendations = sortRecommendationsByPrice(this.filterRecommendationsByIntent(recs, userText));
+      return payload;
     },
     // 滚动到底部锚点
     scrollToBottom() {

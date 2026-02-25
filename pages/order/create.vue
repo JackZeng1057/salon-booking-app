@@ -261,6 +261,25 @@ function decodeQueryText(value) {
   }
 }
 
+// 统一页面内 ID 对比与透传：兼容 string/ObjectId/{$oid}
+function normalizeId(value) {
+  if (value == null) return '';
+  if (typeof value === 'string' || typeof value === 'number') {
+    const text = String(value).trim();
+    if (!text || text === '[object Object]') return '';
+    return text;
+  }
+  if (typeof value === 'object') {
+    if (value.$oid) return String(value.$oid).trim();
+    if (value.id) return String(value.id).trim();
+    if (typeof value.toString === 'function') {
+      const text = String(value.toString()).trim();
+      if (text && text !== '[object Object]') return text;
+    }
+  }
+  return '';
+}
+
 function timeToMinutes(text) {
   // 将 "HH:MM" 格式的时间字符串转为从 0:00 起的分钟数，用于智能推荐算法中的数值比较。
   // 解析失败（格式非法或非数字）时返回 NaN，调用方需用 Number.isNaN 做防御。
@@ -270,6 +289,13 @@ function timeToMinutes(text) {
   const minute = Number(matched[2]);
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return NaN;
   return hour * 60 + minute;
+}
+
+function normalizeName(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[^\w\u4e00-\u9fa5]/g, '');
 }
 
 export default {
@@ -315,6 +341,8 @@ export default {
       remark: '',
       fromAiAdvisor: false,
       presetServiceId: '',
+      presetServiceName: '',
+      presetBarberId: '',
       // 智能推荐时段
       recommendedStartTime: '',
       recommendedEndTime: '',
@@ -344,14 +372,18 @@ export default {
   },
   onLoad(options) {
     this.updatePagePaddingTop();
-    // 支持从门店详情或 AI 顾问带入门店/服务/备注
-    const presetStoreId = (options && options.storeId) || '';
-    const presetServiceId = (options && options.serviceId) || '';
+    // 支持从门店详情或 AI 顾问带入门店/服务/理发师/备注
+    const presetStoreId = normalizeId(options && options.storeId);
+    const presetServiceId = normalizeId(options && options.serviceId);
+    const presetBarberId = normalizeId(options && options.barberId);
+    const presetServiceName = decodeQueryText(options && options.serviceName);
     const aiRemark = decodeQueryText(options && options.aiRemark);
-    this.presetServiceId = String(presetServiceId || '').trim();
+    this.presetServiceId = normalizeId(presetServiceId);
+    this.presetServiceName = String(presetServiceName || '').trim();
+    this.presetBarberId = normalizeId(presetBarberId);
     this.remark = String(aiRemark || '').slice(0, 120);
     this.fromAiAdvisor = !!this.remark;
-    this.loadStores(presetStoreId, this.presetServiceId);
+    this.loadStores(presetStoreId, this.presetServiceId, this.presetBarberId);
   },
   onShow() {
     this.updatePagePaddingTop();
@@ -380,22 +412,53 @@ export default {
       this.showRulesModal = false;
     },
     // 拉取门店列表并处理预选
-    async loadStores(presetStoreId, presetServiceId = '') {
+    async loadStores(presetStoreId, presetServiceId = '', presetBarberId = '') {
       try {
-        const stores = await fetchStores();
+        const stores = await fetchStores({ noCache: true });
         this.storeOptions = Array.isArray(stores) ? stores : [];
-        if (presetStoreId) {
-          const index = this.storeOptions.findIndex((item) => item._id === presetStoreId);
+        const targetStoreId = normalizeId(presetStoreId);
+        const targetServiceId = normalizeId(presetServiceId || this.presetServiceId);
+        const targetServiceName = normalizeName(this.presetServiceName);
+        if (targetStoreId) {
+          const index = this.storeOptions.findIndex((item) => normalizeId(item && item._id) === targetStoreId);
           if (index >= 0) {
             this.storeIndex = index;
-            await this.loadStoreRelated(presetServiceId);
+            await this.loadStoreRelated(presetServiceId, presetBarberId);
+            // storeId 可命中但 serviceId 不属于该门店时，按 serviceId 真实归属店纠偏，避免服务回退到第一个。
+            if (targetServiceId) {
+              const currentServiceId = normalizeId(this.serviceOptions[this.serviceIndex] && this.serviceOptions[this.serviceIndex]._id);
+              if (currentServiceId !== targetServiceId) {
+                const serviceStoreIndex = await this.findStoreIndexByServiceId(targetServiceId);
+                if (serviceStoreIndex >= 0 && serviceStoreIndex !== index) {
+                  this.storeIndex = serviceStoreIndex;
+                  await this.loadStoreRelated(presetServiceId, presetBarberId);
+                }
+              }
+            }
+            return;
+          }
+        }
+        // storeId 无法命中时，按 serviceId 反查归属门店，避免落到默认门店导致服务错位。
+        if (targetServiceId) {
+          const serviceStoreIndex = await this.findStoreIndexByServiceId(targetServiceId);
+          if (serviceStoreIndex >= 0) {
+            this.storeIndex = serviceStoreIndex;
+            await this.loadStoreRelated(presetServiceId, presetBarberId);
+            return;
+          }
+        }
+        if (!targetServiceId && targetServiceName) {
+          const serviceStoreIndex = await this.findStoreIndexByServiceName(targetServiceName);
+          if (serviceStoreIndex >= 0) {
+            this.storeIndex = serviceStoreIndex;
+            await this.loadStoreRelated(presetServiceId, presetBarberId);
             return;
           }
         }
         // 若未传入门店，默认选择第一个门店
         if (this.storeOptions.length > 0) {
           this.storeIndex = 0;
-          await this.loadStoreRelated(presetServiceId);
+          await this.loadStoreRelated(presetServiceId, presetBarberId);
         }
       } catch (err) {
         uni.showToast({ title: err.message || '加载门店失败', icon: 'none' });
@@ -407,12 +470,42 @@ export default {
       this.currentStep = 1;
       await this.loadStoreRelated('');
     },
+    async findStoreIndexByServiceId(serviceId) {
+      const targetServiceId = normalizeId(serviceId);
+      if (!targetServiceId || this.storeOptions.length === 0) return -1;
+      for (let i = 0; i < this.storeOptions.length; i += 1) {
+        const storeId = normalizeId(this.storeOptions[i] && this.storeOptions[i]._id);
+        if (!storeId) continue;
+        try {
+          const services = await fetchStoreServices(storeId, { noCache: true });
+          const list = Array.isArray(services) ? services : [];
+          const hit = list.some((item) => normalizeId(item && item._id) === targetServiceId);
+          if (hit) return i;
+        } catch (e) {}
+      }
+      return -1;
+    },
+    async findStoreIndexByServiceName(serviceName) {
+      const targetServiceName = normalizeName(serviceName);
+      if (!targetServiceName || this.storeOptions.length === 0) return -1;
+      for (let i = 0; i < this.storeOptions.length; i += 1) {
+        const storeId = normalizeId(this.storeOptions[i] && this.storeOptions[i]._id);
+        if (!storeId) continue;
+        try {
+          const services = await fetchStoreServices(storeId, { noCache: true });
+          const list = Array.isArray(services) ? services : [];
+          const hit = list.some((item) => normalizeName(item && item.name) === targetServiceName);
+          if (hit) return i;
+        } catch (e) {}
+      }
+      return -1;
+    },
     // 拉取服务与理发师（并发加载 services/barbers/storeDetail，减少等待时间）
     // 同时读取门店预约规则并写入 storeRules，供"预约须知"展示。
     // 根据 barberServiceAssignmentEnabled 开关决定使用"显式绑定"还是"历史一一配对"策略：
     //   显式绑定（hasExplicitConfig=true）：reads.serviceIds from users collection
     //   历史配对（hasExplicitConfig=false）：serviceList[i] ↔ barberList[i]
-    async loadStoreRelated(presetServiceId = '') {
+    async loadStoreRelated(presetServiceId = '', presetBarberId = '') {
       this.serviceOptions = [];
       this.allBarbers = [];
       this.barberOptions = [];
@@ -426,12 +519,13 @@ export default {
       this.recommendedEndTime = '';
       this.recommendedReason = '';
       const store = this.storeOptions[this.storeIndex];
-      if (!store || !store._id) return;
+      const storeId = normalizeId(store && store._id);
+      if (!storeId) return;
       try {
         const [services, barbers, storeDetail] = await Promise.all([
-          fetchStoreServices(store._id),
-          fetchStoreBarbers(store._id, { noCache: true }),
-          fetchStoreDetail(store._id)
+          fetchStoreServices(storeId, { noCache: true }),
+          fetchStoreBarbers(storeId, { noCache: true }),
+          fetchStoreDetail(storeId, { noCache: true })
         ]);
         const serviceList = Array.isArray(services) ? services : [];
         // 兼容理发师显示名为空的情况
@@ -449,11 +543,11 @@ export default {
 
         if (hasExplicitConfig) {
           this.serviceOptions = serviceList;
-          const validServiceIdSet = new Set(serviceList.map((item) => item && item._id).filter((id) => !!id));
+          const validServiceIdSet = new Set(serviceList.map((item) => normalizeId(item && item._id)).filter((id) => !!id));
           this.allBarbers = barberList.map((item) => ({
             ...item,
             supportedServiceIds: (item.serviceIds || [])
-              .map((id) => String(id || '').trim())
+              .map((id) => normalizeId(id))
               .filter((id) => !!id && validServiceIdSet.has(id))
           }));
         } else {
@@ -463,7 +557,7 @@ export default {
           this.serviceOptions = pairedServices;
           this.allBarbers = pairedBarbers.map((item, idx) => ({
             ...item,
-            supportedServiceIds: pairedServices[idx] && pairedServices[idx]._id ? [pairedServices[idx]._id] : []
+            supportedServiceIds: pairedServices[idx] && pairedServices[idx]._id ? [normalizeId(pairedServices[idx]._id)] : []
           }));
         }
 
@@ -473,12 +567,30 @@ export default {
         }
         // 默认选中第一个服务，并按服务过滤理发师
         if (this.serviceOptions.length > 0) {
-          const targetServiceId = String(presetServiceId || this.presetServiceId || '').trim();
-          const targetIndex = targetServiceId
-            ? this.serviceOptions.findIndex((item) => item && item._id === targetServiceId)
+          const targetBarberId = normalizeId(presetBarberId || this.presetBarberId);
+          const targetServiceId = normalizeId(presetServiceId || this.presetServiceId);
+          const targetServiceName = normalizeName(this.presetServiceName);
+          const isServicePreset = !!(targetServiceId || targetServiceName);
+          let targetIndex = targetServiceId
+            ? this.serviceOptions.findIndex((item) => normalizeId(item && item._id) === targetServiceId)
             : -1;
+          if (targetIndex < 0 && targetServiceName) {
+            targetIndex = this.serviceOptions.findIndex((item) => normalizeName(item && item.name) === targetServiceName);
+          }
+          // 从理发师入口进入且未指定服务时，自动切到该理发师可做的服务，确保理发师可命中。
+          if (targetIndex < 0 && targetBarberId && !isServicePreset) {
+            const targetBarber = this.allBarbers.find((item) => normalizeId(item && item._id) === targetBarberId);
+            const supportedServiceIds = Array.isArray(targetBarber && targetBarber.supportedServiceIds)
+              ? targetBarber.supportedServiceIds
+              : [];
+            const preferredServiceId = supportedServiceIds.find((id) => !!id);
+            if (preferredServiceId) {
+              targetIndex = this.serviceOptions.findIndex((item) => normalizeId(item && item._id) === preferredServiceId);
+            }
+          }
           this.serviceIndex = targetIndex >= 0 ? targetIndex : 0;
           this.presetServiceId = '';
+          this.presetServiceName = '';
           this.currentStep = 2;
           this.rebuildBarberOptions();
         }
@@ -496,21 +608,24 @@ export default {
     // 找不到则默认选中新列表第 0 项；列表为空则清空选中。
     rebuildBarberOptions() {
       const service = this.serviceOptions[this.serviceIndex];
-      if (!service || !service._id) {
+      const serviceId = normalizeId(service && service._id);
+      if (!serviceId) {
         this.barberOptions = [];
         this.barberIndex = -1;
         return;
       }
-      const serviceId = service._id;
       const prevBarber = this.barberOptions[this.barberIndex];
-      const prevBarberId = prevBarber && prevBarber._id ? prevBarber._id : '';
+      const prevBarberId = normalizeId(prevBarber && prevBarber._id);
+      const targetBarberId = normalizeId(this.presetBarberId);
       const list = this.allBarbers.filter((item) => {
         const supported = Array.isArray(item.supportedServiceIds) ? item.supportedServiceIds : [];
         return supported.includes(serviceId);
       });
       this.barberOptions = list;
-      const nextIndex = list.findIndex((item) => item && item._id === prevBarberId);
+      const preferredBarberId = targetBarberId || prevBarberId;
+      const nextIndex = list.findIndex((item) => normalizeId(item && item._id) === preferredBarberId);
       this.barberIndex = nextIndex >= 0 ? nextIndex : list.length > 0 ? 0 : -1;
+      this.presetBarberId = '';
     },
     // 选择服务
     onServiceChange(e) {
@@ -543,15 +658,17 @@ export default {
         this.currentStep = Math.max(this.currentStep, 4);
       }
       const barber = this.barberOptions[this.barberIndex];
-      if (!barber || !barber._id) return;
+      if (!normalizeId(barber && barber._id)) return;
       this.loadSlots();
     },
     // 调用云函数获取时段（包含服务时长窗口与不可预约状态）
     async loadSlots() {
       const barber = this.barberOptions[this.barberIndex];
-      if (!barber || !barber._id) return;
+      const barberId = normalizeId(barber && barber._id);
+      if (!barberId) return;
       const service = this.serviceOptions[this.serviceIndex];
-      const key = `${barber._id}:${this.date}:${service ? service._id : ''}`;
+      const serviceId = normalizeId(service && service._id);
+      const key = `${barberId}:${this.date}:${serviceId}`;
       if (key === this.lastSlotsKey && this.slots.length > 0) {
         // 查询条件未变化且已有缓存结果时直接复用
         return;
@@ -566,9 +683,9 @@ export default {
       try {
         // 按理发师 + 日期 + 服务查询可预约窗口
         const data = await fetchBarberSlots({
-          barberId: barber._id,
+          barberId,
           date: this.date,
-          serviceId: service ? service._id : '',
+          serviceId,
           noCache: true
         });
         const list = Array.isArray(data) ? data : [];
@@ -724,9 +841,9 @@ export default {
         remark: String(this.remark || '').trim()
       };
       this.pendingPayload = {
-        storeId: store._id,
-        serviceId: service._id,
-        barberId: barber._id,
+        storeId: normalizeId(store && store._id),
+        serviceId: normalizeId(service && service._id),
+        barberId: normalizeId(barber && barber._id),
         date: this.date,
         startTime: this.selectedStartTime,
         remark: String(this.remark || '').trim()
