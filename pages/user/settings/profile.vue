@@ -259,7 +259,6 @@ export default {
   right: 0;
   top: 0;
   z-index: 30;
-  padding: 0 28rpx;
   background: #f8fafc;
 }
 
@@ -284,6 +283,7 @@ export default {
   padding: 24rpx 26rpx;
   background: linear-gradient(140deg, #0f172a, #1e293b);
   box-shadow: 0 14rpx 30rpx rgba(15, 23, 42, 0.16);
+  margin: 0 28rpx;
   margin-bottom: 18rpx;
 }
 

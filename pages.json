@@ -106,6 +106,13 @@
       }
     },
     {
+      "path": "pages/user/aftersales/index",
+      "style": {
+        "navigationBarTitleText": "Aftersales",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/user/notifications/index",
       "style": {
         "navigationBarTitleText": "Notifications",

@@ -257,6 +257,13 @@ export function fetchAftersales(payload) {
   return callCloud('aftersales-store-list', payload);
 }
 
+// 用户售后列表（用户端，查询自己提交的全部售后申请）
+// 不走缓存：售后状态可能实时变化，需保证用户看到最新处理进度。
+// @param {Object} payload - { page?, pageSize? }
+export function fetchMyAftersales(payload) {
+  return callCloud('aftersales-mine-list', payload || {});
+}
+
 // 管理员处理售后（更新状态并填写回复内容）
 // @param {Object} payload - { id, reply, status: 'PROCESSING'|'RESOLVED'|'REJECTED' }
 export function replyAftersale(payload) {

@@ -48,19 +48,20 @@
 - orders-finish-service：完成服务（IN_SERVICE -> FINISHED）
 - orders-no-show：标记爽约（BOOKED -> NO_SHOW）
 - orders-delete：删除订单（业务侧可见删除）
-- orders-store-list：门店订单列表
-- orders-barber-list：理发师订单列表
+- orders-store-list：门店订单列表（全量按 startTime 倒序，增量按 updatedAt 倒序）
+- orders-barber-list：理发师订单列表（全量按 startTime 倒序，增量按 updatedAt 倒序）
 - orders-items-list：订单明细
 - orders-events-list：订单事件日志
 
 [评价与售后]
 - reviews-create：创建评价
-- reviews-list：门店评价列表（会补齐 serviceId/serviceName）
+- reviews-list：门店评价列表（会补齐 orderNo/serviceId/serviceName/date/startTime/endTime）
 - reviews-by-order：按订单查评价
 - reviews-mine：我的评价
 - reviews-delete：删除评价
 - aftersales-create：提交售后
-- aftersales-store-list：门店售后列表（支持 OPEN/PROCESSING/RESOLVED/REJECTED，兼容中文状态）
+- aftersales-store-list：门店售后列表（支持 OPEN/PROCESSING/RESOLVED/REJECTED，兼容中文状态；回填 orderNo/serviceName/date/startTime/endTime）
+- aftersales-mine-list：用户售后列表（分页返回，回填订单与服务快照）
 - aftersales-reply：售后回复
 
 [通知/排班/管理]

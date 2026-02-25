@@ -46,6 +46,9 @@
             <text class="review-user">{{ item.userName || '匿名用户' }}</text>
             <text class="review-score">★ {{ formatScore(item.rating) }}</text>
           </view>
+          <text class="review-order">关联订单：{{ getOrderText(item) }}</text>
+          <text class="review-meta">服务项目：{{ getServiceText(item) }}</text>
+          <text class="review-meta">服务时段：{{ getServiceTimeText(item) }}</text>
           <!-- 评价内容文本 -->
           <text class="review-content">{{ item.content || '用户未填写内容' }}</text>
           <!-- 评价图片组（点击预览大图） -->
@@ -259,6 +262,34 @@ export default {
       if (typeof reply === 'string') return reply.trim();
       if (typeof reply === 'object') return String(reply.content || '').trim();
       return '';
+    },
+    // 关联订单展示：优先订单号，其次订单ID
+    getOrderText(review) {
+      if (!review) return '-';
+      const orderNo = String(review.orderNo || '').trim();
+      if (orderNo) return orderNo;
+      const orderId = String(review.orderId || '').trim();
+      return orderId || '-';
+    },
+    // 服务项目展示：优先服务名，其次服务ID
+    getServiceText(review) {
+      if (!review) return '-';
+      const serviceName = String(review.serviceName || '').trim();
+      if (serviceName) return serviceName;
+      const serviceId = String(review.serviceId || '').trim();
+      return serviceId || '-';
+    },
+    // 服务时段展示：date + start-end
+    getServiceTimeText(review) {
+      if (!review) return '-';
+      const date = String(review.date || '').trim();
+      const start = String(review.startTime || '').trim();
+      const end = String(review.endTime || '').trim();
+      const range = [start, end].filter((part) => !!part).join('-');
+      if (!date && !range) return '-';
+      if (!date) return range;
+      if (!range) return date;
+      return `${date} ${range}`;
     }
   }
 };
@@ -384,6 +415,20 @@ export default {
   font-size: 22rpx;
   color: #f59e0b;
   font-weight: 700;
+}
+
+.review-order {
+  margin-top: 8rpx;
+  display: block;
+  font-size: 22rpx;
+  color: #334155;
+}
+
+.review-meta {
+  margin-top: 4rpx;
+  display: block;
+  font-size: 22rpx;
+  color: #334155;
 }
 
 .review-content {

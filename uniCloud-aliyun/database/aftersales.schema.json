@@ -16,6 +16,13 @@
 				"updatedAt": -1
 			},
 			"name": "idx_aftersales_store_status_updated"
+		},
+		{
+			"key": {
+				"userId": 1,
+				"createdAt": -1
+			},
+			"name": "idx_aftersales_user_created"
 		}
 	],
 	"properties": {

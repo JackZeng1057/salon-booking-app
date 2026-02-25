@@ -237,7 +237,7 @@ export default {
         return { ...o, ...patch };
       });
     },
-    // 增量同步时合并新旧数据，按开始时间排序
+    // 增量同步时合并新旧数据，按开始时间倒序（最新在前）
     mergeOrders(list) {
       const map = new Map(this.orders.map((o) => [o._id, o]));
       list.forEach((item) => {
@@ -245,7 +245,7 @@ export default {
         const existing = map.get(item._id) || {};
         map.set(item._id, { ...existing, ...item });
       });
-      return Array.from(map.values()).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+      return Array.from(map.values()).sort((a, b) => (b.startTime || '').localeCompare(a.startTime || ''));
     },
     onDateChange(e) {
       this.date = e.detail.value || '';

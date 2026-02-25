@@ -20,7 +20,7 @@ B. 核心表核对（14张）
 13) time_slots
 14) users
 
-C. 12个核心业务索引
+C. 13个核心业务索引
 说明：以下索引以 `uniCloud-aliyun/database/*.index.json` 为准（与控制台名称一致）。
 
 1) orders.idx_orders_user_updated
@@ -55,19 +55,23 @@ C. 12个核心业务索引
    字段：storeId(升序) + status(升序) + updatedAt(降序)
    用途：门店售后工单处理列表
 
-9) time_slots.idx_slots_barber_date_start（唯一）
+9) aftersales.idx_aftersales_user_created
+   字段：userId(升序) + createdAt(降序)
+   用途：用户“我的售后”分页与倒序查询
+
+10) time_slots.idx_slots_barber_date_start（唯一）
    字段：barberId(升序) + date(升序) + startTime(升序)
    用途：时段唯一约束，防止重复写入同一时段
 
-10) barber_schedules.idx_sched_barber_date
+11) barber_schedules.idx_sched_barber_date
    字段：barberId(升序) + date(升序)
    用途：理发师排班查询与编辑回显
 
-11) services.idx_services_store
+12) services.idx_services_store
     字段：storeId(升序)
     用途：门店服务项列表查询
 
-12) users.idx_users_username（唯一）
+13) users.idx_users_username（唯一）
     字段：username(升序)
     用途：登录账号唯一约束
 
@@ -86,5 +90,5 @@ E. 检查项
 [ ] schema 已上传
 [ ] index.json 已同步到云端
 [ ] init 数据已导入
-[ ] 12个核心索引存在
+[ ] 13个核心索引存在
 [ ] 登录/下单/到店/开服务/完服务链路可跑通

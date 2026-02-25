@@ -48,7 +48,7 @@ exports.main = withResponse(async (event, context) => {
     where.updatedAt = db.command.gt(lastSyncAt);
   }
 
-  // 增量同步（lastSyncAt>0）：按 updatedAt 降序、skip=0 返回该时间后全部变更；全量模式按startTime升序并正常分页
+  // 增量与全量统一按倒序返回，确保列表“最新时间在前”
   const res = await db
     .collection('orders')
     .where(where)
@@ -67,7 +67,7 @@ exports.main = withResponse(async (event, context) => {
       verifyCode: true,
       updatedAt: true
     })
-    .orderBy(lastSyncAt > 0 ? 'updatedAt' : 'startTime', lastSyncAt > 0 ? 'desc' : 'asc')
+    .orderBy(lastSyncAt > 0 ? 'updatedAt' : 'startTime', 'desc')
     .skip(lastSyncAt > 0 ? 0 : (safePage - 1) * safeSize)
     .limit(lastSyncAt > 0 ? Math.min(limit, 100) : safeSize)
     .get();

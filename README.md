@@ -45,7 +45,7 @@
 | --- | --- | --- |
 | 数据库 | `uniCloud MongoDB` | 业务主数据存储 |
 | 数据模型 | `*.schema.json` | 集合结构与字段约束 |
-| 索引配置 | `*.index.json` | 12 条核心索引配置（同步后生效） |
+| 索引配置 | `*.index.json` | 13 条核心索引配置（同步后生效） |
 | 初始化脚本 | `*.jql` | 种子数据与维护脚本 |
 | 数据交付 | `云数据库json文件夹/*.json` | 完整导出数据文件 |
 
@@ -59,11 +59,11 @@
 | H5 入口 | `index.html` | H5 宿主模板 |
 
 ### 2.5 当前工程规模（按代码统计）
-- 页面文件：`35` 个（`pages/**/*.vue`）
+- 页面文件：`36` 个（`pages/**/*.vue`）
 - 组件文件：`6` 个（`components/**/*.vue`）
 - API 文件：`11` 个（`api/*.js`）
 - 工具文件：`4` 个（`utils/*.js`）
-- 业务云函数：`48` 个（不含 `common`）
+- 业务云函数：`49` 个（不含 `common`）
 - 数据库 Schema：`14` 个
 
 ## 3. 运行平台与端能力
@@ -136,6 +136,7 @@ salon-booking-app/
 - `pages/user/orders/index.vue`：用户订单列表
 - `pages/user/pricing/index.vue`：价格说明
 - `pages/user/reviews/index.vue`：我的评价
+- `pages/user/aftersales/index.vue`：我的售后处理
 - `pages/user/notifications/index.vue`：通知列表
 - `pages/user/notifications/detail.vue`：通知详情
 - `pages/user/settings/index.vue`：设置首页
@@ -251,8 +252,8 @@ salon-booking-app/
 - `orders-create`：创建预约订单；校验时段冲突并生成核验码、订单事件。
 - `orders-detail`：订单详情；返回订单主信息、排队估算与关联展示数据。
 - `orders-mine`：用户订单列表；按用户查询订单并支持状态/分页过滤。
-- `orders-barber-list`：理发师订单列表；按理发师视角拉取当日或指定日期订单。
-- `orders-store-list`：门店订单列表；按门店视角拉取订单并用于管理员工作台。
+- `orders-barber-list`：理发师订单列表；按理发师视角拉取当日或指定日期订单（全量/增量统一倒序，最新在前）。
+- `orders-store-list`：门店订单列表；按门店视角拉取订单并用于管理员工作台（全量/增量统一倒序，最新在前）。
 - `orders-verify`：到店核验；通过核验码将状态由 `BOOKED` 更新为 `ARRIVED`。
 - `orders-start-service`：开始服务；将状态由 `ARRIVED` 更新为 `IN_SERVICE`。
 - `orders-finish-service`：完成服务；将状态由 `IN_SERVICE` 更新为 `FINISHED`。
@@ -264,13 +265,14 @@ salon-booking-app/
 - `orders-events-list`：订单事件流；查询状态流转与关键操作日志。
 
 评价与售后：
-- `reviews-list`：门店评价列表；按门店/筛选条件返回评价数据。
+- `reviews-list`：门店评价列表；按门店/筛选条件返回评价数据，并回填关联订单号、服务项目与服务时段。
 - `reviews-create`：创建评价；提交评分、文字、图片并回写门店评分统计。
 - `reviews-by-order`：按订单查询评价；判断该订单是否已评价及评价详情。
 - `reviews-mine`：我的评价列表；按当前用户查询历史评价。
 - `reviews-delete`：删除评价；移除评价并同步更新门店评分汇总。
 - `aftersales-create`：创建售后单；用户提交问题类型、描述与订单关联信息。
-- `aftersales-store-list`：门店售后列表；管理员查看待处理/处理中/已解决/未通过售后（状态大小写与中文别名兼容）。
+- `aftersales-store-list`：门店售后列表；管理员查看待处理/处理中/已解决/未通过售后（状态大小写与中文别名兼容，含订单/服务/时段回填）。
+- `aftersales-mine-list`：用户售后列表；用户查看自己提交的售后单及当前处理进度。
 - `aftersales-reply`：售后回复处理；门店侧回复并推进售后状态。
 
 通知与运营：
@@ -311,7 +313,7 @@ salon-booking-app/
 - `reset-admins.jql`
 - `JQL查询.jql`
 
-#### 7.2.3 索引配置（9 个文件，共 12 条）
+#### 7.2.3 索引配置（9 个文件，共 13 条）
 - `orders.index.json`（4 条）
 - `order_events.index.json`
 - `reviews.index.json`

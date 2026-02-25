@@ -29,6 +29,7 @@ exports.main = withResponse(async (event, context) => {
   const status = normalizeAftersaleStatus(event && event.status);
 
   const db = uniCloud.database();
+  const _ = db.command;
   // 管理员仅查看自己门店数据
   const where = { storeId: admin.storeId || '' };
   if (status) {
@@ -40,6 +41,7 @@ exports.main = withResponse(async (event, context) => {
     .collection('aftersales')
     .where(where)
     .field({
+      orderId: true,
       type: true,
       status: true,
       content: true,
@@ -51,8 +53,39 @@ exports.main = withResponse(async (event, context) => {
     .get();
 
   const list = (res && res.data) || [];
-  return list.map((item) => ({
-    ...item,
-    status: normalizeAftersaleStatus(item && item.status) || String((item && item.status) || '').toUpperCase()
-  }));
+  // 批量提取关联订单，避免逐条查询导致 N+1 问题
+  const orderIds = Array.from(new Set(list.map((item) => item && item.orderId).filter((id) => !!id)));
+  let orderNoMap = new Map();
+  if (orderIds.length > 0) {
+    const orderRes = await db
+      .collection('orders')
+      .where({ _id: _.in(orderIds) })
+      .field({
+        _id: true,
+        orderNo: true,
+        serviceName: true,
+        serviceId: true,
+        date: true,
+        startTime: true,
+        endTime: true
+      })
+      .get();
+    const orderList = (orderRes && orderRes.data) || [];
+    orderNoMap = new Map(orderList.map((item) => [item && item._id, item]));
+  }
+
+  // 回填订单快照字段，供管理端列表直接展示“订单/服务/时段”信息
+  return list.map((item) => {
+    const order = orderNoMap.get(item && item.orderId) || {};
+    return {
+      ...item,
+      orderNo: order.orderNo || '',
+      serviceName: order.serviceName || '',
+      serviceId: order.serviceId || '',
+      date: order.date || '',
+      startTime: order.startTime || '',
+      endTime: order.endTime || '',
+      status: normalizeAftersaleStatus(item && item.status) || String((item && item.status) || '').toUpperCase()
+    };
+  });
 });

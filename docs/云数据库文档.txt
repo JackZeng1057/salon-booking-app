@@ -42,7 +42,7 @@
 - 使用位置：门店订单列表、用户订单列表、订单详情
 - 备注：等待时长是估算值（按已到店/服务中队列推算）
 
-5) 已创建索引（12个）+ 对应用途
+5) 已创建索引（13个）+ 对应用途
 说明：索引以 uniCloud-aliyun/database/*.index.json 为准，通过 HBuilderX/uniCloud 同步后在云端生效。
 
 A. orders（4个）
@@ -77,28 +77,32 @@ D. notifications（1个）
    字段：userId(升序), isRead(升序), createdAt(降序)
    用途：通知列表、未读筛选、按时间排序
 
-E. aftersales（1个）
+E. aftersales（2个）
 8. idx_aftersales_store_status_updated
    字段：storeId(升序), status(升序), updatedAt(降序)
    用途：门店售后按状态处理
 
+9. idx_aftersales_user_created
+   字段：userId(升序), createdAt(降序)
+   用途：用户“我的售后”分页与倒序查询
+
 F. time_slots（1个）
-9. idx_slots_barber_date_start
+10. idx_slots_barber_date_start
    字段：barberId(升序), date(升序), startTime(升序)
    用途：可预约时段查询与时间排序
 
 G. barber_schedules（1个）
-10. idx_sched_barber_date
+11. idx_sched_barber_date
     字段：barberId(升序), date(升序)
     用途：排班查询与编辑回显
 
 H. services（1个）
-11. idx_services_store
+12. idx_services_store
     字段：storeId(升序)
     用途：门店服务列表加载
 
 I. users（1个）
-12. idx_users_username（唯一）
+13. idx_users_username（唯一）
     字段：username(升序)
     用途：保证用户名不重复，并加速登录/注册重名校验
 

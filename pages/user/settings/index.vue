@@ -57,6 +57,19 @@
             <text class="item-arrow">›</text>
           </view>
         </view>
+
+        <view class="divider"></view>
+
+        <!-- 售后处理入口 -->
+        <view class="group-item" @click="goAftersales">
+          <view class="item-left">
+            <view class="item-icon"><app-icon name="file" color="#64748B" :size="22" :stroke-width="2.1" /></view>
+            <text class="item-label">售后处理</text>
+          </view>
+          <view class="item-right">
+            <text class="item-arrow">›</text>
+          </view>
+        </view>
       </view>
 
       <!-- 版本信息卡片 -->
@@ -149,6 +162,10 @@ export default {
     // 跳转：我的评价
     goReviews() {
       uni.navigateTo({ url: '/pages/user/reviews/index' });
+    },
+    // 跳转：售后处理列表
+    goAftersales() {
+      uni.navigateTo({ url: '/pages/user/aftersales/index' });
     },
     // 退出登录并清空本地身份状态
     handleLogout() {

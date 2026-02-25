@@ -77,8 +77,12 @@ exports.main = withResponse(async (event, context) => {
       .where({ _id: _.in(orderIds) })
       .field({
         _id: true,
+        orderNo: true,
         serviceId: true,
-        serviceName: true
+        serviceName: true,
+        date: true,
+        startTime: true,
+        endTime: true
       })
       .get();
     const orderList = Array.isArray(orderRes.data) ? orderRes.data : [];
@@ -87,10 +91,15 @@ exports.main = withResponse(async (event, context) => {
 
   const hydratedList = list.map((item) => {
     const order = orderMap.get(item.orderId) || {};
+    // 评价文档可能是历史数据（无订单快照），此处优先用评价自身字段，缺失再回填订单字段。
     return {
       ...item,
+      orderNo: item.orderNo || order.orderNo || '',
       serviceId: item.serviceId || order.serviceId || '',
-      serviceName: item.serviceName || order.serviceName || ''
+      serviceName: item.serviceName || order.serviceName || '',
+      date: item.date || order.date || '',
+      startTime: item.startTime || order.startTime || '',
+      endTime: item.endTime || order.endTime || ''
     };
   });
 

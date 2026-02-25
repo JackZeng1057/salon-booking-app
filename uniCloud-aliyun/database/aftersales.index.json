@@ -18,5 +18,21 @@
       ],
       "MgoIsUnique": false
     }
+  },
+  {
+    "IndexName": "idx_aftersales_user_created",
+    "MgoKeySchema": {
+      "MgoIndexKeys": [
+        {
+          "Name": "userId",
+          "Direction": "1"
+        },
+        {
+          "Name": "createdAt",
+          "Direction": "-1"
+        }
+      ],
+      "MgoIsUnique": false
+    }
   }
 ]

@@ -57,6 +57,7 @@ exports.main = withResponse(async (event, context) => {
     where.updatedAt = db.command.gt(lastSyncAt);
   }
 
+  // 全量模式按 startTime 倒序，增量模式按 updatedAt 倒序，统一“最新优先”的列表体验
   const res = await db
     .collection('orders')
     .where(where)
@@ -75,7 +76,7 @@ exports.main = withResponse(async (event, context) => {
       verifyCode: true,
       updatedAt: true
     })
-    .orderBy(lastSyncAt > 0 ? 'updatedAt' : 'startTime', lastSyncAt > 0 ? 'desc' : 'asc')
+    .orderBy(lastSyncAt > 0 ? 'updatedAt' : 'startTime', 'desc')
     .skip(lastSyncAt > 0 ? 0 : (safePage - 1) * safeSize)
     .limit(lastSyncAt > 0 ? Math.min(limit, 100) : safeSize)
     .get();

@@ -52,6 +52,18 @@
             <!-- 售后详情：顾客描述 + 当前回复 -->
             <view class="card-main">
               <view class="row">
+                <text class="label">关联订单</text>
+                <text class="value">{{ getOrderText(item) }}</text>
+              </view>
+              <view class="row">
+                <text class="label">服务项目</text>
+                <text class="value">{{ getServiceText(item) }}</text>
+              </view>
+              <view class="row">
+                <text class="label">服务时段</text>
+                <text class="value">{{ getServiceTimeText(item) }}</text>
+              </view>
+              <view class="row">
                 <text class="label">描述</text>
                 <text class="value">{{ item.content || '无' }}</text>
               </view>
@@ -158,6 +170,34 @@ export default {
     onReplyInput(e, item) {
       const val = (e && e.detail && e.detail.value) || '';
       item._reply = val;
+    },
+    // 关联订单展示：优先订单号，其次订单ID
+    getOrderText(item) {
+      if (!item) return '-';
+      const orderNo = String(item.orderNo || '').trim();
+      if (orderNo) return orderNo;
+      const orderId = String(item.orderId || '').trim();
+      return orderId || '-';
+    },
+    // 服务项目展示：优先服务名，其次服务ID
+    getServiceText(item) {
+      if (!item) return '-';
+      const serviceName = String(item.serviceName || '').trim();
+      if (serviceName) return serviceName;
+      const serviceId = String(item.serviceId || '').trim();
+      return serviceId || '-';
+    },
+    // 服务时段展示：date + start-end
+    getServiceTimeText(item) {
+      if (!item) return '-';
+      const date = String(item.date || '').trim();
+      const start = String(item.startTime || '').trim();
+      const end = String(item.endTime || '').trim();
+      const range = [start, end].filter((part) => !!part).join('-');
+      if (!date && !range) return '-';
+      if (!date) return range;
+      if (!range) return date;
+      return `${date} ${range}`;
     },
     // 提交回复：有内容则直接标记已解决，否则标记处理中
     async handleReply(item) {
