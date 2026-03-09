@@ -5,7 +5,7 @@
 前端统一调用方式：callCloud(functionName, payload)
 
 调用入口：
-- /Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app/api/client.js
+- api/client.js
 
 统一返回结构：
 - code（0=成功）

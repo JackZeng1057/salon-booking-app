@@ -67,7 +67,7 @@
 - 处理：以当前项目的 `*.index.json` 为准，统一重建。
 
 问题 3：出现唯一索引冲突
-- 原因：已有同字段重复数据（如 username / verifyCode）。
+- 原因：已有唯一键重复数据（如 username，或 time_slots 中 barberId+date+startTime 重复）。
 - 处理：清理冲突记录后重新导入，或在空环境先导 schema 再导数据。
 
 五、复现完成判定标准

@@ -59,9 +59,9 @@ E. reviews-create（6条）
 
 四、结论
 - 订单状态机的关键防线已通过分支验证。
-- 订单核验、开单、完单、爽约与评价创建的异常路径均按预期被拦截。
+- 订单核验、开始服务、完成服务、爽约与评价创建的异常路径均按预期被拦截。
 - 当前白盒测试可作为毕业论文“代码级验证”证据使用。
 
 五、文件位置
-- 白盒脚本：/Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app/tests/whitebox/run-whitebox.js
-- 测试记录：/Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app/docs/白盒测试记录.txt
+- 白盒脚本：tests/whitebox/run-whitebox.js
+- 测试记录：docs/白盒测试记录.txt

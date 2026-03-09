@@ -1,7 +1,7 @@
 理发预约系统-云数据库说明
 
 0. 说明
-- 数据库目录：/Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app/uniCloud-aliyun/database
+- 数据库目录：uniCloud-aliyun/database
 - 架构思路：主业务表 + 订单事件日志 + 审计日志
 - 主链路：users -> orders -> order_events/order_items -> reviews/aftersales/notifications
 

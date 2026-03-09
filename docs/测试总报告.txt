@@ -1,6 +1,6 @@
 理发预约系统-测试总报告（整合版）
 
-项目路径：/Users/zengzeng/Desktop/HBuilderProjects/salon-booking-app
+项目路径：salon-booking-app
 执行命令：node tests/run-all-tests.js
 
 一、测试范围
