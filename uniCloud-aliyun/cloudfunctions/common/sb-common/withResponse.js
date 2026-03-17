@@ -45,12 +45,36 @@ function getRequestId(context) {
  */
 function withResponse(handler) {
   return async (event, context) => {
+    const startedAt = Date.now();
     const requestId = getRequestId(context);
+    const functionName = (context && (context.functionName || context.name)) || '';
+    const eventKeys = event && typeof event === 'object' ? Object.keys(event) : [];
+    console.log('[cloud:start]', {
+      functionName,
+      requestId,
+      eventKeys,
+      startedAt
+    });
     try {
       const data = await handler(event, context);
+      const durationMs = Date.now() - startedAt;
+      console.log('[cloud:success]', {
+        functionName,
+        requestId,
+        durationMs
+      });
       // 正常执行：将业务返回值包装为 { code: 0, message: 'ok', data, requestId }
       return success(data, requestId);
     } catch (err) {
+      const durationMs = Date.now() - startedAt;
+      console.error('[cloud:error]', {
+        functionName,
+        requestId,
+        durationMs,
+        message: err && err.message,
+        code: err && err.code,
+        stack: err && err.stack
+      });
       if (isApiError(err)) {
         // 业务异常：使用开发者指定的 code 和 message，可附带额外 data 字段
         return fail(err.code, err.message, requestId, err.data);
