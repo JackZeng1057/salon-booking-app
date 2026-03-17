@@ -35,7 +35,7 @@
 | 层级 | 技术 | 说明 |
 | --- | --- | --- |
 | 服务形态 | `uniCloud` 云函数（阿里云） | 所有业务接口统一由云函数提供 |
-| 公共模块 | `common/sb-common` | 统一响应、鉴权、错误、时段、排队、审计、自动取消 |
+| 公共模块 | `common/sb-common` | 统一响应、统一云函数日志、鉴权、错误、时段、排队、审计、自动取消 |
 | 配置管理 | `uni-config-center` | 云端配置管理模块 |
 | 身份相关依赖 | `uni-id-common` | uniCloud 身份体系公共依赖 |
 
@@ -211,7 +211,7 @@ salon-booking-app/
 
 #### 7.1.1 公共模块 `common/sb-common`
 - `index.js`：公共导出入口
-- `response.js` / `withResponse.js`：统一响应包装
+- `response.js` / `withResponse.js`：统一响应包装、requestId 追踪与云函数开始/成功/失败日志
 - `errors.js`：错误码与错误类型
 - `auth.js`：登录与角色校验
 - `password.js`：密码相关工具

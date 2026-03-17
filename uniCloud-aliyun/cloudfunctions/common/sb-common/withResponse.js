@@ -4,7 +4,7 @@
  * 【解决的问题】
  * uniCloud 云函数的原始写法要求每个函数自行处理 try/catch、格式化返回值，
  * 导致大量样板代码重复且错误处理风格不统一。
- * withResponse 将"统一响应格式"和"错误捕获"提取为装饰器，
+ * withResponse 将"统一响应格式"、"入口/结果日志"和"错误捕获"提取为装饰器，
  * 业务函数只需专注于正常逻辑，异常会被自动拦截并转为标准 fail 响应。
  *
  * 【设计模式】
@@ -19,9 +19,13 @@
  *   - 其他 Error（系统错误）：数据库超时、网络异常、代码 BUG 等，
  *     统一返回 500 Internal Server Error，不暴露堆栈信息给前端。
  *
- * 【requestId 追踪】
+ * 【requestId 追踪 + 统一日志】
  * 每次请求携带一个唯一的 requestId（来自 context），
- * 写入返回值中便于在日志系统中关联"某次请求"的完整链路。
+ * 写入返回值并同步输出到日志，便于在日志系统中关联"某次请求"的完整链路。
+ * 包装器会统一打印：
+ *   - [cloud:start]   函数开始、入参 key、开始时间
+ *   - [cloud:success] 函数成功、耗时
+ *   - [cloud:error]   函数失败、耗时、错误摘要
  *
  * 【使用示例】
  *   exports.main = withResponse(async (event, context) => {
@@ -48,6 +52,7 @@ function withResponse(handler) {
     const startedAt = Date.now();
     const requestId = getRequestId(context);
     const functionName = (context && (context.functionName || context.name)) || '';
+    // 仅记录入参字段名，避免把 token、手机号等完整敏感值直接打进日志。
     const eventKeys = event && typeof event === 'object' ? Object.keys(event) : [];
     console.log('[cloud:start]', {
       functionName,
@@ -57,6 +62,7 @@ function withResponse(handler) {
     });
     try {
       const data = await handler(event, context);
+      // 成功日志只记录链路标识与耗时，保持日志轻量且便于批量检索。
       const durationMs = Date.now() - startedAt;
       console.log('[cloud:success]', {
         functionName,
@@ -66,6 +72,7 @@ function withResponse(handler) {
       // 正常执行：将业务返回值包装为 { code: 0, message: 'ok', data, requestId }
       return success(data, requestId);
     } catch (err) {
+      // 失败日志保留 message/code/stack，方便控制台直接定位异常来源。
       const durationMs = Date.now() - startedAt;
       console.error('[cloud:error]', {
         functionName,
