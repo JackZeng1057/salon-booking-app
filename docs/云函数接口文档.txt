@@ -76,7 +76,7 @@
 - barber-application-review：理发师申请审核
 - barbers-manage：理发师管理（list/rename/remove）
 - ai-service-advisor：AI 服务顾问（入参 text/imageFileIds/storeId；推荐按用户意图过滤并按价格升序）
-- seed-data：初始化测试数据
+- seed-data：初始化脱敏样例数据
 
 --------------------------------------------------
 三、关键约束

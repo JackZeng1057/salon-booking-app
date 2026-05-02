@@ -386,6 +386,12 @@ salon-booking-app/
 - 模板：`uniCloud-aliyun/cloudfunctions/sms-send-code/config.example.json`
 - 本地实际配置：`uniCloud-aliyun/cloudfunctions/sms-send-code/config.json`（已加入 `.gitignore`，请勿提交）
 
+### 10.3 公开占位符说明
+- `__UNI__PLACEHOLDER`：公开仓库中的 DCloud AppID 占位符。App 云打包、真机调试或正式发布前，请在 HBuilderX 中替换为自己的 DCloud AppID。
+- `PHONE_PLACEHOLDER`：脱敏样例用户手机号占位符。需要测试手机号绑定、短信验证码或找回密码流程时，请在自己的测试环境中替换为测试手机号。
+- `STORE_PHONE_PLACEHOLDER`：脱敏样例门店联系电话占位符。需要展示门店电话或导入样例门店数据时，可替换为自己的测试联系电话。
+- 所有占位符都不代表作者个人信息或线上服务资源，公开仓库不会提供真实服务空间、短信密钥、AI Key 或真实运行数据。
+
 ## 11. 部署与运行
 
 ### 11.0 获取源码
@@ -408,6 +414,7 @@ cd salon-booking-app
 5. 上传全部业务云函数
 6. 按需执行 `seed-data` 或 `uniCloud-aliyun/database/seed-*.jql` 初始化脱敏样例数据
 7. 如需短信和 AI 顾问能力，复制对应 `config.example.json` 为本地 `config.json` 并填入自己的服务密钥
+8. 按需替换 `__UNI__PLACEHOLDER`、`PHONE_PLACEHOLDER`、`STORE_PHONE_PLACEHOLDER` 等公开占位符
 
 ### 11.3 本地运行
 - HBuilderX 选择运行到 H5 / App / 小程序
