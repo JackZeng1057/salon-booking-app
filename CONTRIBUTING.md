@@ -8,6 +8,7 @@
 - 不提交 `unpackage/`、`node_modules/`、`dist/` 等构建产物。
 - 配置示例只使用 `config.example.json` 或占位符。
 - 第三方模块保留原作者声明和许可信息。
+- App 图标等必须随源码保留的静态资源放在 `static/app-icons/`，不要放回 `unpackage/`。
 
 推荐本地检查命令：
 

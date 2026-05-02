@@ -6,6 +6,8 @@
 
 ## 开源说明
 
+公开仓库地址：`https://gitee.com/JackZeng1057/salon-booking-app`
+
 本项目采用 GNU General Public License v2.0 开源协议发布，详见仓库根目录 `LICENSE` 文件。
 
 Copyright (C) 2026 Jack Zeng.
@@ -13,6 +15,8 @@ Copyright (C) 2026 Jack Zeng.
 本项目主要用于毕业设计、学习研究与功能演示，代码、数据结构及业务流程仅供参考。如需用于真实生产环境，请自行完成安全加固、权限隔离、日志审计、隐私合规、接口限流、数据备份、异常监控等工作。项目作者不对因使用本项目造成的任何数据损失、服务异常或安全问题承担责任。
 
 本仓库不提供作者个人 uniCloud 服务空间、短信服务、AI Key 等线上资源。如需运行，请自行创建 uniCloud 阿里云服务空间，并根据 `config.example.json` 配置自己的短信服务和 AI 服务密钥。项目中使用的第三方模块版权归原作者所有，相关许可协议以模块自身声明为准。
+
+公开仓库与本地开发环境的主要差异：真实 `config.json`、真实数据库导出、登录 token、短信验证码、APK 与 `unpackage/` 构建产物不随源码发布；App 打包图标已从构建目录迁移到 `static/app-icons/`，保证全新克隆后 `manifest.json` 引用完整。
 
 ## 1. 项目概述
 
@@ -104,7 +108,6 @@ salon-booking-app/
 ├── uni_modules/                   # uni 官方模块
 ├── utils/                         # 通用工具
 ├── demo-data/                     # 脱敏演示数据样例
-├── 文本/                           # 文本资料
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── SECURITY.md
@@ -351,9 +354,9 @@ salon-booking-app/
 ## 9. 文档与其他交付目录说明
 
 ### 9.1 `docs/` 文档目录
-- `docs/云函数接口文档.md` / `docs/云函数接口文档.txt`
-- `docs/云数据库文档.md` / `docs/云数据库文档.txt`
-- `docs/测试结论.md` / `docs/测试结论.txt`
+- `docs/云函数接口文档.txt`
+- `docs/云数据库文档.txt`
+- `docs/测试结论.txt`
 - `docs/测试总报告.txt`
 - `docs/白盒测试记录.txt`
 - `docs/接口联调测试结果.txt`
@@ -369,7 +372,6 @@ salon-booking-app/
 公开仓库不包含真实数据库导出文件，不包含登录 token、短信验证码、真实手机号、真实订单、售后描述或审计日志。数据库结构、索引和初始化脚本请以 `uniCloud-aliyun/database/` 为准。
 
 ### 9.3 其他目录说明
-- `文本/项目完整功能与设计复刻说明.txt`：业务说明文档
 - `uni_modules/`：uni 官方模块（`uni-config-center`、`uni-id-common`）
 - `static/app-icons/`：App 打包图标资源，供 `manifest.json` 引用。
 - `unpackage/`：本地构建产物目录，已加入 `.gitignore`，不随源码仓库发布；如需分发 APK，建议放到 Release 附件。
@@ -386,6 +388,12 @@ salon-booking-app/
 
 ## 11. 部署与运行
 
+### 11.0 获取源码
+```bash
+git clone https://gitee.com/JackZeng1057/salon-booking-app.git
+cd salon-booking-app
+```
+
 ### 11.1 环境准备
 - HBuilderX
 - 自行创建的 uniCloud 阿里云服务空间
@@ -398,15 +406,18 @@ salon-booking-app/
 3. 同步 `uniCloud-aliyun/database/*.index.json`（创建/更新索引）
 4. 上传 `uniCloud-aliyun/cloudfunctions/common/sb-common`
 5. 上传全部业务云函数
-6. 按需执行 `seed-data` 初始化演示数据
+6. 按需执行 `seed-data` 或 `uniCloud-aliyun/database/seed-*.jql` 初始化演示数据
+7. 如需短信和 AI 顾问能力，复制对应 `config.example.json` 为本地 `config.json` 并填入自己的服务密钥
 
 ### 11.3 本地运行
 - HBuilderX 选择运行到 H5 / App / 小程序
+- 首次运行前需确认已绑定自己的 uniCloud 服务空间，否则前端 `callCloud` 无法访问云函数。
 
 ### 11.4 App 打包
 - 通过 HBuilderX 云打包或本地打包
 - 打包结果通常输出在本地 `unpackage/release/`
-- `unpackage/` 不进入源码仓库，APK 等二进制产物建议通过 Release 分发
+- `manifest.json` 的 App 图标引用 `static/app-icons/`，全新 clone 后可直接识别图标资源。
+- `unpackage/` 不进入源码仓库，APK 等二进制产物建议通过 Release 分发。
 
 ## 12. 测试命令
 
@@ -418,5 +429,6 @@ node tests/run-all-tests.js
 
 - 本仓库按“开源展示”策略保留源代码、文档、数据库 schema/index、初始化脚本与脱敏示例数据。
 - 真实配置文件、真实数据库导出、验证码、登录 token、构建产物和 APK 不随源码仓库发布。
+- 除上述敏感/构建产物外，公开仓库保留运行、测试和打包所需的前端页面、组件、云函数、数据库结构、索引、种子脚本、官方 `uni_modules` 与 App 图标资源。
 - `seed-data` 为初始化数据函数，通常在部署或演示前执行，不属于日常高频业务入口。
 - 线上环境建议限制初始化类函数调用权限，并通过管理员身份执行关键运维操作。
