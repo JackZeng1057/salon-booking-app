@@ -412,6 +412,7 @@ cd salon-booking-app
 ### 11.3 本地运行
 - HBuilderX 选择运行到 H5 / App / 小程序
 - 首次运行前需确认已绑定自己的 uniCloud 服务空间，否则前端 `callCloud` 无法访问云函数。
+- `manifest.json` 中的 `appid` 使用公开占位符；如需 App 云打包或发布，请在 HBuilderX 中替换为自己的 DCloud AppID。
 
 ### 11.4 App 打包
 - 通过 HBuilderX 云打包或本地打包
