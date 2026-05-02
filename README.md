@@ -6,7 +6,9 @@
 
 ## 开源说明
 
-公开仓库地址：`https://gitee.com/JackZeng1057/salon-booking-app`
+公开仓库地址：
+- Gitee：`https://gitee.com/JackZeng1057/salon-booking-app`
+- GitHub：`https://github.com/JackZeng1057/salon-booking-app`
 
 本项目采用 GNU General Public License v2.0 开源协议发布，详见仓库根目录 `LICENSE` 文件。
 
@@ -397,6 +399,12 @@ salon-booking-app/
 ### 11.0 获取源码
 ```bash
 git clone https://gitee.com/JackZeng1057/salon-booking-app.git
+cd salon-booking-app
+```
+
+GitHub 镜像仓库：
+```bash
+git clone https://github.com/JackZeng1057/salon-booking-app.git
 cd salon-booking-app
 ```
 
