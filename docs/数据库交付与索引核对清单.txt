@@ -2,7 +2,11 @@
 
 A. 交付文件清单（必须）
 1) uniCloud-aliyun/database/*.schema.json
-2) 云数据库json文件夹（按表导出的数据json）
+2) uniCloud-aliyun/database/*.index.json
+3) uniCloud-aliyun/database/seed-*.jql
+4) demo-data/*.example.json（脱敏示例数据）
+
+说明：公开仓库不交付真实数据库导出，不包含验证码、登录 token、真实手机号、真实订单或审计日志。
 
 B. 核心表核对（14张）
 1) aftersales

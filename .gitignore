@@ -4,8 +4,13 @@ uniCloud-aliyun/.DS_Store
 uniCloud-aliyun/cloudfunctions/.DS_Store
 
 # Build outputs
-unpackage/dist/
+dist/
+unpackage/
+node_modules/
 
 # Local secret configs (use config.example.json instead)
+.env
+.env.*
+*.local
 uniCloud-aliyun/cloudfunctions/sms-send-code/config.json
 uniCloud-aliyun/cloudfunctions/ai-service-advisor/config.json

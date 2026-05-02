@@ -1,8 +1,18 @@
-# 理发预约系统
+# Salon Booking App｜基于 uni-app + uniCloud 的多角色理发预约系统
 
 基于 `uni-app + uniCloud` 的多角色理发预约系统，覆盖用户端、理发师端、管理员端三条业务主线，支持预约下单、到店核验、服务流转、评价售后、通知触达与运营管理。
 
-本 README 按当前仓库真实代码目录编写，用于开发、评审与后续维护。
+本 README 按当前仓库真实代码目录编写，用于毕业设计展示、开发复现与后续维护。
+
+## 开源说明
+
+本项目采用 GNU General Public License v2.0 开源协议发布，详见仓库根目录 `LICENSE` 文件。
+
+Copyright (C) 2026 Jack Zeng.
+
+本项目主要用于毕业设计、学习研究与功能演示，代码、数据结构及业务流程仅供参考。如需用于真实生产环境，请自行完成安全加固、权限隔离、日志审计、隐私合规、接口限流、数据备份、异常监控等工作。项目作者不对因使用本项目造成的任何数据损失、服务异常或安全问题承担责任。
+
+本仓库不提供作者个人 uniCloud 服务空间、短信服务、AI Key 等线上资源。如需运行，请自行创建 uniCloud 阿里云服务空间，并根据 `config.example.json` 配置自己的短信服务和 AI 服务密钥。项目中使用的第三方模块版权归原作者所有，相关许可协议以模块自身声明为准。
 
 ## 1. 项目概述
 
@@ -47,7 +57,7 @@
 | 数据模型 | `*.schema.json` | 集合结构与字段约束 |
 | 索引配置 | `*.index.json` | 13 条核心索引配置（同步后生效） |
 | 初始化脚本 | `*.jql` | 种子数据与维护脚本 |
-| 数据交付 | `云数据库json文件夹/*.json` | 完整导出数据文件 |
+| 数据交付 | `uniCloud-aliyun/database/*` + `demo-data/*.example.json` | 数据库结构、索引、初始化脚本与脱敏示例数据 |
 
 ### 2.4 工具与工程链路
 
@@ -92,10 +102,12 @@ salon-booking-app/
 ├── tests/                         # 自动化测试脚本
 ├── uniCloud-aliyun/               # 云端代码（云函数 + 数据库）
 ├── uni_modules/                   # uni 官方模块
-├── unpackage/                     # 构建产物
 ├── utils/                         # 通用工具
-├── 云数据库json文件夹/              # 数据库 JSON 导出
+├── demo-data/                     # 脱敏演示数据样例
 ├── 文本/                           # 文本资料
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── SECURITY.md
 ├── App.vue
 ├── main.js
 ├── pages.json
@@ -348,44 +360,35 @@ salon-booking-app/
 - `docs/数据库交付与索引核对清单.txt`
 - `docs/数据库复现教程.txt`
 
-### 9.2 交付数据目录
-- `云数据库json文件夹/users.json`
-- `云数据库json文件夹/stores.json`
-- `云数据库json文件夹/services.json`
-- `云数据库json文件夹/barber_schedules.json`
-- `云数据库json文件夹/time_slots.json`
-- `云数据库json文件夹/orders.json`
-- `云数据库json文件夹/order_items.json`
-- `云数据库json文件夹/order_events.json`
-- `云数据库json文件夹/reviews.json`
-- `云数据库json文件夹/aftersales.json`
-- `云数据库json文件夹/notifications.json`
-- `云数据库json文件夹/sms_codes.json`
-- `云数据库json文件夹/auth_tokens.json`
-- `云数据库json文件夹/audit_logs.json`
+### 9.2 演示数据目录
+- `demo-data/demo-users.example.json`
+- `demo-data/demo-stores.example.json`
+- `demo-data/demo-orders.example.json`
+
+公开仓库不包含真实数据库导出文件，不包含登录 token、短信验证码、真实手机号、真实订单、售后描述或审计日志。数据库结构、索引和初始化脚本请以 `uniCloud-aliyun/database/` 为准。
 
 ### 9.3 其他目录说明
 - `文本/项目完整功能与设计复刻说明.txt`：业务说明文档
 - `uni_modules/`：uni 官方模块（`uni-config-center`、`uni-id-common`）
-- `unpackage/release/`：打包输出（例如 APK）
-- `unpackage/res/icons/`：App 图标资源
+- `unpackage/`：本地构建产物目录，已加入 `.gitignore`，不随源码仓库发布；如需分发 APK，建议放到 Release 附件。
 
 ## 10. 配置说明
 
 ### 10.1 AI 配置
 - 模板：`uniCloud-aliyun/cloudfunctions/ai-service-advisor/config.example.json`
-- 实际：`uniCloud-aliyun/cloudfunctions/ai-service-advisor/config.json`
+- 本地实际配置：`uniCloud-aliyun/cloudfunctions/ai-service-advisor/config.json`（已加入 `.gitignore`，请勿提交）
 
 ### 10.2 短信配置
 - 模板：`uniCloud-aliyun/cloudfunctions/sms-send-code/config.example.json`
-- 实际：`uniCloud-aliyun/cloudfunctions/sms-send-code/config.json`
+- 本地实际配置：`uniCloud-aliyun/cloudfunctions/sms-send-code/config.json`（已加入 `.gitignore`，请勿提交）
 
 ## 11. 部署与运行
 
 ### 11.1 环境准备
 - HBuilderX
-- uniCloud 阿里云服务空间
+- 自行创建的 uniCloud 阿里云服务空间
 - Node.js（用于测试脚本）
+- 自行申请的短信服务与 AI 服务密钥（可参考各 `config.example.json`）
 
 ### 11.2 云端部署顺序
 1. 打开项目并绑定 uniCloud 空间
@@ -400,8 +403,8 @@ salon-booking-app/
 
 ### 11.4 App 打包
 - 通过 HBuilderX 云打包或本地打包
-- 打包结果输出在 `unpackage/release/`
-- apk安装包在`unpackage/release/apk`
+- 打包结果通常输出在本地 `unpackage/release/`
+- `unpackage/` 不进入源码仓库，APK 等二进制产物建议通过 Release 分发
 
 ## 12. 测试命令
 
@@ -411,6 +414,7 @@ node tests/run-all-tests.js
 
 ## 13. 交付说明
 
-- 本仓库按“完整交付”策略保留源代码、文档、数据库导出与构建产物目录。
+- 本仓库按“开源展示”策略保留源代码、文档、数据库 schema/index、初始化脚本与脱敏示例数据。
+- 真实配置文件、真实数据库导出、验证码、登录 token、构建产物和 APK 不随源码仓库发布。
 - `seed-data` 为初始化数据函数，通常在部署或演示前执行，不属于日常高频业务入口。
 - 线上环境建议限制初始化类函数调用权限，并通过管理员身份执行关键运维操作。
