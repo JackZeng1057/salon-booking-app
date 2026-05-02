@@ -4,7 +4,7 @@
     "username": "test_user_001",
     "passwordHint": "Use your own password hash in real deployments",
     "role": "user",
-    "name": "演示用户",
+    "name": "样例用户",
     "phone": "PHONE_PLACEHOLDER",
     "createdAt": 1770000000000
   },
@@ -12,7 +12,7 @@
     "_id": "demo_admin_001",
     "username": "demo_admin_001",
     "role": "admin",
-    "name": "演示管理员",
+    "name": "样例管理员",
     "storeId": "demo_store_001",
     "createdAt": 1770000000000
   },
@@ -20,7 +20,7 @@
     "_id": "demo_barber_001",
     "username": "demo_barber_001",
     "role": "barber",
-    "name": "演示理发师",
+    "name": "样例理发师",
     "storeId": "demo_store_001",
     "createdAt": 1770000000000
   }

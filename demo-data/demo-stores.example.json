@@ -1,8 +1,8 @@
 [
   {
     "_id": "demo_store_001",
-    "name": "演示门店",
-    "address": "演示城市演示区 100 号",
+    "name": "样例门店",
+    "address": "样例城市样例区 100 号",
     "phone": "STORE_PHONE_PLACEHOLDER",
     "cover": "https://dummyimage.com/600x400/efefef/333&text=Demo+Store",
     "description": "用于本地复现的脱敏门店数据",

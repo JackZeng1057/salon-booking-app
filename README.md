@@ -2,7 +2,7 @@
 
 基于 `uni-app + uniCloud` 的多角色理发预约系统，覆盖用户端、理发师端、管理员端三条业务主线，支持预约下单、到店核验、服务流转、评价售后、通知触达与运营管理。
 
-本 README 按当前仓库真实代码目录编写，用于毕业设计展示、开发复现与后续维护。
+本 README 按当前仓库真实代码目录编写，用于本科毕业设计项目说明、开发复现与后续维护。
 
 ## 开源说明
 
@@ -12,7 +12,7 @@
 
 Copyright (C) 2026 Jack Zeng.
 
-本项目主要用于毕业设计、学习研究与功能演示，代码、数据结构及业务流程仅供参考。如需用于真实生产环境，请自行完成安全加固、权限隔离、日志审计、隐私合规、接口限流、数据备份、异常监控等工作。项目作者不对因使用本项目造成的任何数据损失、服务异常或安全问题承担责任。
+本项目为本科毕业设计项目，代码、数据结构及业务流程仅供学习研究与毕业设计参考。如需用于真实生产环境，请自行完成安全加固、权限隔离、日志审计、隐私合规、接口限流、数据备份、异常监控等工作。项目作者不对因使用本项目造成的任何数据损失、服务异常或安全问题承担责任。
 
 本仓库不提供作者个人 uniCloud 服务空间、短信服务、AI Key 等线上资源。如需运行，请自行创建 uniCloud 阿里云服务空间，并根据 `config.example.json` 配置自己的短信服务和 AI 服务密钥。项目中使用的第三方模块版权归原作者所有，相关许可协议以模块自身声明为准。
 
@@ -107,7 +107,7 @@ salon-booking-app/
 ├── uniCloud-aliyun/               # 云端代码（云函数 + 数据库）
 ├── uni_modules/                   # uni 官方模块
 ├── utils/                         # 通用工具
-├── demo-data/                     # 脱敏演示数据样例
+├── demo-data/                     # 脱敏样例数据
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── SECURITY.md
@@ -300,7 +300,7 @@ salon-booking-app/
 
 扩展与初始化：
 - `ai-service-advisor`：AI 服务顾问；根据 `text/imageFileIds/storeId` 推荐真实服务，结果按用户诉求做意图过滤并按价格升序输出。
-- `seed-data`：初始化演示数据；批量写入示例用户、门店、服务、排班等测试数据。
+- `seed-data`：初始化脱敏样例数据；批量写入示例用户、门店、服务、排班等测试数据。
 
 ### 7.2 数据库目录 `uniCloud-aliyun/database/`
 
@@ -364,7 +364,7 @@ salon-booking-app/
 - `docs/数据库交付与索引核对清单.txt`
 - `docs/数据库复现教程.txt`
 
-### 9.2 演示数据目录
+### 9.2 脱敏样例数据目录
 - `demo-data/demo-users.example.json`
 - `demo-data/demo-stores.example.json`
 - `demo-data/demo-orders.example.json`
@@ -406,7 +406,7 @@ cd salon-booking-app
 3. 同步 `uniCloud-aliyun/database/*.index.json`（创建/更新索引）
 4. 上传 `uniCloud-aliyun/cloudfunctions/common/sb-common`
 5. 上传全部业务云函数
-6. 按需执行 `seed-data` 或 `uniCloud-aliyun/database/seed-*.jql` 初始化演示数据
+6. 按需执行 `seed-data` 或 `uniCloud-aliyun/database/seed-*.jql` 初始化脱敏样例数据
 7. 如需短信和 AI 顾问能力，复制对应 `config.example.json` 为本地 `config.json` 并填入自己的服务密钥
 
 ### 11.3 本地运行
@@ -427,8 +427,8 @@ node tests/run-all-tests.js
 
 ## 13. 交付说明
 
-- 本仓库按“开源展示”策略保留源代码、文档、数据库 schema/index、初始化脚本与脱敏示例数据。
+- 本仓库按“本科毕业设计项目开源”策略保留源代码、文档、数据库 schema/index、初始化脚本与脱敏样例数据。
 - 真实配置文件、真实数据库导出、验证码、登录 token、构建产物和 APK 不随源码仓库发布。
 - 除上述敏感/构建产物外，公开仓库保留运行、测试和打包所需的前端页面、组件、云函数、数据库结构、索引、种子脚本、官方 `uni_modules` 与 App 图标资源。
-- `seed-data` 为初始化数据函数，通常在部署或演示前执行，不属于日常高频业务入口。
+- `seed-data` 为初始化数据函数，通常在部署或毕业设计验收前执行，不属于日常高频业务入口。
 - 线上环境建议限制初始化类函数调用权限，并通过管理员身份执行关键运维操作。
