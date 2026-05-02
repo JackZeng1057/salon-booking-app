@@ -216,6 +216,7 @@ salon-booking-app/
 ### 6.5 静态资源目录 `static/`
 - `static/logo.png`：应用 logo
 - `static/tabbar/*.png`：tabBar 四个菜单默认/激活图标
+- `static/app-icons/*.png`：App 打包图标资源
 
 ## 7. 云端目录详细说明
 
@@ -370,6 +371,7 @@ salon-booking-app/
 ### 9.3 其他目录说明
 - `文本/项目完整功能与设计复刻说明.txt`：业务说明文档
 - `uni_modules/`：uni 官方模块（`uni-config-center`、`uni-id-common`）
+- `static/app-icons/`：App 打包图标资源，供 `manifest.json` 引用。
 - `unpackage/`：本地构建产物目录，已加入 `.gitignore`，不随源码仓库发布；如需分发 APK，建议放到 Release 附件。
 
 ## 10. 配置说明
