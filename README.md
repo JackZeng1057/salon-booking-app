@@ -429,11 +429,23 @@ cd salon-booking-app
 - 首次运行前需确认已绑定自己的 uniCloud 服务空间，否则前端 `callCloud` 无法访问云函数。
 - `manifest.json` 中的 `appid` 使用公开占位符；如需 App 云打包或发布，请在 HBuilderX 中替换为自己的 DCloud AppID。
 
-### 11.4 App 打包
-- 通过 HBuilderX 云打包或本地打包
-- 打包结果通常输出在本地 `unpackage/release/`
-- `manifest.json` 的 App 图标引用 `static/app-icons/`，全新 clone 后可直接识别图标资源。
-- `unpackage/` 不进入源码仓库，APK 等二进制产物建议通过 Release 分发。
+### 11.4 Android APK 打包
+
+本仓库不提供作者个人线上服务 APK。原因是 App 安装包中会包含前端运行包、DCloud AppID、uniCloud 服务空间标识等运行配置；如果直接发布连接作者服务空间的 APK，可能造成云函数、云数据库、短信或 AI 服务被误用。
+
+如需自行打包 Android APK，请按以下步骤操作：
+
+1. 在 DCloud 开发者中心创建自己的应用，获取新的 DCloud AppID。
+2. 在 HBuilderX 中打开项目根目录，进入 `manifest.json`，将公开占位符 `__UNI__PLACEHOLDER` 替换为自己的 DCloud AppID。
+3. 在 HBuilderX 中关联自己创建的 uniCloud 阿里云服务空间。
+4. 按 11.2 完成数据库 Schema、索引、公共模块、云函数和脱敏样例数据部署。
+5. 如需短信或 AI 顾问能力，将对应 `config.example.json` 复制为本地 `config.json`，并只填写自己的测试密钥；不需要这些能力时，可保留示例配置或关闭相关入口。
+6. 确认 `manifest.json` 的 App 图标引用 `static/app-icons/`，全新 clone 后可直接识别图标资源。
+7. 在 HBuilderX 选择“发行 → 原生 App-云打包”或本地打包，按需填写包名、版本号、证书等信息。
+8. 打包结果通常输出在本地 `unpackage/release/`，该目录已加入 `.gitignore`，不要提交到源码仓库。
+9. 发布 APK 前，建议解压 APK 并搜索 `apiKey`、`secret`、`accessKey`、`token`、`password`、`spaceId`、`clientSecret`、真实手机号等关键词，确认不包含个人密钥和真实数据。
+
+如需要分发自行构建的安装包，建议上传到 GitHub/Gitee Release 附件，不要放入源码目录。
 
 ## 12. 测试命令
 
@@ -444,7 +456,7 @@ node tests/run-all-tests.js
 ## 13. 交付说明
 
 - 本仓库按“本科毕业设计项目开源”策略保留源代码、文档、数据库 schema/index、初始化脚本与脱敏样例数据。
-- 真实配置文件、真实数据库导出、验证码、登录 token、构建产物和 APK 不随源码仓库发布。
+- 真实配置文件、真实数据库导出、验证码、登录 token、构建产物和作者个人线上服务 APK 不随源码仓库发布。
 - 除上述敏感/构建产物外，公开仓库保留运行、测试和打包所需的前端页面、组件、云函数、数据库结构、索引、种子脚本、官方 `uni_modules` 与 App 图标资源。
 - `seed-data` 为初始化数据函数，通常在部署或毕业设计验收前执行，不属于日常高频业务入口。
 - 线上环境建议限制初始化类函数调用权限，并通过管理员身份执行关键运维操作。
